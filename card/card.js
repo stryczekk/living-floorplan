@@ -2,7 +2,7 @@
 // editor's model (house.json) and shows it live - lights that light the rooms
 // and spill through doorways, covers, readings, presence, contacts, alarms.
 //
-//   type: custom:house-floorplan-card
+//   type: custom:living-floorplan-card
 //   model: /local/house.json     # the editor's model (required)
 //   light: realistic             # or: glow (round glows clipped to the room)
 //   rotate: auto                 # or: 0 / 90 - turn a wide plan on a tall screen
@@ -29,7 +29,9 @@ import { sunPosition, sunPatches, sunLayer } from "./sun.js";
 import { trailLayer } from "./trail.js";
 import { hasProxy, proxyHistory } from "./influx.js";
 
-export const CARD_NAME = "house-floorplan-card";
+export const CARD_NAME = "living-floorplan-card";
+// the card's name until 28.10.2026: dashboards made with it keep working
+export const OLD_CARD_NAME = "house-floorplan-card";
 export const VERSION = "0.1.0";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
@@ -40,7 +42,7 @@ export function versionLabel(url = LOADED_FROM) {
 
 export const STRINGS = {
   en: {
-    card_name: "House Floor Plan",
+    card_name: "Living Floor Plan",
     card_description: "Your house from the floor plan editor, live: light that fills the rooms, covers, readings, presence.",
     model_required: "Set 'model' to the house.json from the floor plan editor, e.g. /local/house.json.",
     loading: "Loading the plan…",
@@ -134,7 +136,7 @@ export const STRINGS = {
     edit_plan: "Edit the plan",
   },
   pl: {
-    card_name: "House Floor Plan",
+    card_name: "Living Floor Plan",
     card_description: "Twój dom z edytora rzutu, na żywo: światło wypełniające pokoje, rolety, odczyty, obecność.",
     model_required: "Ustaw 'model' na house.json z edytora rzutu, np. /local/house.json.",
     loading: "Wczytuję rzut…",
@@ -368,9 +370,10 @@ export function kwhFactor(s) {
 export const LAYERS = ["idle_lights", "sensors", "devices", "cameras", "furniture"];
 
 // Where HACS puts the editor that comes with the card.
-export const DEFAULT_EDITOR_URL = "/hacsfiles/house-floorplan-card/house-floorplan-editor.html";
+// the editor of the integration (its panel in the sidebar)
+export const DEFAULT_EDITOR_URL = "/living-floorplan";
 
-export class HouseFloorplanCard extends HTMLElement {
+export class LivingFloorplanCard extends HTMLElement {
   setConfig(config) {
     const lang = navigator.language;
     if (!config) throw new Error(translate(lang, "model_required"));
@@ -1081,7 +1084,7 @@ export class HouseFloorplanCard extends HTMLElement {
   // ---- per-viewer settings (⚙) ---------------------------------------------------
 
   _prefKey() {
-    return "house-floorplan-card:" + (typeof this._config.model === "string" ? this._config.model : "inline");
+    return "living-floorplan-card:" + (typeof this._config.model === "string" ? this._config.model : "inline");
   }
 
   _loadPrefs() {
@@ -2486,7 +2489,7 @@ export class HouseFloorplanCard extends HTMLElement {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 20000);
     } catch (e) {
-      console.warn("HOUSE-FLOORPLAN-CARD: recording failed", e);
+      console.warn("LIVING-FLOORPLAN-CARD: recording failed", e);
     } finally {
       this._recording = false;
       btn.textContent = "🎬";
@@ -2544,7 +2547,7 @@ export class HouseFloorplanCard extends HTMLElement {
     let raw = {}, hist = null;
     if (days > 10 && proxy) {
       try { hist = await proxyHistory(this._hass, this._allEntities(), start, end); } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
       }
     }
     if (!hist) try {
@@ -2558,7 +2561,7 @@ export class HouseFloorplanCard extends HTMLElement {
         significant_changes_only: false,
       });
     } catch (e) {
-      console.warn("HOUSE-FLOORPLAN-CARD: history failed", e);
+      console.warn("LIVING-FLOORPLAN-CARD: history failed", e);
     }
     if (req !== this._travelReq) return; // left, or another range asked meanwhile
     this._travel = { start, end, days, hist: hist || normalizeHistory(raw) };
@@ -2816,7 +2819,7 @@ export class HouseFloorplanCard extends HTMLElement {
       const r = await this._hass.callWS({ type: "recorder/statistics_during_period", start_time: new Date(start).toISOString(),
         end_time: new Date(end).toISOString(), statistic_ids: ids, period: end - start > 120 * 864e5 ? "month" : "day", types: [type] });
       for (const [id, rows] of Object.entries(r || {})) { const v = statsValue(rows, type); if (v !== null) out[id] = v; }
-    } catch (e) { console.warn("HOUSE-FLOORPLAN-CARD: statistics failed", e); }
+    } catch (e) { console.warn("LIVING-FLOORPLAN-CARD: statistics failed", e); }
     const miss = ids.filter((id) => out[id] === undefined);
     if (type === "mean" && miss.length && (await this._proxy())) {
       try {
@@ -2825,7 +2828,7 @@ export class HouseFloorplanCard extends HTMLElement {
           const v = rows.map((x) => Number(x.state)).filter(Number.isFinite);
           if (v.length) out[id] = v.reduce((a, b) => a + b, 0) / v.length;
         }
-      } catch (e) { console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e); }
+      } catch (e) { console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e); }
     }
     return out;
   }
@@ -2879,7 +2882,7 @@ export class HouseFloorplanCard extends HTMLElement {
     let rows = null; // [{ t, state, attributes }] per entity
     // InfluxDB Proxy beyond the recorder's days, and for the energy always - it keeps the brightness, the recorder may not
     if ((Date.now() - start > RECORDER_DAYS * 864e5 || energy) && (await this._proxy())) {
-      try { rows = await proxyHistory(this._hass, ids, start, end); } catch (e) { console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e); }
+      try { rows = await proxyHistory(this._hass, ids, start, end); } catch (e) { console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e); }
     }
     if (!rows) {
       try {
@@ -2893,7 +2896,7 @@ export class HouseFloorplanCard extends HTMLElement {
           significant_changes_only: false,
         }));
       } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: history failed", e);
       }
     }
     rows = rows || {};
@@ -3110,7 +3113,8 @@ export class HouseFloorplanCard extends HTMLElement {
 // does not see it ("Configuration error"). On HA's page: wait for the app, then define (27.10).
 function registerCard() {
   if (customElements.get(CARD_NAME)) return;
-  customElements.define(CARD_NAME, HouseFloorplanCard);
+  customElements.define(CARD_NAME, LivingFloorplanCard);
+  if (!customElements.get(OLD_CARD_NAME)) customElements.define(OLD_CARD_NAME, class extends LivingFloorplanCard {});
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: CARD_NAME,
@@ -3118,7 +3122,7 @@ function registerCard() {
     description: translate(navigator.language, "card_description"),
     preview: false,
   });
-  console.info("%c HOUSE-FLOORPLAN-CARD %c " + VERSION + " ", "background:#ffc300;color:#131a24", "");
+  console.info("%c LIVING-FLOORPLAN-CARD %c " + VERSION + " ", "background:#ffc300;color:#131a24", "");
 }
 if (typeof document !== "undefined" && document.querySelector("home-assistant") && !customElements.get("home-assistant")) {
   const wait = setInterval(() => { if (customElements.get("home-assistant")) { clearInterval(wait); registerCard(); } }, 50);

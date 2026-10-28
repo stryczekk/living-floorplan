@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>house-floorplan-card browser test</title>
+<title>living-floorplan-card browser test</title>
 <style>
   body { background: #131a24; margin: 0; padding: 12px; font-family: sans-serif;
          --primary-text-color: #c3cfdf; --secondary-text-color: #7c8ca3;
@@ -24,7 +24,7 @@
 // Shots and checks of the card on the example house, with made-up states for
 // every entity in the model. Nothing is switched: service calls are recorded.
 //   ?shot=night|day|glow|upstairs|phone   one card for a screenshot, no checks
-import "../../dist/house-floorplan-card.js";
+import "../../dist/living-floorplan-card.js";
 
 const P = new URLSearchParams(location.search);
 const shot = P.get("shot");
@@ -129,9 +129,9 @@ function fakeHass(mode, lang = "en") {
 }
 
 async function mount(config, hass, width) {
-  const el = document.createElement("house-floorplan-card");
+  const el = document.createElement("living-floorplan-card");
   if (width) el.style.width = width + "px";
-  el.setConfig({ type: "custom:house-floorplan-card", model: MODEL, ...config });
+  el.setConfig({ type: "custom:living-floorplan-card", model: MODEL, ...config });
   document.getElementById("stage").appendChild(el);
   el.hass = hass;
   for (let i = 0; i < 100 && !el.shadowRoot.querySelector("svg"); i++) await tick();
@@ -144,9 +144,9 @@ if (shot) {
   const mode = shot === "day" ? "day" : "night";
   const maps = { temperature: "temperature", lighthours: "light_hours" };
   if (shot === "onboarding") {
-    const e = document.createElement("house-floorplan-card");
+    const e = document.createElement("living-floorplan-card");
     e.style.width = "600px";
-    e.setConfig({ type: "custom:house-floorplan-card" });
+    e.setConfig({ type: "custom:living-floorplan-card" });
     document.getElementById("stage").appendChild(e);
     e.hass = fakeHass("night", P.get("lang") || "en");
     await tick(300);
@@ -463,7 +463,7 @@ if (shot) {
   sk.getElementById("wrap").dispatchEvent(new PointerEvent("pointerdown", { clientX: 5, clientY: 5, pointerId: 9, bubbles: true }));
   check("tablet: a touch wakes it", sk.getElementById("dim").style.opacity === "0", sk.getElementById("dim").style.opacity);
   // the visual editor's form, room names
-  const form = customElements.get("house-floorplan-card").getConfigForm();
+  const form = customElements.get("living-floorplan-card").getConfigForm();
   check("visual editor: a form with the model field first", form.schema[0].name === "model" && form.schema.length >= 8 && typeof form.computeLabel === "function");
   const en = await mount({ show_room_names: true }, fakeHass("night"), 700);
   const lab = en.shadowRoot.querySelector("#room-labels");
@@ -493,7 +493,7 @@ if (shot) {
     check("review: leaving time travel during loading stays live", !es._travel && es.shadowRoot.getElementById("timeline").hidden, String(!!es._travel));
     // a new config while traveling starts clean
     es.shadowRoot.getElementById("tt-btn").click(); await tick(500);
-    es.setConfig({ type: "custom:house-floorplan-card", model: MODEL }); es.hass = hs; await tick(300);
+    es.setConfig({ type: "custom:living-floorplan-card", model: MODEL }); es.hass = hs; await tick(300);
     check("review: a new config ends time travel", !es._travel && !es._playTimer, String(!!es._travel));
     // a double tap on a lamp toggles it once
     const ed = await mount({}, fakeHass("night"), 700);
@@ -638,12 +638,14 @@ if (shot) {
   // no model yet / a wrong path: the way to the editor
   const eo = await mount({ model: null }, fakeHass("night"), 600);
   const ob = eo.shadowRoot.querySelector("#info .onb-btn");
-  check("onboarding: no model -> a button to the editor that came with the card", ob && /hacsfiles\/house-floorplan-card\/house-floorplan-editor\.html$/.test(ob.getAttribute("href")), ob && ob.getAttribute("href"));
-  const e404 = document.createElement("house-floorplan-card");
-  e404.setConfig({ type: "custom:house-floorplan-card", model: "/nope/house.json" });
+  check("onboarding: no model -> a button to the editor that came with the card", ob && /^\/living-floorplan$/.test(ob.getAttribute("href")), ob && ob.getAttribute("href"));
+  check("old name: custom:house-floorplan-card still works", !!customElements.get("house-floorplan-card")
+    && new (customElements.get("house-floorplan-card"))() instanceof customElements.get("living-floorplan-card"));
+  const e404 = document.createElement("living-floorplan-card");
+  e404.setConfig({ type: "custom:living-floorplan-card", model: "/nope/house.json" });
   document.getElementById("stage").appendChild(e404); e404.hass = fakeHass("night"); await tick(400);
   check("onboarding: a wrong path says so, with the editor button", /nope/.test(e404.shadowRoot.querySelector(".onb-err")?.textContent || "") && !!e404.shadowRoot.querySelector(".onb-btn"));
-  check("stub config: a new card starts without a model", !customElements.get("house-floorplan-card").getStubConfig().model);
+  check("stub config: a new card starts without a model", !customElements.get("living-floorplan-card").getStubConfig().model);
 
   // layers: hide lamps that are off (still tappable), furniture, cameras
   try { localStorage.clear(); } catch (e) {}
@@ -861,9 +863,9 @@ if (shot) {
     hi.callWS = async (m) => (m.type === "living_floorplan/plan" ? { model: plan, version: { id: "v1" }, versions: [{ id: "v1" }] } : base(m));
     hi.connection = { subscribeEvents: async (cb, ev) => { if (ev === "living_floorplan_saved") onSaved = cb; return () => { onSaved = null; }; } };
     hi.user = { is_admin: true, name: "Admin" };
-    const ei = document.createElement("house-floorplan-card");
+    const ei = document.createElement("living-floorplan-card");
     ei.style.width = "900px";
-    ei.setConfig({ type: "custom:house-floorplan-card" });
+    ei.setConfig({ type: "custom:living-floorplan-card" });
     document.getElementById("stage").appendChild(ei);
     ei.hass = hi;
     for (let i = 0; i < 100 && !ei.shadowRoot.querySelector("svg"); i++) await tick();
@@ -884,8 +886,8 @@ if (shot) {
     // set up, nothing drawn yet: the way in is the panel
     const he = fakeHass("night");
     he.callWS = async (m) => (m.type === "living_floorplan/plan" ? { model: null, version: null, versions: [] } : base(m));
-    const ee = document.createElement("house-floorplan-card");
-    ee.setConfig({ type: "custom:house-floorplan-card" });
+    const ee = document.createElement("living-floorplan-card");
+    ee.setConfig({ type: "custom:living-floorplan-card" });
     document.getElementById("stage").appendChild(ee);
     ee.hass = he; await tick(200);
     const ob = ee.shadowRoot.querySelector(".onb-btn");
@@ -971,7 +973,7 @@ if (shot) {
     const ha3 = fakeHass("night");
     ha3.states["binary_sensor.hall_smoke"] = { entity_id: "binary_sensor.hall_smoke", state: "on", attributes: {}, last_updated: "x" };
     const eb2 = await mount({}, ha3, 700);
-    eb2.setConfig({ type: "custom:house-floorplan-card", model: MODEL, show_room_names: true }); eb2.hass = ha3; await tick(300);
+    eb2.setConfig({ type: "custom:living-floorplan-card", model: MODEL, show_room_names: true }); eb2.hass = ha3; await tick(300);
     check("review: the alarm banner is back after a new config", eb2.shadowRoot.querySelectorAll("#alerts button").length >= 1);
   }
 
@@ -1016,8 +1018,8 @@ if (shot) {
     check("theme: ... and back to dark when HA switches", ea2.shadowRoot.querySelector("#rooms").getAttribute("fill") === "#1e2836");
     // the plan drawn after the first states: the card's colours must follow (bug seen live, 26.10)
     const hl = fakeHass("night"); hl.themes = { darkMode: false };
-    const el4 = document.createElement("house-floorplan-card");
-    el4.setConfig({ type: "custom:house-floorplan-card", model: MODEL });
+    const el4 = document.createElement("living-floorplan-card");
+    el4.setConfig({ type: "custom:living-floorplan-card", model: MODEL });
     document.getElementById("stage").appendChild(el4);
     el4.hass = hl;
     for (let i = 0; i < 100 && !el4.shadowRoot.querySelector("svg"); i++) await tick();

@@ -3175,7 +3175,8 @@ async function proxyHistory(hass, ids, start, end) {
 }
 
 // card/card.js
-var CARD_NAME = "house-floorplan-card";
+var CARD_NAME = "living-floorplan-card";
+var OLD_CARD_NAME = "house-floorplan-card";
 var VERSION = "0.1.0";
 var LOADED_FROM = (() => {
   try {
@@ -3190,7 +3191,7 @@ function versionLabel(url = LOADED_FROM) {
 }
 var STRINGS = {
   en: {
-    card_name: "House Floor Plan",
+    card_name: "Living Floor Plan",
     card_description: "Your house from the floor plan editor, live: light that fills the rooms, covers, readings, presence.",
     model_required: "Set 'model' to the house.json from the floor plan editor, e.g. /local/house.json.",
     loading: "Loading the plan\u2026",
@@ -3284,7 +3285,7 @@ var STRINGS = {
     edit_plan: "Edit the plan"
   },
   pl: {
-    card_name: "House Floor Plan",
+    card_name: "Living Floor Plan",
     card_description: "Tw\xF3j dom z edytora rzutu, na \u017Cywo: \u015Bwiat\u0142o wype\u0142niaj\u0105ce pokoje, rolety, odczyty, obecno\u015B\u0107.",
     model_required: "Ustaw 'model' na house.json z edytora rzutu, np. /local/house.json.",
     loading: "Wczytuj\u0119 rzut\u2026",
@@ -3555,8 +3556,8 @@ function kwhFactor(s) {
   return u === "Wh" ? 1e-3 : u === "MWh" ? 1e3 : 1;
 }
 var LAYERS = ["idle_lights", "sensors", "devices", "cameras", "furniture"];
-var DEFAULT_EDITOR_URL = "/hacsfiles/house-floorplan-card/house-floorplan-editor.html";
-var HouseFloorplanCard = class extends HTMLElement {
+var DEFAULT_EDITOR_URL = "/living-floorplan";
+var LivingFloorplanCard = class extends HTMLElement {
   setConfig(config) {
     const lang = navigator.language;
     if (!config) throw new Error(translate(lang, "model_required"));
@@ -4281,7 +4282,7 @@ var HouseFloorplanCard = class extends HTMLElement {
   }
   // ---- per-viewer settings (⚙) ---------------------------------------------------
   _prefKey() {
-    return "house-floorplan-card:" + (typeof this._config.model === "string" ? this._config.model : "inline");
+    return "living-floorplan-card:" + (typeof this._config.model === "string" ? this._config.model : "inline");
   }
   _loadPrefs() {
     try {
@@ -5778,7 +5779,7 @@ var HouseFloorplanCard = class extends HTMLElement {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2e4);
     } catch (e) {
-      console.warn("HOUSE-FLOORPLAN-CARD: recording failed", e);
+      console.warn("LIVING-FLOORPLAN-CARD: recording failed", e);
     } finally {
       this._recording = false;
       btn.textContent = "\u{1F3AC}";
@@ -5840,7 +5841,7 @@ var HouseFloorplanCard = class extends HTMLElement {
       try {
         hist = await proxyHistory(this._hass, this._allEntities(), start, end);
       } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
       }
     }
     if (!hist) try {
@@ -5854,7 +5855,7 @@ var HouseFloorplanCard = class extends HTMLElement {
         significant_changes_only: false
       });
     } catch (e) {
-      console.warn("HOUSE-FLOORPLAN-CARD: history failed", e);
+      console.warn("LIVING-FLOORPLAN-CARD: history failed", e);
     }
     if (req !== this._travelReq) return;
     this._travel = { start, end, days, hist: hist || normalizeHistory(raw) };
@@ -6129,7 +6130,7 @@ var HouseFloorplanCard = class extends HTMLElement {
         if (v !== null) out[id] = v;
       }
     } catch (e) {
-      console.warn("HOUSE-FLOORPLAN-CARD: statistics failed", e);
+      console.warn("LIVING-FLOORPLAN-CARD: statistics failed", e);
     }
     const miss = ids.filter((id) => out[id] === void 0);
     if (type === "mean" && miss.length && await this._proxy()) {
@@ -6140,7 +6141,7 @@ var HouseFloorplanCard = class extends HTMLElement {
           if (v.length) out[id] = v.reduce((a, b) => a + b, 0) / v.length;
         }
       } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
       }
     }
     return out;
@@ -6205,7 +6206,7 @@ var HouseFloorplanCard = class extends HTMLElement {
       try {
         rows = await proxyHistory(this._hass, ids, start, end);
       } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: InfluxDB Proxy history failed", e);
       }
     }
     if (!rows) {
@@ -6220,7 +6221,7 @@ var HouseFloorplanCard = class extends HTMLElement {
           significant_changes_only: false
         }));
       } catch (e) {
-        console.warn("HOUSE-FLOORPLAN-CARD: history failed", e);
+        console.warn("LIVING-FLOORPLAN-CARD: history failed", e);
       }
     }
     rows = rows || {};
@@ -6470,7 +6471,9 @@ var HouseFloorplanCard = class extends HTMLElement {
 };
 function registerCard() {
   if (customElements.get(CARD_NAME)) return;
-  customElements.define(CARD_NAME, HouseFloorplanCard);
+  customElements.define(CARD_NAME, LivingFloorplanCard);
+  if (!customElements.get(OLD_CARD_NAME)) customElements.define(OLD_CARD_NAME, class extends LivingFloorplanCard {
+  });
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: CARD_NAME,
@@ -6478,7 +6481,7 @@ function registerCard() {
     description: translate(navigator.language, "card_description"),
     preview: false
   });
-  console.info("%c HOUSE-FLOORPLAN-CARD %c " + VERSION + " ", "background:#ffc300;color:#131a24", "");
+  console.info("%c LIVING-FLOORPLAN-CARD %c " + VERSION + " ", "background:#ffc300;color:#131a24", "");
 }
 if (typeof document !== "undefined" && document.querySelector("home-assistant") && !customElements.get("home-assistant")) {
   const wait = setInterval(() => {
@@ -6495,8 +6498,9 @@ if (typeof document !== "undefined" && document.querySelector("home-assistant") 
 export {
   CARD_NAME,
   DEFAULT_EDITOR_URL,
-  HouseFloorplanCard,
   LAYERS,
+  LivingFloorplanCard,
+  OLD_CARD_NAME,
   STRINGS,
   VERSION,
   coreRect,

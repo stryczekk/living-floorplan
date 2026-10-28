@@ -1,4 +1,4 @@
-# House Floor Plan Card (working name)
+# Living Floor Plan
 
 [![hacs][hacs-badge]][hacs] [![Validate][validate-badge]][validate] [![Buy Me a Coffee][bmc-badge]][bmc]
 
@@ -58,7 +58,7 @@ Your house from the [floor plan editor](../floorplan-editor) (`house.json`), liv
    entities.
 4. **Save**: the plan is kept in Home Assistant, as versions (a note each; *Save as new version* keeps the old one, a
    version can be opened again). Nothing to copy.
-5. **Add the card** to a dashboard - no options needed: `type: custom:house-floorplan-card`. A save in the editor redraws
+5. **Add the card** to a dashboard - no options needed: `type: custom:living-floorplan-card`. A save in the editor redraws
    it right away; administrators get *✎ Edit the plan* in its ⚙ menu.
 
 Without the integration the card works from a file too: `model: /local/house.json` (the editor page then saves by
@@ -67,7 +67,7 @@ downloading `house.json`, to be put into `/config/www/`).
 ## Configuration
 
 ```yaml
-type: custom:house-floorplan-card
+type: custom:living-floorplan-card
 model: /local/house.json          # the editor's model, in /config/www
 ```
 
@@ -123,7 +123,7 @@ Lights with `watts` in the model reach a little further when brighter.
 ## Develop
 
     npm install
-    npm run build                  # dist/house-floorplan-card.js
+    npm run build                  # dist/living-floorplan-card.js
     npm test                       # geometry, maps, timeline, tablet mode
     tests/browser/run.sh --shots   # 109 checks in headless Chromium on the example house, docs/*.png
     tools/sync-generator.sh        # the generator and the editor from ../floorplan-editor
