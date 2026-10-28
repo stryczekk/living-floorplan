@@ -1,0 +1,7 @@
+node_modules
+dist/
+__pycache__/
+*.pyc
+tests/browser/local/
+# local/ holds a real house (local only) - never commit it; examples/ is the made-up one
+/local/

@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- Renders a plan SVG inline (as a card does) for tools/compare-render.sh.
+     ?svg=<path>&state=off|on ; "on" switches every state class on at once:
+     lights, appliances, TV, A/C, presence, covers half closed, labels, doors.
+     State class names come from names.js (+ names.json, or names-new.json for
+     new.svg, when present). -->
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000} *{animation:none!important;transition:none!important}
+svg{display:block;width:1234px;height:633px}</style></head>
+<body><div id="w"></div><script type="module">
+import { resolveNames } from "./names.js";
+const q = new URLSearchParams(location.search);
+const get = (f) => fetch(f).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+const over = (q.get("svg") === "new.svg" && (await get("names-new.json"))) || (await get("names.json"));
+const N = resolveNames(over);
+const t = await fetch(q.get("svg")).then((r) => r.text());
+document.getElementById("w").innerHTML = t;
+const s = document.querySelector("svg");
+const all = (sel, f) => s.querySelectorAll(sel).forEach(f);
+if (q.get("state") === "on") {
+  all(`.light, .${N.appliance}, .tv`, (e) => e.classList.add("on"));
+  all(`.${N.ac}`, (e) => e.classList.add(N.isCooling));
+  all(`.${N.presence}`, (e) => e.classList.add(N.isDetected));
+  all(".cover", (e) => e.classList.add(N.isCovered));
+  all(`.${N.coverBandScale}`, (e) => e.setAttribute("transform", "scale(1 0.6)"));
+  all(`.${N.lock}`, (e) => e.classList.add(N.isOpen));
+  s.querySelector("#room-labels").classList.add(N.isShown);
+  all(`.${N.noSymbol}`, (e) => e.classList.remove(N.noSymbol));
+  all(`.${N.deviceLabel}`, (e, i) => (e.textContent = "1:05"));
+  all(".climate-temp", (e) => (e.textContent = "21.4°"));
+  all(".climate-hum", (e) => (e.textContent = "48%"));
+}
+document.title = "ready";
+</script></body></html>

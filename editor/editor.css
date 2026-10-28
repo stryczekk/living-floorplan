@@ -1,0 +1,238 @@
+/* Floor plan editor - the colour palette of the generated plan. */
+:root {
+  --bg: #131a24; --panel: #1b2433; --line: #2a3547; --text: #c3cfdf; --muted: #7c8ca3;
+  --accent: #5fd6e8; --warn: #e57373; --sel: #ffab40;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+  font: 13px/1.4 system-ui, sans-serif; }
+body { display: grid; grid-template-rows: auto 1fr auto; }
+#bar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; padding: 6px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+.grp { display: flex; gap: 4px; align-items: center; }
+button, select, input { font: inherit; color: var(--text); background: #232e40;
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 9px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.on { background: #2c4a5a; border-color: var(--accent); color: #fff; }
+input[type=number] { width: 70px; }
+label { display: flex; gap: 5px; align-items: center; color: var(--muted); }
+main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-height: 0; }
+#tools, #panel { scrollbar-color: #2a3547 #1b2433; scrollbar-width: thin; }
+/* tools on the left: a click opens a tool and its options below it */
+#tools { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 8px; }
+.tool { border: 1px solid transparent; border-radius: 8px; margin-bottom: 4px; }
+.tool.on { border-color: var(--line); background: #1f2a3b; }
+.tool-h { width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left;
+  background: transparent; border-color: transparent; padding: 7px 10px; font-weight: 500; }
+.tool-h kbd { color: var(--muted); font: 11px system-ui, sans-serif; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.tool.on > .tool-h { color: #fff; border-color: transparent; background: #2c4a5a; }
+.tool-body { display: none; padding: 8px 8px 10px; }
+.tool.on > .tool-body { display: block; }
+.tool.on.folded > .tool-body { display: none; }
+#tools .row { display: grid; grid-template-columns: 74px 1fr; gap: 6px; align-items: center; margin: 5px 0; }
+#tools .row span { color: var(--muted); }
+#tools .row input, #tools .row select { width: 100%; }
+#tools .empty { color: var(--muted); margin-top: 8px; font-size: 12px; }
+#tools .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#tools .palette button { font-size: 12px; padding: 4px 6px; text-align: left; }
+#tools .pal-h { color: var(--muted); font-size: 11px; margin: 8px 0 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+#tools .tool-body > button { margin: 6px 6px 0 0; }
+#stage { position: relative; overflow: hidden; background: var(--bg); touch-action: none;
+  user-select: none; -webkit-user-select: none; } /* dragging must not select the labels' text */
+#stage > svg, #plan { position: absolute; inset: 0; width: 100%; height: 100%; }
+#plan svg { width: 100%; height: 100%; display: block; }
+#plan { pointer-events: none; }
+#plan #sheet { display: none; }
+/* the readings of a temperature / humidity sensor: "—" until live values come, coloured as on the card */
+#plan #room-climate text { fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+#plan #room-climate .climate-hum, #plan #room-climate .climate-name { fill: var(--muted); }
+#overlay { cursor: default; }
+#stage.tool-wall #overlay { cursor: crosshair; }
+#stage.panning #overlay { cursor: grabbing; }
+#len-box { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 12px; }
+#len-box b { color: #fff; font-size: 16px; min-width: 3ch; display: inline-block; text-align: right; }
+#len-box small { color: var(--muted); margin-left: 8px; }
+#panel { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 4px 12px 12px; }
+#panel h3 { font-size: 13px; margin: 14px 0 6px; color: #fff; }
+#panel h3 small { color: var(--muted); font-weight: normal; }
+#panel ul { padding-left: 16px; margin: 0; color: var(--muted); }
+#panel li { margin-bottom: 4px; }
+#panel .row { display: grid; grid-template-columns: 90px 1fr; gap: 6px; align-items: center; margin: 5px 0; }
+#panel .row span { color: var(--muted); }
+#panel .row input, #panel .row select { width: 100%; }
+#panel .empty { color: var(--muted); margin-top: 14px; }
+#panel .danger { color: var(--warn); border-color: #5a3434; margin-top: 8px; }
+/* fixed height: text appearing on the first mouse move must not resize the stage
+   (the plan jumped by half the line under the cursor) */
+#status { display: flex; gap: 18px; padding: 0 10px; height: 26px; align-items: center; white-space: nowrap; overflow: hidden; background: var(--panel);
+  border-top: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
+#st-msg { color: var(--accent); }
+/* overlay */
+.ov-wall-hit { fill: none; }
+.ov-sel { fill: none; stroke: var(--sel); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.ov-hover { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+.ov-node { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ov-node.sel { stroke: var(--sel); }
+/* a circuit's bulbs, one row each: number (select), direction, beam angle, out of the circuit, remove */
+.bulb-list { display: flex; flex-direction: column; gap: 4px; }
+.bulb-row { display: flex; align-items: center; gap: 4px; }
+.bulb-row.on > button[data-bsel] { border-color: var(--sel); color: var(--sel); }
+.bulb-row label { display: flex; align-items: center; gap: 2px; color: var(--muted); }
+.bulb-row input { width: 52px; }
+.bulb-row button { min-width: 26px; padding: 2px 6px; }
+.ov-snap { fill: none; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ov-preview { fill: rgba(95, 214, 232, 0.35); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ov-preview.walls { stroke: none; fill: rgba(95, 214, 232, 0.45); } /* no seams at the joints */
+.ov-preview.bad { fill: rgba(229, 115, 115, 0.35); stroke: var(--warn); }
+#panel > section > button { margin: 6px 6px 0 0; }
+.ov-room { fill: #fff; font-family: system-ui, sans-serif; font-weight: 600; text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.ov-room.area { fill: var(--muted); font-weight: normal; }
+.ov-room.sel { fill: var(--sel); }
+.ov-room-hover { fill: rgba(95, 214, 232, 0.12); stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.ov-room-sel { fill: rgba(255, 171, 64, 0.10); stroke: var(--sel); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ov-divider { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.ov-divider.sel { stroke: var(--sel); stroke-width: 2.5; }
+.ov-device { fill: rgba(124, 140, 163, 0.08); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.ov-device-name { fill: var(--muted); font-family: system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+#panel .room-row { cursor: pointer; }
+#panel .pal-h { color: var(--muted); font-size: 11px; margin: 8px 0 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+#panel .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+#panel .palette button { font-size: 12px; padding: 4px 6px; text-align: left; }
+#panel .room-row:hover span { color: var(--text); }
+.ov-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
+.ov-dim { fill: var(--text); font-family: system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.ov-dim.sel { fill: var(--sel); }
+.ov-dim.live { fill: #fff; }
+#grid line { vector-effect: non-scaling-stroke; }
+/* a phone: the plan first and big; the top bar in one scrolling row; the tools as a row of icons with the open
+   tool's options under it; the panel below, scrolling */
+@media (max-width: 760px) {
+  #bar { flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 4px 6px; scrollbar-width: none; }
+  #bar .grp { flex: none; }
+  main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(45vh, 1fr) auto auto; }
+  #stage { order: 1; }
+  #tools { order: 2; max-height: none; border: 0; border-top: 1px solid var(--line); padding: 4px 6px;
+    display: grid; grid-auto-flow: column; grid-template-rows: auto auto; justify-content: start; gap: 4px;
+    overflow-x: auto; overflow-y: hidden; }
+  .tool { display: contents; }
+  .tool-h { grid-row: 1; width: auto; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
+  .tool-h kbd { display: none; }
+  .tool-h .ico { margin-right: 4px; }
+  .tool.on > .tool-h { border-color: var(--accent); }
+  .tool-body { grid-row: 2; grid-column: 1 / span 12; position: sticky; left: 0; width: calc(100vw - 12px); min-width: 0;
+    max-height: 32vh; overflow-y: auto; border-top: 1px solid var(--line); }
+  #panel { order: 3; max-height: 30vh; border: 0; border-top: 1px solid var(--line); }
+  .versions { min-width: 0; }
+  dialog { max-width: calc(100vw - 24px); }
+  dialog label { grid-template-columns: 90px 1fr; }
+}
+
+/* underlay image (calibrated, editor only) */
+#underlay { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; max-width: none; }
+#stage.has-underlay #plan #rooms { opacity: 0.35; }
+#stage.tool-calibrate #overlay { cursor: crosshair; }
+/* Home Assistant */
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog label { display: grid; grid-template-columns: 110px 1fr; margin: 8px 0; }
+dialog .note { color: var(--muted); max-width: 440px; font-size: 12px; }
+input.bad { border-color: var(--warn); color: var(--warn); }
+#b-ha.on { border-color: #7ddba0; }
+
+/* live measurements while dragging */
+.ov-measure { stroke: #ffab40; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.ov-measure.end { stroke-dasharray: none; }
+.ov-chain { stroke: #7c8ca3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.ov-chain.ext { stroke-opacity: 0.5; }
+.ov-chain.sel { stroke: var(--sel); }
+.ov-dim.chain { fill: #9aa9bd; }
+
+/* tiles: an icon with a caption instead of drop-down lists */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 4px; margin: 4px 0 6px; }
+.tiles.small { grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); }
+.tile { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 3px 5px; min-height: 58px;
+  background: #1d2738; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; }
+.tile:hover { border-color: var(--muted); color: var(--text); }
+.tile.on { border-color: var(--accent); background: #233a48; color: #fff; }
+.tile .ico { width: 26px; height: 26px; flex: none; }
+.tiles.small .tile { min-height: 50px; }
+.tiles.small .tile .ico { width: 22px; height: 22px; }
+.tile span { font-size: 10.5px; line-height: 1.15; text-align: center; hyphens: auto; -webkit-hyphens: auto;
+  overflow-wrap: break-word; max-width: 100%; }
+.tool-h .ico { width: 18px; height: 18px; margin-right: 8px; flex: none; }
+.tool-h { justify-content: flex-start; }
+.tool-h kbd { margin-left: auto; }
+.sub-h { color: var(--muted); font-size: 11px; margin: 8px 0 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+/* foldable groups of the device palette */
+#tools .pal-h.fold { display: flex; width: 100%; align-items: center; gap: 6px; background: transparent; border: 0;
+  padding: 4px 0; cursor: pointer; font: inherit; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+#tools .pal-h.fold::before { content: "▸"; font-size: 10px; width: 10px; }
+#tools .pal-h.fold.open::before { content: "▾"; }
+#tools .pal-h.fold span { margin-left: auto; opacity: 0.7; }
+#tools .pal-h.fold:hover { color: var(--text, #c3cfdf); }
+.turn { display: flex; gap: 6px; }
+.turn button { flex: 1; }
+.ov-beam { fill: rgba(255, 195, 0, 0.08); stroke: #ffc300; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* saving with versions */
+.ver { color: var(--muted); font-size: 12px; align-self: center; white-space: nowrap; }
+.ver.dirty { color: var(--warn, #ffab40); }
+#save-dialog h4 { margin: 14px 0 6px; color: var(--muted); font-weight: 500; }
+.versions { max-height: 240px; overflow: auto; min-width: 440px; }
+.versions .vrow { display: grid; grid-template-columns: 44px 130px 1fr auto; gap: 8px; align-items: center; padding: 3px 0;
+  border-top: 1px solid var(--line); font-size: 12px; }
+.versions .vrow.cur b { color: var(--accent); }
+.versions .vrow span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.margins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.margins input { width: 100%; }
+#panel textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; font: 12px system-ui, sans-serif; padding: 5px; resize: vertical; }
+.ov-below { fill: rgba(142, 161, 186, 0.10); stroke: rgba(142, 161, 186, 0.35); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+#floor { max-width: 130px; }
+
+/* colour swatches (floors, furniture) */
+.swatches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.swatches .sw { width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid transparent; outline: 1px solid #44546f; cursor: pointer; }
+.swatches .sw.sel { border-color: #ffc300; }
+.swatches .sw.none { background: repeating-linear-gradient(45deg, #2c3a4d 0 4px, #1b2433 4px 8px); }
+.swatches input[type="color"] { width: 26px; height: 22px; padding: 0; border: 1px solid #44546f; border-radius: 6px; background: none; cursor: pointer; }
+
+/* drawing a piece of furniture */
+.sketch { border: 1px solid #2a3547; border-radius: 8px; padding: 6px; margin: 4px 0 8px; }
+.sketch label { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.ov-sketch { fill: rgba(36, 48, 64, 0.85); stroke: #8ea1ba; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.ov-sketch.detail { fill: rgba(44, 58, 77, 0.95); stroke: #44546f; }
+.ov-sketch.live { fill: rgba(255, 195, 0, 0.08); stroke: #ffc300; stroke-dasharray: 4 3; }
+polyline.ov-sketch.live { fill: none; }
+
+/* marker icons: emoji tiles */
+.tile.emo .ico { font-size: 18px; line-height: 24px; height: 24px; display: inline-block; }
+
+/* the house wizard */
+#wizard { width: min(460px, calc(100vw - 24px)); box-sizing: border-box; }
+#wizard h3 { margin: 0 0 6px; }
+#wizard .nums { display: grid; gap: 6px; margin: 10px 0; }
+#wizard .nums label { display: grid; grid-template-columns: 150px auto; align-items: center; gap: 8px; }
+#wizard .nums label > span:first-child { color: var(--muted); }
+#wizard input[type=number] { width: 80px; }
+#wizard .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 10px 0; }
+#wizard .checks label { display: flex; align-items: center; gap: 8px; }
+#wizard #wz-out { min-height: 2.6em; line-height: 1.4; }
+#wizard #wz-out .warn { color: var(--warn); }
+#wizard .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+@media (max-width: 480px) { #wizard .checks { grid-template-columns: 1fr; } #wizard .nums label { grid-template-columns: 1fr auto; } }
+
+/* a piece flush against a wall */
+.ov-flush { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+/* the editor build, at the right of the status bar */
+#st-build { margin-left: auto; color: var(--muted); font-size: 11px; }
+
+/* the piece in hand (Furniture tool) */
+.ov-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.8; vector-effect: non-scaling-stroke; pointer-events: none; }
+.ov-ghost { fill: rgba(95, 214, 232, 0.18); stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.ov-ghost * { vector-effect: non-scaling-stroke; }

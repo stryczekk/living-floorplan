@@ -1,0 +1,175 @@
+<!doctype html>
+<!-- Floor plan editor (walls, shapes, openings, rooms, devices). Plain HTML + ES modules, no build:
+     serve the repository root and open /editor/ - or tools/serve.mjs for saving with versions
+     on the server - (?model=<url> opens a model,
+     ?lang=en|pl picks the language). Texts: i18n.js. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor plan editor</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<header id="bar">
+  <div class="grp">
+    <button id="b-new" data-i18n="new" data-i18n-title="new_t"></button>
+    <button id="b-wizard" data-i18n="wizard" data-i18n-title="wizard_t"></button>
+    <button id="b-open" data-i18n="open" data-i18n-title="open_t"></button>
+    <button id="b-save" data-i18n="save" data-i18n-title="save_t"></button>
+    <button id="b-preview" data-i18n="preview" data-i18n-title="preview_t"></button>
+    <select id="s-export" data-i18n-title="export_t">
+      <option value="" data-i18n="export"></option><option value="png" data-i18n="ex_png"></option><option value="png-light" data-i18n="ex_png_light"></option>
+      <option value="pdf-a4" data-i18n="ex_pdf_a4"></option><option value="pdf-a3" data-i18n="ex_pdf_a3"></option>
+    </select>
+    <button id="b-publish" hidden data-i18n="publish" data-i18n-title="publish_t"></button>
+    <span id="ver" class="ver"></span>
+    <button id="b-example" data-i18n="example" data-i18n-title="example_t"></button>
+    <input id="f-open" type="file" accept=".json,application/json" hidden>
+  </div>
+  <div class="grp">
+    <select id="floor" data-i18n-title="floor_t"></select>
+    <button id="b-floor-add" data-i18n-title="floor_add_t">＋</button>
+    <button id="b-floor-edit" data-i18n-title="floor_edit_t">✎</button>
+  </div>
+  <div class="grp">
+    <button id="b-undo" data-i18n-title="undo_t">↶</button>
+    <button id="b-redo" data-i18n-title="redo_t">↷</button>
+  </div>
+  <div class="grp">
+    <label><span data-i18n="grid"></span> <select id="s-grid">
+      <option value="auto" selected data-i18n="grid_auto"></option><option value="1">1 cm</option><option value="5">5 cm</option>
+      <option value="10">10 cm</option><option value="50">50 cm</option>
+    </select></label>
+    <label data-i18n-title="dims_t"><input id="c-dims" type="checkbox" checked> <span data-i18n="dims"></span></label>
+    <button id="b-fit" data-i18n="fit" data-i18n-title="fit_t"></button>
+  </div>
+  <div class="grp">
+    <input id="f-under" type="file" accept="image/*,application/pdf,.pdf" hidden>
+    <button id="b-ha" data-i18n-title="ha_t">Home Assistant</button>
+    <label data-i18n-title="live_t"><input id="c-live" type="checkbox" disabled> <span data-i18n="live"></span></label>
+  </div>
+</header>
+<main>
+  <!-- tools: a click opens the tool and its options below it -->
+  <nav id="tools">
+    <section class="tool" data-section="select">
+      <button class="tool-h" data-tool="select" data-i18n-title="select_t"><span data-i18n="select"></span><kbd>V</kbd></button>
+      <div class="tool-body"><div class="empty" data-i18n="select_hint"></div></div>
+    </section>
+    <section class="tool" data-section="wall">
+      <button class="tool-h" data-tool="wall" data-i18n-title="wall_t"><span data-i18n="wall"></span><kbd>W</kbd></button>
+      <div class="tool-body">
+        <div id="wall-types"></div>
+        <div class="row"><span data-i18n="thickness"></span><label><input id="i-thick" type="number" min="1" max="200" step="1"> cm</label></div>
+        <div class="empty" data-i18n="wall_hint"></div>
+      </div>
+    </section>
+    <section class="tool" data-section="shape">
+      <button class="tool-h" data-tool="shape" data-i18n-title="shapes_t"><span data-i18n="shapes"></span><kbd>S</kbd></button>
+      <div class="tool-body" id="tb-shape"></div>
+    </section>
+    <section class="tool" data-section="opening" data-optab="windows">
+      <button class="tool-h" data-tool="opening" data-optab="windows" data-i18n-title="windows_t"><span data-i18n="op_windows"></span><kbd>O</kbd></button>
+      <div class="tool-body" id="tb-opening-windows"></div>
+    </section>
+    <section class="tool" data-section="opening" data-optab="doors">
+      <button class="tool-h" data-tool="opening" data-optab="doors" data-i18n-title="doors_t"><span data-i18n="op_doors"></span><kbd>B</kbd></button>
+      <div class="tool-body" id="tb-opening-doors"></div>
+    </section>
+    <section class="tool" data-section="rooms">
+      <button class="tool-h" data-tool="rooms" data-i18n-title="rooms_t"><span data-i18n="rooms_h"></span><kbd>P</kbd></button>
+      <div class="tool-body"><div class="empty" data-i18n="rooms_hint"></div></div>
+    </section>
+    <section class="tool" data-section="divide">
+      <button class="tool-h" data-tool="divide" data-i18n-title="divide_t"><span data-i18n="divide_h"></span><kbd>L</kbd></button>
+      <div class="tool-body" id="tb-divide"></div>
+    </section>
+    <section class="tool" data-section="devices">
+      <button class="tool-h" data-tool="devices" data-i18n-title="devices_t"><span data-i18n="devices_h"></span><kbd>D</kbd></button>
+      <div class="tool-body" id="tb-devices"></div>
+    </section>
+    <section class="tool" data-section="furniture">
+      <button class="tool-h" data-tool="furniture" data-i18n-title="furniture_t"><span data-i18n="furniture_h"></span><kbd>F</kbd></button>
+      <div class="tool-body" id="tb-furniture"></div>
+    </section>
+    <section class="tool" data-section="garden">
+      <button class="tool-h" data-tool="garden" data-i18n-title="garden_t"><span data-i18n="garden_h"></span><kbd>G</kbd></button>
+      <div class="tool-body" id="tb-garden"></div>
+    </section>
+    <section class="tool" data-section="calibrate">
+      <button class="tool-h" data-tool="calibrate" data-i18n-title="underlay_t"><span data-i18n="underlay"></span></button>
+      <div class="tool-body" id="tb-calibrate"></div>
+    </section>
+  </nav>
+  <div id="stage">
+    <svg id="grid" aria-hidden="true"></svg>
+    <img id="underlay" alt="" hidden>
+    <div id="plan"></div>
+    <svg id="overlay"></svg>
+    <div id="len-box" hidden><span data-i18n="length"></span> <b id="len-val"></b> cm <small data-i18n="len_hint"></small></div>
+  </div>
+  <aside id="panel">
+    <section id="p-sel"></section>
+    <section id="p-types">
+      <h3><span data-i18n="types_h"></span> <small data-i18n="types_sub"></small></h3>
+      <div id="types"></div>
+    </section>
+    <section id="p-help">
+      <h3 data-i18n="help_h"></h3>
+      <ul id="help-list"></ul>
+    </section>
+  </aside>
+</main>
+<dialog id="wizard">
+  <form method="dialog" id="wz-form">
+    <h3 data-i18n="wizard_h"></h3>
+    <p class="empty" data-i18n="wizard_intro"></p>
+    <div class="nums">
+      <label><span data-i18n="wz_width"></span><span><input id="wz-width" type="number" min="6" max="50" step="0.5" value="15"> m</span></label>
+      <label><span data-i18n="wz_depth"></span><span><input id="wz-depth" type="number" min="6" max="50" step="0.5" value="10"> m</span></label>
+      <label><span data-i18n="wz_bedrooms"></span><span><input id="wz-bedrooms" type="number" min="0" max="5" value="1"></span></label>
+      <label><span data-i18n="wz_kids"></span><span><input id="wz-kids" type="number" min="0" max="4" value="1"></span></label>
+      <label><span data-i18n="wz_bathrooms"></span><span><input id="wz-bathrooms" type="number" min="0" max="3" value="1"></span></label>
+    </div>
+    <div class="checks">
+      <label><input id="wz-office" type="checkbox" checked> <span data-i18n="wz_office"></span></label>
+      <label><input id="wz-wc" type="checkbox" checked> <span data-i18n="wz_wc"></span></label>
+      <label><input id="wz-utility" type="checkbox" checked> <span data-i18n="wz_utility"></span></label>
+      <label><input id="wz-wardrobe" type="checkbox"> <span data-i18n="wz_wardrobe"></span></label>
+      <label><input id="wz-kitchen_open" type="checkbox" checked> <span data-i18n="wz_kitchen_open"></span></label>
+      <label><input id="wz-furniture" type="checkbox" checked> <span data-i18n="wz_furniture"></span></label>
+    </div>
+    <div id="wz-out" class="empty"></div>
+    <div class="acts"><button id="wz-go" value="go" data-i18n="wz_go"></button> <button id="wz-cancel" value="cancel" data-i18n="cancel"></button></div>
+  </form>
+</dialog>
+<datalist id="ha-entities"></datalist>
+<dialog id="ha-dialog">
+  <form method="dialog">
+    <h3>Home Assistant</h3>
+    <label><span data-i18n="ha_url"></span> <input id="ha-url" placeholder="http://homeassistant.local:8123" size="34"></label>
+    <label><span data-i18n="ha_token"></span> <input id="ha-token" type="password" size="34" autocomplete="off"></label>
+    <p class="note" data-i18n="ha_note"></p>
+    <p id="ha-status" class="note"></p>
+    <div class="grp"><button id="ha-connect" value="connect" data-i18n="ha_connect"></button>
+      <button id="ha-forget" value="forget" data-i18n="ha_forget"></button><button value="cancel" data-i18n="close"></button></div>
+  </form>
+</dialog>
+<dialog id="save-dialog">
+  <form method="dialog">
+    <h3 data-i18n="save_h"></h3>
+    <p id="sv-cur" class="note"></p>
+    <label><span data-i18n="sv_note"></span> <input id="sv-note" size="34" maxlength="200"></label>
+    <p id="sv-msg" class="note"></p>
+    <div class="grp"><button id="sv-over" value="over"></button>
+      <button id="sv-new" value="new" data-i18n="sv_new"></button>
+      <button id="sv-dl" value="dl" data-i18n="sv_download"></button><button value="cancel" data-i18n="close"></button></div>
+    <h4 data-i18n="sv_versions"></h4>
+    <div id="sv-list" class="versions"></div>
+  </form>
+</dialog>
+<footer id="status"><span id="st-pos"></span><span id="st-snap"></span><span id="st-msg"></span><span id="st-build" title="Editor build"></span></footer>
+<script type="module" src="editor.js"></script>
+</body>
+</html>
