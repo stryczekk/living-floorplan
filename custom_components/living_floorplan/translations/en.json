@@ -1,0 +1,11 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Living Floor Plan",
+        "description": "Adds the floor plan card to every dashboard and the floor plan editor to the sidebar (for administrators). The plan is kept in Home Assistant."
+      }
+    },
+    "abort": { "single_instance_allowed": "Already set up." }
+  }
+}

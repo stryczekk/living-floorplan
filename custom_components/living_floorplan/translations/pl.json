@@ -1,0 +1,11 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Living Floor Plan",
+        "description": "Dodaje kartę rzutu do wszystkich dashboardów i edytor rzutu do menu bocznego (dla administratorów). Rzut jest przechowywany w Home Assistancie."
+      }
+    },
+    "abort": { "single_instance_allowed": "Już skonfigurowane." }
+  }
+}

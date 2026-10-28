@@ -1,0 +1,17 @@
+{
+  "name": "living-floorplan",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Home Assistant: a floor plan of the house, drawn in its editor and shown live, with realistic light",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node --test tests/card/*.test.js",
+    "test:editor": "python3 tests/editor/run.py",
+    "test:browser": "tests/browser/run.sh"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}
