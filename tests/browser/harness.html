@@ -1,0 +1,1049 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>house-floorplan-card browser test</title>
+<style>
+  body { background: #131a24; margin: 0; padding: 12px; font-family: sans-serif;
+         --primary-text-color: #c3cfdf; --secondary-text-color: #7c8ca3;
+         --divider-color: #2a3547; --card-background-color: #1b2433; --primary-color: #03a9f4; }
+  #stage > * { display: block; margin-bottom: 12px; }
+  #results { color: #c3cfdf; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<pre id="results">RUNNING</pre>
+<script>
+  // an error in the test shows up in the results instead of a silent RUNNING
+  addEventListener("unhandledrejection", (e) => { document.getElementById("results").textContent = "ERROR  " + ((e.reason && e.reason.stack) || e.reason); });
+  addEventListener("error", (e) => { document.getElementById("results").textContent = "ERROR  " + e.message; });
+</script>
+<script type="module">
+// Shots and checks of the card on the example house, with made-up states for
+// every entity in the model. Nothing is switched: service calls are recorded.
+//   ?shot=night|day|glow|upstairs|phone   one card for a screenshot, no checks
+import "../../dist/house-floorplan-card.js";
+
+const P = new URLSearchParams(location.search);
+const shot = P.get("shot");
+const results = [];
+const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: ok ? "" : String(detail) });
+const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
+customElements.define("ha-card", class extends HTMLElement {
+  connectedCallback() { this.style.cssText = "display:block;border-radius:12px;border:1px solid #2a3547"; }
+});
+
+const MODEL = P.get("model") || "../../examples/house.json";
+const model = await (await fetch(MODEL)).json();
+// every entity id in the model
+const ids = new Set();
+(function walk(o) {
+  if (typeof o === "string") { if (/^[a-z_]+\.[a-z0-9_]+$/.test(o)) ids.add(o); return; }
+  if (o && typeof o === "object") for (const v of Object.values(o)) walk(v);
+})(model);
+
+function makeStates(mode) {
+  const st = {};
+  let i = 0;
+  for (const id of ids) {
+    const d = id.split(".")[0];
+    const s = { entity_id: id, state: "off", attributes: { friendly_name: id.split(".")[1].replace(/_/g, " ") }, last_updated: "t" + mode };
+    i++;
+    if (d === "light") {
+      const on = mode === "night" ? i % 3 !== 0 : mode === "day" ? i % 4 === 0 : mode !== "dark";
+      s.state = on ? "on" : "off";
+      if (on && i % 5 === 0) s.attributes.brightness = 90;
+    } else if (d === "cover") {
+      s.state = mode === "night" ? "closed" : "open";
+      s.attributes.current_position = mode === "night" ? 0 : i % 3 === 0 ? 40 : 100;
+    } else if (id === "sensor.waste_collection") {
+      s.state = new Date(Date.now() + 864e5).toISOString().slice(0, 10); s.attributes.device_class = "date"; // tomorrow
+    } else if (id === "sensor.washer_state") { s.state = "run";
+    } else if (id === "sensor.washer_end") { s.state = new Date(Date.now() + 85 * 60e3 + 20e3).toISOString(); s.attributes.device_class = "timestamp";
+    } else if (id === "sensor.dryer_state") { s.state = "stop";
+    } else if (id === "sensor.dryer_job") { s.state = "finished";
+    } else if (/^sensor\.(washer|dryer)_/.test(id)) { s.state = "none";
+    } else if (id === "sensor.dehumidifier_energy") { s.state = "123.4"; Object.assign(s.attributes, { unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" });
+    } else if (id === "sensor.solar_power") { s.state = "3240"; s.attributes.unit_of_measurement = "W";
+    } else if (id === "sensor.home_battery") { s.state = "78"; s.attributes.unit_of_measurement = "%";
+    } else if (d === "sensor") {
+      s.state = /hum/.test(id) ? String(40 + (i % 15)) : /temp/.test(id) ? (20 + (i % 5) * 0.6).toFixed(1) : "1";
+      s.attributes.unit_of_measurement = /hum/.test(id) ? "%" : "°C";
+    } else if (d === "binary_sensor" && /_(smoke|leak|co)$/.test(id)) {
+      s.state = "off"; // alarms only where a test turns them on
+    } else if (d === "binary_sensor") {
+      s.state = /door|contact|window/.test(id) ? (i % 4 === 0 ? "on" : "off") : i % 3 === 0 ? "on" : "off";
+    } else if (d === "lock") s.state = "locked";
+    else if (d === "weather") { s.state = "partlycloudy"; s.attributes.temperature = 12.6; }
+    else if (d === "climate") { s.state = "heat"; s.attributes.hvac_action = "heating"; s.attributes.current_temperature = 21.5; s.attributes.temperature = 22; }
+    else if (d === "fan") { s.state = "on"; s.attributes.percentage = 60; }
+    else if (d === "media_player") s.state = mode === "night" ? "playing" : "off";
+    st[id] = s;
+  }
+  return st;
+}
+
+const calls = [];
+let proxy = false;
+const proxyCalls = [];
+function fakeHass(mode, lang = "en") {
+  return { language: lang, locale: { language: lang }, states: makeStates(mode),
+    callService: (d, s, data) => calls.push([d, s, data]),
+    // InfluxDB Proxy, when the test wants it: every entity on 18:00-21:00 each day
+    callApi: async (method, path) => {
+      if (!proxy) { const e = new Error("not found"); e.status_code = 404; throw e; }
+      proxyCalls.push(path);
+      const q = new URLSearchParams(path.split("?")[1] || "");
+      const ents = (q.get("entities") || "").split(",").filter(Boolean);
+      const a = Number(q.get("start") || Date.now() - 864e5), b = Number(q.get("end") || Date.now()), out = {};
+      for (const id of ents) {
+        if (path.startsWith("influx_proxy/series")) { out[id] = []; for (let t = a; t < b; t += 3600e3) out[id].push({ start: t, end: t, mean: 21.5, min: 21, max: 22 }); continue; }
+        const rows = [[a - 1000, "off", null, null]];
+        for (let t = a - (a % 864e5); t < b; t += 864e5) { rows.push([t + 18 * 3600e3, "on", 200, null], [t + 21 * 3600e3, "off", null, null]); }
+        out[id] = rows.filter((r) => r[0] < b);
+      }
+      return out;
+    },
+    callWS: async (m) => {
+      // long-term statistics: daily means 21.7° in the last days, 20.5° before; 1.5 kWh a day on a meter
+      if (m.type === "recorder/statistics_during_period") {
+        const a = Date.parse(m.start_time), b = Date.parse(m.end_time), recent = b > Date.now() - 864e5, out = {};
+        for (const id of m.statistic_ids) {
+          out[id] = [];
+          for (let t = a; t < b; t += 864e5) out[id].push({ start: t, end: t + 864e5, mean: recent ? 21.7 : 20.5, change: recent ? 1.5 : 1.0 });
+        }
+        return out;
+      }
+      if (m.type !== "history/history_during_period") return {};
+      // every entity on for (1..5) hours each day of the range
+      const a = Date.parse(m.start_time) / 1000, b = Date.parse(m.end_time) / 1000, out = {};
+      m.entity_ids.forEach((id, i) => {
+        const rows = [{ s: "off", lu: a }];
+        for (let t = a; t < b; t += 86400) { rows.push({ s: "on", lu: t + 18 * 3600 }, { s: "off", lu: t + 18 * 3600 + 3600 * ((i % 5) + 1) }); }
+        out[id] = rows.filter((r) => r.lu < b);
+      });
+      return out;
+    } };
+}
+
+async function mount(config, hass, width) {
+  const el = document.createElement("house-floorplan-card");
+  if (width) el.style.width = width + "px";
+  el.setConfig({ type: "custom:house-floorplan-card", model: MODEL, ...config });
+  document.getElementById("stage").appendChild(el);
+  el.hass = hass;
+  for (let i = 0; i < 100 && !el.shadowRoot.querySelector("svg"); i++) await tick();
+  await tick(150);
+  return el;
+}
+
+if (shot) {
+  document.getElementById("results").remove();
+  const mode = shot === "day" ? "day" : "night";
+  const maps = { temperature: "temperature", lighthours: "light_hours" };
+  if (shot === "onboarding") {
+    const e = document.createElement("house-floorplan-card");
+    e.style.width = "600px";
+    e.setConfig({ type: "custom:house-floorplan-card" });
+    document.getElementById("stage").appendChild(e);
+    e.hass = fakeHass("night", P.get("lang") || "en");
+    await tick(300);
+  } else if (shot === "sun") {
+    // the example faces south at the top of the plan; Bielsko-Biała, 17 October 14:00
+    const h = fakeHass("dark");
+    h.config = { latitude: 49.82, longitude: 19.04, time_zone: "Europe/Warsaw" };
+    const RD = Date;
+    const fixed = Date.parse(P.get("at") || "2026-10-17T12:00:00Z");
+    globalThis.Date = class extends RD { constructor(...a) { super(...(a.length ? a : [fixed])); } static now() { return fixed; } };
+    await mount({ sun: P.get("offset") ? { offset: Number(P.get("offset")) } : true }, h, 1000);
+    await tick(400);
+  } else if (shot === "light") {
+    const h = fakeHass("night");
+    await mount({ theme: "light", doors: "open" }, h, 1000);
+    await tick(400);
+  } else if (shot === "camera") {
+    const h = fakeHass("night");
+    h.states["binary_sensor.front_door_person"] = { entity_id: "binary_sensor.front_door_person", state: "off", attributes: {}, last_updated: "0" };
+    const e = await mount({ camera_popup: "always" }, h, 1000);
+    e.hass = { ...h, states: { ...h.states, "binary_sensor.front_door_person": { entity_id: "binary_sensor.front_door_person", state: "on", attributes: {}, last_updated: "1" } } };
+    await tick(400);
+  } else if (shot === "travel") {
+    const e = await mount({}, fakeHass("day"), 1000);
+    e.shadowRoot.getElementById("tt-btn").click();
+    await tick(400);
+    const sl = e.shadowRoot.getElementById("tt-slider");
+    sl.value = String(Math.round((19.2 / 24) * 1000)); sl.dispatchEvent(new Event("input"));
+    await tick(300);
+  } else if (shot === "gif") {
+    // the GIF itself, as base64 in <pre id="gif"> (tools: dump the DOM, decode)
+    const e = await mount({}, fakeHass("day"), 1000);
+    e.shadowRoot.getElementById("tt-btn").click();
+    await tick(400);
+    await e._recordDay(Number(P.get("frames") || 24));
+    const b = new Uint8Array(await e._lastGif.blob.arrayBuffer());
+    let bin = ""; for (let i = 0; i < b.length; i += 32768) bin += String.fromCharCode(...b.subarray(i, i + 32768));
+    const pre = document.createElement("pre"); pre.id = "gif"; pre.textContent = btoa(bin); document.body.appendChild(pre);
+  } else if (shot === "alerts") {
+    const h = fakeHass("night");
+    for (const [id, st] of [["binary_sensor.hall_smoke", "on"], ["binary_sensor.living_room_window", "on"], ["sensor.outside_temperature", "3"]])
+      h.states[id] = { entity_id: id, state: st, attributes: {}, last_updated: "x" };
+    await mount({ cold: { outside: "sensor.outside_temperature" } }, h, 1000);
+    await tick(400);
+  } else {
+  const el = await mount({ light: shot === "glow" ? "glow" : "realistic", floor: shot === "upstairs" ? "first-floor" : null,
+    rotate: shot === "phone" ? "auto" : 0, map: maps[shot], doors: shot === "night" || shot === "phone" ? "open" : undefined }, fakeHass(mode, P.get("lang") || "en"), shot === "phone" ? null : 1000);
+  await tick(400);
+  void el;
+  }
+} else {
+  const hass = fakeHass("night");
+  const el = await mount({ doors: "open" }, hass, 900);
+  const sr = el.shadowRoot, svg = sr.querySelector("svg");
+  check("plan drawn", !!svg && svg.querySelectorAll("#rooms polygon").length >= 5, svg && svg.querySelectorAll("#rooms polygon").length);
+  const field = svg.querySelector("#light-field");
+  check("light field inserted under the lamps", field && field.nextElementSibling && field.nextElementSibling.id === "lights");
+  const lf = [...svg.querySelectorAll("[data-lf]")];
+  check("a light-field group per light entity", lf.length >= 8, lf.length);
+  const onIds = Object.values(hass.states).filter((s) => s.entity_id.startsWith("light.") && s.state === "on").map((s) => s.entity_id);
+  const opOn = lf.filter((g) => onIds.includes(g.dataset.lf)).map((g) => Number(g.style.opacity));
+  const opOff = lf.filter((g) => !onIds.includes(g.dataset.lf)).map((g) => Number(g.style.opacity));
+  check("lit lamps light their rooms", opOn.length && opOn.every((o) => o > 0.2), opOn.join(","));
+  check("dark lamps do not", opOff.every((o) => o === 0), opOff.join(","));
+  const dimmed = Object.values(hass.states).find((s) => s.attributes.brightness === 90);
+  const g = dimmed && lf.find((x) => x.dataset.lf === dimmed.entity_id);
+  check("a dimmed lamp is dimmer", !g || (Number(g.style.opacity) > 0.2 && Number(g.style.opacity) < 0.6), g && g.style.opacity);
+  check("round glows of lamps hidden in realistic mode", getComputedStyle(svg.querySelector(".light .glow") || svg).display === "none" || !svg.querySelector(".light .glow"));
+  const dg = svg.querySelector(".icon-device .glow");
+  check("device glows (appliances, alarms) stay in realistic mode", !dg || getComputedStyle(dg).display !== "none");
+  const temps = [...svg.querySelectorAll(".climate-temp")].map((t) => t.textContent);
+  check("room readings filled", temps.length && temps.every((t) => /°$/.test(t)), temps.join(" "));
+  const covered = svg.querySelectorAll(".cover." + "covered");
+  check("closed covers drawn as closed", covered.length >= 1, covered.length);
+  const floors = [...sr.querySelectorAll("#floors button")].map((b) => b.textContent);
+  check("floor switcher lists both floors", floors.length === 2, floors.join("|"));
+
+  // tap a lamp -> toggle; hold -> more-info
+  const lamp = svg.querySelector('.light[data-entity] use');
+  const r = lamp.getBoundingClientRect();
+  const id = lamp.closest("[data-entity]").getAttribute("data-entity");
+  const wrap = sr.getElementById("wrap");
+  const ev = (type, x, y, pid = 1) => wrap.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: pid, bubbles: true }));
+  ev("pointerdown", r.left + r.width / 2, r.top + r.height / 2); ev("pointerup", r.left + r.width / 2, r.top + r.height / 2);
+  check("tap on a lamp toggles it", calls.length === 1 && calls[0][1] === "toggle" && calls[0][2].entity_id === id, JSON.stringify(calls));
+  let info = null;
+  el.addEventListener("hass-more-info", (e) => { info = e.detail.entityId; });
+  ev("pointerdown", r.left + r.width / 2 + 10, r.top + r.height / 2);
+  await tick(650);
+  ev("pointerup", r.left + r.width / 2 + 10, r.top + r.height / 2);
+  check("hold opens the entity dialog (finger 10 px off)", info === id, info);
+  check("hold does not toggle", calls.length === 1, calls.length);
+  // tap on a room's empty floor -> the room's window
+  {
+    const poly = svg.querySelector("#rooms polygon#room-room1") || [...svg.querySelectorAll("#rooms polygon[id^='room-']")].find((p) => el._roomContents(p.id.slice(5)).covers.length);
+    const rid = poly && poly.id.slice(5);
+    const pr = poly.getBoundingClientRect();
+    let spot = null;
+    for (let fy = 0.1; fy < 0.95 && !spot; fy += 0.05) for (let fx = 0.1; fx < 0.95 && !spot; fx += 0.05) {
+      const x = pr.left + pr.width * fx, y = pr.top + pr.height * fy;
+      if (el._roomAtPoint(x, y) === rid && !el._hit(x, y) && !el._widgetAt(x, y)) spot = [x, y];
+    }
+    const n0 = calls.length;
+    ev("pointerdown", spot[0], spot[1]); ev("pointerup", spot[0], spot[1]);
+    const box = sr.getElementById("fc-room");
+    check("tap on a room's empty floor opens its window", box && !box.hidden && sr.querySelector("#fc-room .t").textContent.length > 0, spot && spot.join(","));
+    check("... without toggling anything", calls.length === n0, calls.length - n0);
+    const c = el._roomContents(rid);
+    check("room window lists its lights and covers", sr.querySelectorAll("#fc-room [data-light]").length === c.lights.length && sr.querySelectorAll("#fc-room .cov").length === c.covers.length && c.covers.length > 0,
+      c.lights.length + "/" + c.covers.length);
+    const down = sr.querySelector("#fc-room .cov button[data-cmd='close_cover']");
+    down.click();
+    check("room window: ▼ closes that cover", calls.length === n0 + 1 && calls[n0][1] === "close_cover" && calls[n0][2].entity_id === c.covers[0], JSON.stringify(calls[n0]));
+    const lb = sr.querySelector("#fc-room [data-light]");
+    if (lb) { lb.click(); check("room window: a light chip toggles it", calls[calls.length - 1][1] === "toggle" && calls[calls.length - 1][2].entity_id === lb.dataset.light); }
+    const pos = sr.querySelector("#fc-room .cov .p").textContent;
+    check("room window: cover position shown", /%$|closed|open/.test(pos), pos);
+    sr.getElementById("fc-room-x").click();
+    check("room window closes", box.hidden);
+    {
+      const h0 = el._hass, lid = c.lights[0] || id;
+      el._hass = { ...h0, states: { ...h0.states, [lid]: { ...h0.states[lid], attributes: { friendly_name: "Box 12 Lamp over the table" } } },
+        entities: { [lid]: { device_id: "d1" } }, devices: { d1: { name: "Box 12" } } };
+      check("room window: names without the device in front", el._shortName(lid) === "Lamp over the table", el._shortName(lid));
+      el._hass = h0;
+    }
+    calls.length = n0; // the checks below count from here
+  }
+  // notes: text, markers, arrows from the model; a marker's tap shows its note
+  {
+    check("notes drawn: text, two markers, an arrow", svg.querySelectorAll("#notes .note-text").length === 1 && svg.querySelectorAll("#notes .note-marker").length === 2 &&
+      svg.querySelectorAll("#notes .note-arrow").length === 1, svg.querySelectorAll("#notes > *").length);
+    const pin = svg.querySelector("#marker-valve .note-pin").getBoundingClientRect(), n1 = calls.length;
+    const cx = pin.left + pin.width / 2, cy = pin.top + pin.height / 2;
+    ev("pointerdown", cx, cy); ev("pointerup", cx, cy);
+    const nb = sr.getElementById("fc-note");
+    check("tap on a marker shows its caption and note", !nb.hidden && /Water valve/.test(nb.textContent) && /clockwise/.test(nb.textContent), nb.textContent);
+    check("... and runs nothing", calls.length === n1 && sr.getElementById("fc-room").hidden);
+    ev("pointerdown", cx + 200, cy + 200); ev("pointerup", cx + 200, cy + 200);
+    check("a tap elsewhere hides the note", nb.hidden);
+    el._closeRoom(); calls.length = n1;
+  }
+  // the lasso: draw round a room, then switch its lights and covers
+  {
+    const room = svg.querySelector("#room-living").getBoundingClientRect(), n2 = calls.length;
+    // round the room with a margin: the covers sit on the windows' outer face
+    const ring = [[room.left - 14, room.top - 14], [room.right + 14, room.top - 14], [room.right + 14, room.bottom + 14], [room.left - 14, room.bottom + 14], [room.left - 14, room.top - 10]];
+    const drawRing = (shift) => {
+      const [x0, y0] = ring[0];
+      wrap.dispatchEvent(new PointerEvent("pointerdown", { clientX: x0, clientY: y0, pointerId: 31, bubbles: true, shiftKey: shift }));
+      for (let i = 1; i < ring.length; i++) for (let k = 1; k <= 8; k++) {
+        const [xa, ya] = ring[i - 1], [xb, yb] = ring[i];
+        wrap.dispatchEvent(new PointerEvent("pointermove", { clientX: xa + (xb - xa) * k / 8, clientY: ya + (yb - ya) * k / 8, pointerId: 31, bubbles: true }));
+      }
+      const [xe, ye] = ring[ring.length - 1];
+      wrap.dispatchEvent(new PointerEvent("pointerup", { clientX: xe, clientY: ye, pointerId: 31, bubbles: true }));
+    };
+    const vb0 = svg.getAttribute("viewBox");
+    const lb = sr.getElementById("lasso-btn");
+    check("lasso: a button next to the zoom", !!lb);
+    if (lb) lb.click();
+    drawRing(false);
+    const bar = sr.getElementById("fc-lasso-bar");
+    check("lasso: drawing round the living room selects its lights and covers", !bar.hidden && /\d+ lights · [1-9]\d* covers/.test(bar.textContent) &&
+      sr.querySelectorAll("#fc-lasso .dots circle").length >= 3, bar.textContent);
+    check("lasso: the plan did not pan and nothing was switched yet", svg.getAttribute("viewBox") === vb0 && calls.length === n2);
+    const offB = bar.querySelector("[data-l=off]");
+    if (offB) offB.click();
+    const c0 = calls[n2];
+    check("lasso: Turn off sends all the selected lights at once", c0 && c0[0] === "homeassistant" && c0[1] === "turn_off" && c0[2].entity_id.length >= 1 &&
+      c0[2].entity_id.every((e) => /^(light|switch)\./.test(e)), JSON.stringify(c0));
+    check("lasso: done after the action", bar.hidden && sr.getElementById("fc-lasso").hidden && !sr.getElementById("lasso-btn").classList.contains("on"));
+    drawRing(true);
+    check("lasso: Shift + drag works without the button", !bar.hidden);
+    const downB = bar.querySelector("[data-l=down]");
+    if (downB) downB.click();
+    check("lasso: ▼ closes the selected covers and keeps the selection", calls[calls.length - 1][1] === "close_cover" && !bar.hidden);
+    const [tx, ty] = [room.left + room.width / 2, room.top + room.height / 2];
+    ev("pointerdown", tx, ty); ev("pointerup", tx, ty);
+    check("lasso: a tap elsewhere ends the selection (and opens nothing)", bar.hidden && sr.getElementById("fc-room").hidden);
+    calls.length = n2;
+  }
+  // drag pans, does not toggle
+  const vb0 = svg.getAttribute("viewBox");
+  sr.querySelector("#zoom button").click();
+  const vb1 = svg.getAttribute("viewBox");
+  check("zoom button zooms", vb1 !== vb0, vb1);
+  // zoom out below the whole plan, down to 0.5x, the plan in the middle
+  {
+    const zb = [...sr.querySelectorAll("#zoom button")];
+    zb[2].click(); const full = svg.getAttribute("viewBox").split(" ").map(Number);
+    for (let i = 0; i < 4; i++) zb[1].click();
+    const out = svg.getAttribute("viewBox").split(" ").map(Number);
+    check("zoom out to half: the whole plan smaller, in the middle", Math.abs(out[2] / full[2] - 2) < 0.01 && Math.abs((out[0] + out[2] / 2) - (full[0] + full[2] / 2)) < 0.5, out.join(" "));
+    zb[2].click(); zb[0].click();
+  }
+  ev("pointerdown", 300, 200, 2); ev("pointermove", 340, 230, 2); ev("pointermove", 380, 260, 2); ev("pointerup", 380, 260, 2);
+  check("drag pans the plan", svg.getAttribute("viewBox") !== vb1, svg.getAttribute("viewBox"));
+  check("drag does not toggle", calls.length === 1, calls.length);
+  // a closed door with a contact sensor blocks light: count lit area before / after is hard - check the layer rebuilds
+  // a closed door with a contact sensor stops the light: the bathroom door
+  const pathsOf = (svgEl) => [...svgEl.querySelectorAll("[data-lf] path")].map((p) => p.getAttribute("d")).join("|");
+  const h2 = { ...hass, states: { ...hass.states } };
+  h2.states["binary_sensor.bathroom_door"] = { entity_id: "binary_sensor.bathroom_door", state: "on", attributes: {}, last_updated: "open" };
+  el.hass = h2; await tick(50);
+  const open = pathsOf(svg);
+  h2.states = { ...h2.states, "binary_sensor.bathroom_door": { entity_id: "binary_sensor.bathroom_door", state: "off", attributes: {}, last_updated: "closed" } };
+  el.hass = { ...h2 }; await tick(50);
+  const closed = pathsOf(svg);
+  check("closing a door with a contact changes the light (rebuilt with the door as a wall)", open && closed && open !== closed, (open === closed) + "");
+  // upstairs
+  sr.querySelectorAll("#floors button")[1].click();
+  await tick(100);
+  const svg2 = sr.querySelector("svg");
+  check("switching floors draws the other floor", svg2 !== svg && svg2.getAttribute("data-floor") === "first-floor", svg2 && svg2.getAttribute("data-floor"));
+  check("upstairs has its own light field", svg2.querySelectorAll("[data-lf]").length >= 3, svg2.querySelectorAll("[data-lf]").length);
+  // room maps
+  const pick = async (cardEl, k) => {
+    cardEl.shadowRoot.getElementById("layer-btn").click();
+    const b = [...cardEl.shadowRoot.querySelectorAll("#layer-menu button")][k];
+    b.click();
+    await tick(200);
+  };
+  sr.querySelectorAll("#floors button")[0].click(); await tick(100);
+  await pick(el, 1);
+  let svgM = sr.querySelector("svg");
+  const tTexts = [...svgM.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+  check("temperature map colours the rooms", svgM.querySelectorAll("#fc-map polygon").length >= 4, svgM.querySelectorAll("#fc-map polygon").length);
+  check("temperature map shows degrees", tTexts.length && tTexts.every((t) => /°$/.test(t)), tTexts.join(" "));
+  check("map hides the light field and readings", getComputedStyle(svgM.querySelector("#room-climate")).display === "none");
+  check("legend shown", !sr.getElementById("legend").hidden && /°/.test(sr.getElementById("legend").textContent), sr.getElementById("legend").textContent);
+  await pick(el, 3);
+  await tick(300);
+  const hTexts = [...svgM.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+  check("light hours map from the history", hTexts.length >= 4 && hTexts.every((t) => / h$/.test(t)), hTexts.join(" "));
+  await pick(el, 0);
+  check("back to live: no map", !svgM.querySelector("#fc-map") && sr.getElementById("legend").hidden);
+  // alerts: smoke pulses the hall red, a window open in the cold pulses blue, a rule
+  const ha = fakeHass("night");
+  const setS = (id, state) => { ha.states[id] = { entity_id: id, state, attributes: { friendly_name: id }, last_updated: "a" + state }; };
+  for (const id of Object.keys(ha.states)) if (/_(smoke|leak|co)$/.test(id) || /window|door/.test(id)) setS(id, "off");
+  setS("binary_sensor.hall_smoke", "on");
+  setS("binary_sensor.living_room_window", "on"); setS("sensor.outside_temperature", "4.5");
+  setS("binary_sensor.washer_running", "on");
+  const ea = await mount({ cold: { outside: "sensor.outside_temperature", below: 10 },
+    alerts: [{ entity: "binary_sensor.washer_running", name: "Washer done?", color: "#ffab40" }] }, ha, 900);
+  const sa = ea.shadowRoot, svgA = sa.querySelector("svg");
+  const pulses = [...svgA.querySelectorAll("#fc-alerts polygon")].map((p) => p.getAttribute("fill"));
+  check("alerts: rooms pulse (smoke red, cold window blue, rule orange)", pulses.includes("#e53935") && pulses.includes("#29b6f6") && pulses.includes("#ffab40"), pulses.join(","));
+  const banner = [...sa.querySelectorAll("#alerts button")].map((b) => b.textContent);
+  check("alerts: banner lists them with rooms", banner.length === 3 && banner.some((t) => /Smoke · Hall/.test(t)) && banner.some((t) => /4.5° outside/.test(t)), banner.join(" | "));
+  setS("binary_sensor.hall_smoke", "off"); setS("binary_sensor.living_room_window", "off"); setS("binary_sensor.washer_running", "off");
+  ea.hass = { ...ha, states: { ...ha.states } }; await tick(50);
+  check("alerts: gone when cleared", !sa.querySelector("#fc-alerts") && !sa.querySelectorAll("#alerts button").length);
+
+  // time travel: the made-up history has every lamp on from 18:00 of each day
+  const et = await mount({}, fakeHass("night"), 900);
+  const st = et.shadowRoot;
+  st.getElementById("tt-btn").click();
+  await tick(300);
+  check("time travel: the timeline opens", !st.getElementById("timeline").hidden && /\d/.test(st.getElementById("tt-when").textContent), st.getElementById("tt-when").textContent);
+  const slider = st.getElementById("tt-slider");
+  const lit = () => [...st.querySelectorAll("[data-lf]")].filter((g) => Number(g.style.opacity) > 0).length;
+  slider.value = String(Math.round((18.5 / 24) * 1000)); slider.dispatchEvent(new Event("input"));
+  const evening = lit();
+  slider.value = String(Math.round((3 / 24) * 1000)); slider.dispatchEvent(new Event("input"));
+  const night3 = lit();
+  check("time travel: lamps lit in the evening, dark at 3 am", evening >= 8 && night3 === 0, evening + " / " + night3);
+  slider.value = String(Math.round((18.3 / 24) * 1000)); slider.dispatchEvent(new Event("input"));
+  check("time travel: the trail of movement at 18:20 (sensors fired at 18:00)", st.querySelectorAll("#fc-trail circle").length >= 1, st.querySelectorAll("#fc-trail circle").length);
+  slider.value = String(Math.round((3 / 24) * 1000)); slider.dispatchEvent(new Event("input"));
+  et.hass = { ...et._hass }; await tick(50);
+  check("time travel: live updates do not overwrite the past", lit() === 0, lit());
+  st.getElementById("tt-play").click(); await tick(600);
+  check("time travel: play moves the slider", Number(slider.value) > Math.round((3 / 24) * 1000), slider.value);
+  // a day in 30 seconds: the range as an animated GIF
+  st.getElementById("tt-play").click(); // pause
+  const t0 = performance.now();
+  await et._recordDay(25); // 25 frames: one an hour
+  const gifInfo = et._lastGif;
+  check("gif: the day recorded frame by frame and saved", gifInfo && gifInfo.frames === 25 && gifInfo.bytes > 5000 && st.getElementById("tt-rec").textContent === "🎬",
+    gifInfo && JSON.stringify({ bytes: gifInfo.bytes, w: gifInfo.w, h: gifInfo.h, ms: Math.round(performance.now() - t0) }));
+  if (typeof ImageDecoder !== "undefined" && gifInfo) {
+    const dec = new ImageDecoder({ data: await gifInfo.blob.arrayBuffer(), type: "image/gif" });
+    await dec.tracks.ready;
+    const light = async (i) => {
+      const { image } = await dec.decode({ frameIndex: i });
+      const c = new OffscreenCanvas(image.displayWidth, image.displayHeight), g = c.getContext("2d");
+      g.drawImage(image, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let sum = 0; for (let k = 0; k < d.length; k += 16) sum += d[k] + d[k + 1] + d[k + 2];
+      image.close();
+      return sum / (d.length / 16);
+    };
+    const night = await light(3), evening = await light(19); // 3 am and 19:00
+    check("gif: a browser reads it - the evening frame brighter than 3 am (lamps on)", dec.tracks.selectedTrack.frameCount === 25 && evening > night + 2,
+      dec.tracks.selectedTrack.frameCount + " " + night.toFixed(1) + " / " + evening.toFixed(1));
+  }
+  check("gif: the slider back where it was", Math.abs(Number(slider.value) - Math.round((3 / 24) * 1000)) <= 30, slider.value);
+  st.getElementById("tt-live").click(); await tick(50);
+  check("time travel: back to live", st.getElementById("timeline").hidden && lit() > 0, lit());
+
+  // tablet mode: back to the start after idle, dimmed at night
+  const ek = await mount({ kiosk: { idle: 1, night_dim: "00:00-23:59", dim: 0.5 } }, fakeHass("night"), 600);
+  const sk = ek.shadowRoot;
+  sk.querySelector("#zoom button").click();
+  await pick(ek, 1);
+  const zoomed = sk.querySelector("svg").getAttribute("viewBox");
+  await tick(6500);
+  const svgK = sk.querySelector("svg");
+  check("tablet: after idle the whole plan again", svgK.getAttribute("viewBox") !== zoomed, svgK.getAttribute("viewBox"));
+  check("tablet: after idle the live view again", !svgK.querySelector("#fc-map"));
+  check("tablet: dimmed at night when idle", Number(sk.getElementById("dim").style.opacity) === 0.5, sk.getElementById("dim").style.opacity);
+  sk.getElementById("wrap").dispatchEvent(new PointerEvent("pointerdown", { clientX: 5, clientY: 5, pointerId: 9, bubbles: true }));
+  check("tablet: a touch wakes it", sk.getElementById("dim").style.opacity === "0", sk.getElementById("dim").style.opacity);
+  // the visual editor's form, room names
+  const form = customElements.get("house-floorplan-card").getConfigForm();
+  check("visual editor: a form with the model field first", form.schema[0].name === "model" && form.schema.length >= 8 && typeof form.computeLabel === "function");
+  const en = await mount({ show_room_names: true }, fakeHass("night"), 700);
+  const lab = en.shadowRoot.querySelector("#room-labels");
+  check("room names shown when asked", lab && !lab.hasAttribute("display") && lab.querySelectorAll("text").length >= 5, lab && lab.getAttribute("display"));
+  // fixes from the code review
+  {
+    // an alert upstairs fires while the ground floor is shown and nothing on it changes
+    const hu = fakeHass("night");
+    const upSmoke = [...ids].find((id) => /_(smoke|leak)$/.test(id) && JSON.stringify(model.floors || []).includes(id));
+    for (const id of Object.keys(hu.states)) if (/_(smoke|leak|co)$/.test(id) || /window|door/.test(id)) hu.states[id] = { ...hu.states[id], state: "off", last_updated: "0" };
+    const eu = await mount({}, hu, 700);
+    check("review: an upstairs alarm exists in the example", !!upSmoke, "none");
+    eu.hass = { ...hu, states: { ...hu.states, [upSmoke]: { entity_id: upSmoke, state: "on", attributes: {}, last_updated: "1" } } };
+    await tick(50);
+    check("review: an upstairs alarm shows while the ground floor is on screen", eu.shadowRoot.querySelectorAll("#alerts button").length === 1 &&
+      eu.shadowRoot.querySelectorAll("#floors button.alarm").length === 1, eu.shadowRoot.getElementById("alerts").textContent);
+    // leaving time travel while its history loads does not bring it back
+    const hs = fakeHass("night");
+    const slow = hs.callWS;
+    hs.callWS = (m) => new Promise((r) => setTimeout(() => r(slow(m)), 300));
+    const es = await mount({}, hs, 700);
+    es.shadowRoot.getElementById("tt-btn").click();
+    es.shadowRoot.getElementById("tt-slider").dispatchEvent(new Event("input"));
+    es.shadowRoot.getElementById("tt-play").click();
+    es.shadowRoot.getElementById("tt-live").click();
+    await tick(500);
+    check("review: leaving time travel during loading stays live", !es._travel && es.shadowRoot.getElementById("timeline").hidden, String(!!es._travel));
+    // a new config while traveling starts clean
+    es.shadowRoot.getElementById("tt-btn").click(); await tick(500);
+    es.setConfig({ type: "custom:house-floorplan-card", model: MODEL }); es.hass = hs; await tick(300);
+    check("review: a new config ends time travel", !es._travel && !es._playTimer, String(!!es._travel));
+    // a double tap on a lamp toggles it once
+    const ed = await mount({}, fakeHass("night"), 700);
+    const n0 = calls.length;
+    const lampD = ed.shadowRoot.querySelector('.light[data-entity] use').getBoundingClientRect();
+    const wd = ed.shadowRoot.getElementById("wrap");
+    const tap = (pid) => { for (const t of ["pointerdown", "pointerup"]) wd.dispatchEvent(new PointerEvent(t, { clientX: lampD.left + 3, clientY: lampD.top + 3, pointerId: pid, bubbles: true })); };
+    tap(21); tap(22);
+    check("review: a double tap toggles once", calls.length - n0 === 1, calls.length - n0);
+    // a hold on empty floor, then a drag, pans
+    const vbh = ed.shadowRoot.querySelector("svg").getAttribute("viewBox");
+    ed.shadowRoot.querySelector("#zoom button").click();
+    const vbz = ed.shadowRoot.querySelector("svg").getAttribute("viewBox");
+    const pe = (t, x, y) => wd.dispatchEvent(new PointerEvent(t, { clientX: x, clientY: y, pointerId: 31, bubbles: true }));
+    pe("pointerdown", 2, 300); await tick(650); pe("pointermove", 60, 330); pe("pointermove", 120, 360); pe("pointerup", 120, 360);
+    check("review: hold on empty floor, then drag pans", ed.shadowRoot.querySelector("svg").getAttribute("viewBox") !== vbz && vbz !== vbh);
+    // a tap in a camera's field of view opens the camera
+    const cam = ed.shadowRoot.querySelector("[data-entity-camera] ." + "camera-mark");
+    let camInfo = null;
+    ed.addEventListener("hass-more-info", (e) => { camInfo = e.detail.entityId; });
+    ed.shadowRoot.getElementById("zoom-fit").click();
+    if (cam) {
+      const rc = cam.getBoundingClientRect();
+      for (const t of ["pointerdown", "pointerup"]) wd.dispatchEvent(new PointerEvent(t, { clientX: rc.left + rc.width / 2, clientY: rc.top + rc.height / 2, pointerId: 41, bubbles: true }));
+    }
+    check("review: a tap on a camera opens its dialog (the HQ stream when there is one)", camInfo && /^camera\./.test(camInfo), camInfo);
+    // sun: patches in the rooms behind south windows in the afternoon, none at night
+    const hz = fakeHass("day");
+    hz.config = { latitude: 49.82, longitude: 19.04 };
+    const ez = await mount({ sun: true }, hz, 700);
+    ez._drawSun(Date.parse("2026-10-17T12:00:00Z"));
+    const day = ez.shadowRoot.querySelectorAll("#fc-sun g[clip-path] polygon").length;
+    ez._drawSun(Date.parse("2026-10-17T22:00:00Z"));
+    const nightSun = ez.shadowRoot.querySelectorAll("#fc-sun g[clip-path] polygon").length;
+    check("sun: patches by day, none at night", day >= 2 && nightSun === 0, day + " / " + nightSun);
+    // maps: false keeps the time travel button
+    const em = await mount({ maps: false }, fakeHass("night"), 600);
+    check("review: maps off keeps the time travel button", !em.shadowRoot.getElementById("tt-btn").hidden && em.shadowRoot.getElementById("layer-btn").hidden);
+    // an id with markup in a shared model does not inject anything
+    const bad = JSON.parse(JSON.stringify(model));
+    bad.rooms[0].id = 'x"/><image href="x" onerror="window.__pwned=1"/><g id="';
+    const eb = await mount({ model: bad }, fakeHass("night"), 600);
+    check("review: markup in a model id is neutralised", !eb.shadowRoot.querySelector("svg image") && !window.__pwned);
+  }
+
+  // InfluxDB Proxy: 30 days and 3 months in time travel, longer hours maps
+  proxy = true;
+  const ep = await mount({}, fakeHass("night"), 900);
+  const spx = ep.shadowRoot;
+  spx.getElementById("tt-btn").click(); await tick(400);
+  const ranges = [...spx.querySelectorAll("#tt-ranges button")].map((b) => b.textContent);
+  check("proxy: time travel offers 30 days, 3 months and a year", ranges.length === 5, ranges.join("|"));
+  [...spx.querySelectorAll("#tt-ranges button")][2].click(); await tick(500);
+  check("proxy: 30 days of history come from InfluxDB Proxy (states + series)", proxyCalls.some((p) => p.startsWith("influx_proxy/states")) && proxyCalls.some((p) => p.startsWith("influx_proxy/series")) && ep._travel && ep._travel.days === 30, proxyCalls.length);
+  const sl2 = spx.getElementById("tt-slider");
+  const dayT = ep._travel.start + 20 * 864e5; const midnight = new Date(dayT); midnight.setUTCHours(19, 0, 0, 0);
+  sl2.value = String(Math.round(((midnight - ep._travel.start) / (ep._travel.end - ep._travel.start)) * 1000)); sl2.dispatchEvent(new Event("input"));
+  check("proxy: a day 10 days ago, 19:00 UTC, lamps on", [...spx.querySelectorAll("[data-lf]")].filter((g) => Number(g.style.opacity) > 0).length >= 8, spx.getElementById("tt-when").textContent);
+  spx.getElementById("tt-live").click();
+  spx.getElementById("layer-btn").click(); [...spx.querySelectorAll("#layer-menu button")][3].click(); await tick(300);
+  const chips = [...spx.querySelectorAll("#legend .periods button:not(.cmp)")];
+  check("proxy: hours map offers 7 / 30 days / 3 months / a year", chips.length === 4 && /Year/.test(chips[3].textContent), chips.map((b) => b.textContent).join("|"));
+  chips[2].click(); await tick(500);
+  const h90 = [...spx.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+  check("proxy: 3 months of light hours (3 h a day)", h90.length >= 3 && h90.every((t) => Number(t.replace(/[^\d.]/g, "")) > 200), h90.join(" "));
+  proxy = false;
+
+  // light energy map: the lamps' power x their time on, with a price
+  const ee = await mount({ price: 1.1 }, fakeHass("night"), 900);
+  ee._hass.config = { currency: "PLN" };
+  ee.shadowRoot.getElementById("layer-btn").click(); [...ee.shadowRoot.querySelectorAll("#layer-menu button")][5].click(); await tick(400);
+  const eTexts = [...ee.shadowRoot.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+  check("energy map: cost per room from the lamps' power", eTexts.length >= 4 && eTexts.every((t) => /zł|PLN/.test(t)), eTexts.join(" "));
+
+  // doors without a contact: closed by default (they stop the light), open on request
+  {
+    const pathsOf = (e) => [...e.shadowRoot.querySelectorAll("[data-lf] path")].map((p) => p.getAttribute("d")).join("|");
+    const dc = await mount({}, fakeHass("night"), 700), dop = await mount({ doors: "open" }, fakeHass("night"), 700);
+    check("doors: closed by default, open on request - a different light", pathsOf(dc) !== pathsOf(dop) && dc._config.doors === "closed");
+  }
+
+  // chandelier cycle and the lock
+  {
+    const hf = fakeHass("night");
+    const fx = (model.lights || []).find((l) => l.type === "fixture" && l.circuits && l.circuits.length === 2);
+    check("example has a two-circuit chandelier", !!fx);
+    const [large, small] = fx.circuits.map((c) => c.entity);
+    for (const e of [large, small]) hf.states[e] = { entity_id: e, state: "off", attributes: {}, last_updated: "0" };
+    const ef = await mount({ lock_action: "hold" }, hf, 900);
+    const sf = ef.shadowRoot, wf = sf.getElementById("wrap");
+    const rr = sf.querySelector(".bulb-shared").getBoundingClientRect();
+    const n1 = calls.length;
+    for (const t of ["pointerdown", "pointerup"]) wf.dispatchEvent(new PointerEvent(t, { clientX: rr.left + rr.width / 2, clientY: rr.top + rr.height / 2, pointerId: 51, bubbles: true }));
+    const c1 = calls[n1];
+    check("chandelier: off -> the small circuit", c1 && c1[1] === "turn_on" && c1[2].entity_id === small, JSON.stringify(c1) + " n=" + (calls.length - n1));
+    const lockEl = sf.querySelector(".lock[data-entity]");
+    if (lockEl) {
+      const lr = lockEl.getBoundingClientRect();
+      const n2 = calls.length;
+      let info2 = null; ef.addEventListener("hass-more-info", (e) => { info2 = e.detail.entityId; });
+      for (const t of ["pointerdown", "pointerup"]) wf.dispatchEvent(new PointerEvent(t, { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 52, bubbles: true }));
+      check("lock: a tap only opens its dialog", calls.length === n2 && info2 === lockEl.getAttribute("data-entity"), info2);
+      wf.dispatchEvent(new PointerEvent("pointerdown", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 53, bubbles: true }));
+      await tick(600);
+      check("lock: not opened before 0.8 s", calls.length === n2);
+      await tick(400);
+      wf.dispatchEvent(new PointerEvent("pointerup", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 53, bubbles: true }));
+      check("lock: opened by a 0.8 s hold", calls.length === n2 + 1 && /open/.test(calls[n2][1]), JSON.stringify(calls[n2]));
+    } else check("example has a lock on the plan", false);
+  }
+
+  // ⚙ per-viewer settings, kept in the browser
+  try { localStorage.clear(); } catch (e) {}
+  const eg = await mount({}, fakeHass("night"), 700);
+  const sg = eg.shadowRoot;
+  sg.getElementById("set-btn").click();
+  check("settings: the panel opens", !sg.getElementById("settings").hidden);
+  sg.querySelector('#settings input[data-k="labels"]').click();
+  sg.querySelector('#settings [data-light="glow"]').click();
+  await tick(50);
+  check("settings: room names on, glows instead of the light field",
+    !sg.querySelector("#room-labels").hasAttribute("display") && !sg.querySelector("#light-field") && sg.getElementById("wrap").classList.contains("fc-glow"));
+  // glows chosen in ⚙: the card still takes clicks (the plan's ".glow" rule once switched it all off)
+  check("settings: with glows the buttons and the plan still take clicks", ["wrap", "set-btn", "stage"].every((i) => getComputedStyle(sg.getElementById(i)).pointerEvents !== "none"),
+    ["wrap", "set-btn", "stage"].map((i) => getComputedStyle(sg.getElementById(i)).pointerEvents).join(","));
+  // a click on a checkbox of the panel does not reach the lamp under it
+  {
+    const n7 = calls.length;
+    const box = sg.querySelector('#settings input[data-k="trail"]'), rb2 = box.getBoundingClientRect();
+    for (const t of ["pointerdown", "pointerup"]) box.dispatchEvent(new PointerEvent(t, { clientX: rb2.left + 4, clientY: rb2.top + 4, pointerId: 95, bubbles: true, composed: true }));
+    const sl = sg.querySelector("#settings [data-strength]"), rs = sl.getBoundingClientRect();
+    for (const t of ["pointerdown", "pointerup"]) sl.dispatchEvent(new PointerEvent(t, { clientX: rs.left + 10, clientY: rs.top + 4, pointerId: 96, bubbles: true, composed: true }));
+    check("settings: clicks in the panel do not switch anything on the plan", calls.length === n7, JSON.stringify(calls.slice(n7)));
+  }
+  const eg2 = await mount({}, fakeHass("night"), 700);
+  check("settings: remembered for the next load", !eg2.shadowRoot.querySelector("#room-labels").hasAttribute("display") && !eg2.shadowRoot.querySelector("#light-field"));
+  eg2.shadowRoot.querySelector("#settings [data-reset]").click();
+  await tick(50);
+  check("settings: defaults bring the light field back", !!eg2.shadowRoot.querySelector("#light-field") && eg2.shadowRoot.querySelector("#room-labels").getAttribute("display") === "none");
+  try { localStorage.clear(); } catch (e) {}
+
+  // no model yet / a wrong path: the way to the editor
+  const eo = await mount({ model: null }, fakeHass("night"), 600);
+  const ob = eo.shadowRoot.querySelector("#info .onb-btn");
+  check("onboarding: no model -> a button to the editor that came with the card", ob && /hacsfiles\/house-floorplan-card\/house-floorplan-editor\.html$/.test(ob.getAttribute("href")), ob && ob.getAttribute("href"));
+  const e404 = document.createElement("house-floorplan-card");
+  e404.setConfig({ type: "custom:house-floorplan-card", model: "/nope/house.json" });
+  document.getElementById("stage").appendChild(e404); e404.hass = fakeHass("night"); await tick(400);
+  check("onboarding: a wrong path says so, with the editor button", /nope/.test(e404.shadowRoot.querySelector(".onb-err")?.textContent || "") && !!e404.shadowRoot.querySelector(".onb-btn"));
+  check("stub config: a new card starts without a model", !customElements.get("house-floorplan-card").getStubConfig().model);
+
+  // layers: hide lamps that are off (still tappable), furniture, cameras
+  try { localStorage.clear(); } catch (e) {}
+  const el5 = await mount({ hide: ["furniture"] }, fakeHass("night"), 700);
+  const s5 = el5.shadowRoot;
+  check("layers: hide: [furniture] in the config", getComputedStyle(s5.querySelector("#furniture")).display === "none");
+  s5.getElementById("set-btn").click();
+  s5.querySelector('#settings input[data-k="idle_lights"]').click();
+  await tick(50);
+  const offLamp = s5.querySelector(".light:not(.on)[data-entity]");
+  check("layers: lamps that are off can be hidden", offLamp && getComputedStyle(offLamp).opacity === "0");
+  const ro = offLamp.querySelector("use").getBoundingClientRect();
+  check("layers: a hidden lamp can still be tapped", el5._hit(ro.left + ro.width / 2, ro.top + ro.height / 2) === offLamp.getAttribute("data-entity"));
+  try { localStorage.clear(); } catch (e) {}
+
+  // readings anywhere: a bin due tomorrow glows, the weather, solar power
+  {
+    const er = await mount({}, fakeHass("night"), 900);
+    const txt = (id) => er.shadowRoot.querySelector(`[data-entity="${id}"] .device-value`)?.textContent;
+    check("readings: the bin says tomorrow and glows", txt("sensor.waste_collection") === "tomorrow" && er.shadowRoot.querySelector('[data-entity="sensor.waste_collection"]').classList.contains("on"), txt("sensor.waste_collection"));
+    check("readings: weather and solar power", txt("weather.home") === "13° clouds" && txt("sensor.solar_power") === "3240 W", txt("weather.home") + " | " + txt("sensor.solar_power"));
+  }
+
+  // light colour: an RGB lamp tints its light
+  const hcol = fakeHass("night");
+  const lampId = Object.keys(hcol.states).find((id) => id.startsWith("light.") && hcol.states[id].state === "on");
+  hcol.states[lampId] = { ...hcol.states[lampId], attributes: { ...hcol.states[lampId].attributes, rgb_color: [0, 0, 255] }, last_updated: "rgb" };
+  const ecol = await mount({}, hcol, 600);
+  const gcol = ecol.shadowRoot.querySelector(`[data-lf="${lampId}"]`);
+  check("light colour: an RGB lamp tints its own light", gcol && /rgb\(64, 64, 255\)/.test(gcol.style.getPropertyValue("--fc-light-color")), gcol && gcol.style.getPropertyValue("--fc-light-color"));
+
+  // heating and cooling: thermostats, TRVs, the A/C, fans
+  {
+    const eh = await mount({}, fakeHass("night"), 900);
+    const sh = eh.shadowRoot;
+    const trv = sh.querySelector('[data-entity="climate.bathroom"]');
+    check("hvac: a heating TRV is coral and says current -> target", trv && trv.classList.contains("heating") && !trv.classList.contains("on") &&
+      trv.querySelector(".device-value").textContent === "21.5° → 22°", trv && trv.className.baseVal + " " + trv.querySelector(".device-value")?.textContent);
+    const eu3 = await mount({ floor: "first-floor" }, fakeHass("night"), 900);
+    const th = eu3.shadowRoot.querySelector('[data-entity="climate.bedroom"] .device-value');
+    check("hvac: a thermostat with its own sensor shows that sensor -> target", th && /^\d+(\.\d)?° → 22°$/.test(th.textContent), th && th.textContent);
+    const bath = sh.querySelector("#rooms #room-bathroom");
+    check("hvac: the room of a heating TRV is tinted", bath && bath.getAttribute("data-tint-kind") === "heating" && bath.classList.contains("heating"), bath && bath.getAttribute("class"));
+    check("hvac: the A/C glows while heating", sh.querySelector('.ac[data-entity="climate.living_room_ac"]')?.classList.contains("heating"));
+    const fan = sh.querySelector('[data-entity="fan.office_fan"]');
+    check("hvac: a running fan spins at its speed and shows it", fan && fan.classList.contains("on") && fan.style.getPropertyValue("--fp-spin") === "1.2s" &&
+      fan.querySelector(".device-value").textContent === "60%" && getComputedStyle(fan.querySelector(".icon")).animationName !== "none", fan && fan.style.getPropertyValue("--fp-spin"));
+    const eo2 = await mount({ room_heating: false }, fakeHass("night"), 600);
+    check("hvac: room_heating: false leaves rooms alone", !eo2.shadowRoot.querySelector("#rooms #room-bathroom").hasAttribute("data-tint-kind"));
+  }
+
+  // cameras: the sensor of the model, one found on the camera's device, the picture in tablet mode
+  {
+    const hc = fakeHass("night");
+    const S = (id, state) => ({ entity_id: id, state, attributes: {}, last_updated: id + state });
+    hc.states["binary_sensor.front_door_person"] = S("binary_sensor.front_door_person", "off");
+    hc.states["binary_sensor.driveway_person"] = S("binary_sensor.driveway_person", "off");
+    hc.states["binary_sensor.driveway_motion"] = { ...S("binary_sensor.driveway_motion", "off"), attributes: { device_class: "motion" } };
+    hc.entities = { "camera.driveway": { entity_id: "camera.driveway", device_id: "d1" }, "binary_sensor.driveway_motion": { entity_id: "binary_sensor.driveway_motion", device_id: "d1" },
+      "binary_sensor.driveway_person": { entity_id: "binary_sensor.driveway_person", device_id: "d1" }, "binary_sensor.other": { entity_id: "binary_sensor.other", device_id: "d2" } };
+    const ec = await mount({ kiosk: { idle: 600 } }, hc, 900);
+    const sc = ec.shadowRoot;
+    const drive = sc.querySelector('[data-entity-camera="camera.driveway"]');
+    check("cameras: the person sensor on the camera's device is found", drive && drive.getAttribute("data-entity-detect") === "binary_sensor.driveway_person", drive && drive.getAttribute("data-entity-detect"));
+    check("cameras: no popup on load", sc.getElementById("campop").hidden);
+    ec.hass = { ...hc, states: { ...hc.states, "binary_sensor.front_door_person": S("binary_sensor.front_door_person", "on") } };
+    await tick(50);
+    const door = sc.querySelector('[data-entity-camera="camera.front_door"]');
+    check("cameras: someone seen -> the fan turns red", door.classList.contains("detected"));
+    check("cameras: ... and in tablet mode the picture pops up", !sc.getElementById("campop").hidden && /Front door/.test(sc.querySelector("#campop .t").textContent), sc.querySelector("#campop .t").textContent);
+    let ci = null; ec.addEventListener("hass-more-info", (e) => { ci = e.detail.entityId; });
+    sc.querySelector("#campop .pic").click();
+    check("cameras: a tap on the picture opens the HD camera and closes it", ci === "camera.front_door_hq" && sc.getElementById("campop").hidden, ci);
+    // not in tablet mode: no picture (default "kiosk")
+    const hn = { ...hc, states: { ...hc.states } };
+    const en2 = await mount({}, hn, 600);
+    en2.hass = { ...hn, states: { ...hn.states, "binary_sensor.front_door_person": S("binary_sensor.front_door_person", "on") } };
+    await tick(50);
+    check("cameras: outside tablet mode only the red fan, no picture", en2.shadowRoot.getElementById("campop").hidden &&
+      en2.shadowRoot.querySelector('[data-entity-camera="camera.front_door"]').classList.contains("detected"));
+  }
+
+  // marks on the time travel line
+  {
+    const ev = await mount({ events: [{ entity: "binary_sensor.washer_running", name: "Washer" }] }, fakeHass("night"), 900);
+    const se = ev.shadowRoot;
+    se.getElementById("tt-btn").click(); se.querySelectorAll("#tt-ranges button")[1].click(); await tick(500);
+    const mk = [...se.querySelectorAll("#tt-marks button.mk")];
+    const labels = mk.map((b) => b.dataset.label);
+    check("events: marks for alarms, the lock, cameras and the config's entities", mk.length >= 7 && labels.some((l) => /^Smoke/.test(l)) && labels.some((l) => /^Washer/.test(l)) && labels.some((l) => /detection/.test(l)), mk.length + " " + labels.slice(0, 4).join(" | "));
+    const w = mk.find((b) => /^Washer/.test(b.dataset.label));
+    w.click();
+    check("events: a tap on a mark goes there", /Washer/.test(se.getElementById("tt-when").textContent) && Math.abs(Number(se.getElementById("tt-slider").value) - parseFloat(w.style.left) * 10) <= 1, se.getElementById("tt-when").textContent);
+    const ev2 = await mount({ events: false }, fakeHass("night"), 600);
+    ev2.shadowRoot.getElementById("tt-btn").click(); await tick(400);
+    check("events: false -> no marks", !ev2.shadowRoot.querySelectorAll("#tt-marks button").length);
+  }
+
+  // appliance labels: time left of a running washer, a tick on a finished dryer
+  {
+    const ew = await mount({}, fakeHass("night"), 900);
+    const lab = [...ew.shadowRoot.querySelectorAll(".device-label")];
+    const txt = lab.map((l) => l.textContent);
+    check("appliances: 'W 1:25' while it runs, 'D ✓' when done", txt.includes("W 1:25") && txt.includes("D ✓") &&
+      lab.find((l) => l.textContent === "D ✓").classList.contains("done"), txt.join(" | "));
+  }
+
+  // actions of your own per entity
+  {
+    const ex = await mount({ entities: {
+      "binary_sensor.washer_running": { tap_action: { action: "fire-dom-event", floorplan_dialog: "laundry" } },
+      "camera.front_door": { tap_action: { action: "fire-dom-event", floorplan_dialog: "camera" } },
+      "sensor.living_temperature": { tap_action: { action: "perform-action", perform_action: "script.say", data: { x: 1 } } },
+    } }, fakeHass("night"), 900);
+    const sx = ex.shadowRoot, wx = sx.getElementById("wrap");
+    const got = [];
+    ex.addEventListener("ll-custom", (e) => got.push(e.detail));
+    const tapAt = (el, pid) => { const r = el.getBoundingClientRect(); for (const t of ["pointerdown", "pointerup"]) wx.dispatchEvent(new PointerEvent(t, { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerId: pid, bubbles: true })); };
+    const n0 = calls.length;
+    tapAt(sx.querySelector('[data-entity="binary_sensor.washer_running"] .hit-area'), 61);
+    check("actions: a tap fires your DOM event with the entity", got.length === 1 && got[0].floorplan_dialog === "laundry" && got[0].entity_id === "binary_sensor.washer_running", JSON.stringify(got));
+    tapAt(sx.querySelector('[data-entity-camera="camera.front_door"] .camera-mark'), 62);
+    check("actions: a camera's action (by its own id, though the tap gives the HD stream)", got.length === 2 && got[1].floorplan_dialog === "camera", JSON.stringify(got[1]));
+    // a tap right on a camera mark next to another device opens the camera
+    const mk2 = sx.querySelector('[data-entity-camera="camera.front_door"] .camera-mark').getBoundingClientRect();
+    check("actions: the nearest wins - a camera mark beats a device a few px away", ex._hit(mk2.left + mk2.width / 2, mk2.top + mk2.height / 2) === "camera.front_door_hq",
+      ex._hit(mk2.left + mk2.width / 2, mk2.top + mk2.height / 2));
+    tapAt(sx.querySelector('#room-climate text[data-temp="sensor.living_temperature"]'), 63);
+    check("actions: a room's reading can be tapped - perform-action", calls.length === n0 + 1 && calls[n0][0] === "script" && calls[n0][1] === "say" && calls[n0][2].x === 1, JSON.stringify(calls[n0]));
+    let mi = null; ex.addEventListener("hass-more-info", (e) => { mi = e.detail.entityId; });
+    tapAt(sx.querySelector('#room-climate text[data-temp="sensor.kitchen_temperature"]'), 64);
+    check("actions: a reading without an action opens its sensor", mi === "sensor.kitchen_temperature", mi);
+  }
+
+  // maps: periods, comparing with the period before, energy in the rooms, signal
+  {
+    const em = await mount({}, fakeHass("night"), 900);
+    const sm = em.shadowRoot;
+    const menu = (k) => { sm.getElementById("layer-btn").click(); [...sm.querySelectorAll("#layer-menu button")][k].click(); };
+    const texts = () => [...sm.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+    const chip = (re) => [...sm.querySelectorAll("#legend .periods button")].find((b) => re.test(b.textContent));
+    menu(1); await tick(100);
+    chip(/^30 days$/).click(); await tick(300);
+    check("maps: temperature averaged over 30 days from the statistics", texts().length >= 3 && texts().every((t) => t === "21.7°"), texts().join(" "));
+    chip(/before/).click(); await tick(300);
+    check("maps: compared with the 30 days before: +1.2°", texts().length >= 3 && texts().every((t) => t === "+1.2°") && /against/.test(sm.getElementById("legend").textContent), texts().join(" "));
+    chip(/^Winter$/).click(); await tick(300);
+    check("maps: winter against the winter before", /Winter/.test(sm.getElementById("legend").textContent) && texts().length >= 3, sm.getElementById("legend").textContent);
+    chip(/^Now$/).click(); await tick(100);
+    check("maps: back to now - no comparing", !chip(/before/) && texts().every((t) => /°$/.test(t) && !/^\+/.test(t)), texts().join(" "));
+    menu(6); await tick(400);
+    const util = [...sm.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+    check("maps: energy in the rooms - a meter on a plug (7 x 1.5 kWh) plus the lights", util.some((t) => /^1[0-9]\.\d+ kWh$/.test(t)), util.join(" "));
+    // signal: Zigbee link quality of the sensors on the plan
+    const hs2 = fakeHass("night");
+    hs2.states["sensor.living_linkquality"] = { entity_id: "sensor.living_linkquality", state: "40", attributes: { unit_of_measurement: "lqi" }, last_updated: "a" };
+    hs2.states["sensor.kitchen_linkquality"] = { entity_id: "sensor.kitchen_linkquality", state: "200", attributes: { unit_of_measurement: "lqi" }, last_updated: "a" };
+    hs2.entities = { "sensor.living_temperature": { entity_id: "sensor.living_temperature", device_id: "z1" }, "sensor.living_linkquality": { entity_id: "sensor.living_linkquality", device_id: "z1" },
+      "sensor.kitchen_temperature": { entity_id: "sensor.kitchen_temperature", device_id: "z2" }, "sensor.kitchen_linkquality": { entity_id: "sensor.kitchen_linkquality", device_id: "z2" } };
+    const eg3 = await mount({ map: "signal" }, hs2, 900);
+    const sigT = [...eg3.shadowRoot.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
+    const fills = [...eg3.shadowRoot.querySelectorAll("#fc-map radialGradient stop:first-child")].map((x) => x.getAttribute("stop-color"));
+    check("maps: signal - a spot per radio device, red weak, green strong", sigT.join() === "40,200" && fills[0] !== fills[1], sigT.join() + " " + fills.join());
+  }
+
+  // rules: a room tinted while a reading is high, a lamp glowing and blinking; live power by a plug
+  {
+    const hp = fakeHass("night"), iso = (min) => new Date(Date.now() - min * 60e3).toISOString();
+    hp.states["sensor.living_temperature"] = { ...hp.states["sensor.living_temperature"], state: "27.5", last_updated: "r1" };
+    hp.states["light.office"] = { ...hp.states["light.office"], state: "on", last_changed: iso(5), last_updated: "r2" };
+    hp.states["light.living_room"] = { ...hp.states["light.living_room"], state: "on", last_changed: iso(10), last_updated: "r3" };
+    hp.states["sensor.dehumidifier_power"] = { entity_id: "sensor.dehumidifier_power", state: "350", attributes: { unit_of_measurement: "W", device_class: "power" }, last_updated: "p" };
+    hp.entities = { "switch.dehumidifier": { entity_id: "switch.dehumidifier", device_id: "p1" }, "sensor.dehumidifier_power": { entity_id: "sensor.dehumidifier_power", device_id: "p1" } };
+    const er = await mount({ rules: [
+      { entity: "sensor.living_temperature", above: 25, color: "red" },
+      { entity: "light.office", color: "orange", blink: true },
+      { entity: "light.living_room", state: "on", for: 30, color: "orange" } ] }, hp, 900);
+    const rs = er.shadowRoot;
+    check("rules: a room tinted while its reading is above the limit", rs.querySelectorAll("#fc-rules polygon").length === 1 &&
+      rs.querySelector("#fc-rules polygon").getAttribute("fill") === "#e53935");
+    const office = rs.querySelector('[data-entity="light.office"]');
+    check("rules: a lamp glows in its colour and blinks", office.classList.contains("fc-rc") && office.classList.contains("fc-blink") &&
+      office.style.getPropertyValue("--fc-rc") === "#ff9800");
+    check("rules: `for: 30` - not yet after 10 minutes", !rs.querySelector('[data-entity="light.living_room"]').classList.contains("fc-rc"));
+    er.hass = { ...hp, states: { ...hp.states, "light.office": { ...hp.states["light.office"], state: "off", last_updated: "r4" } } }; await tick(60);
+    check("rules: off again - the glow goes", !rs.querySelector('[data-entity="light.office"]').classList.contains("fc-rc"));
+    const pw = rs.querySelector('#fc-power text[data-power="switch.dehumidifier"]');
+    check("power: the plug's meter (same device) shows by it", pw && pw.textContent === "⚡350 W", pw && pw.textContent);
+    {
+      // by the plug on screen, whatever the zoom
+      rs.getElementById("zoom-in").click(); rs.getElementById("zoom-in").click(); er._drawPower();
+      const t2 = rs.querySelector('#fc-power text[data-power="switch.dehumidifier"]').getBoundingClientRect();
+      const plug = rs.querySelector('[data-entity="switch.dehumidifier"] .icon-badge').getBoundingClientRect();
+      check("power: the label sits right by its device (zoomed in too)", Math.abs((t2.left + t2.right) / 2 - (plug.left + plug.right) / 2) < 6 && Math.abs(t2.bottom - plug.top) < 40,
+        [t2.left, t2.top, plug.left, plug.top].map(Math.round).join(","));
+    }
+    check("power: the devices added up in the corner", !rs.getElementById("fc-power-total").hidden && /350 W/.test(rs.getElementById("fc-power-total").textContent),
+      rs.getElementById("fc-power-total").textContent);
+    hp.states["sensor.house_power"] = { entity_id: "sensor.house_power", state: "2.4", attributes: { unit_of_measurement: "kW" }, last_updated: "h" };
+    const et = await mount({ power_total: "sensor.house_power" }, hp, 900);
+    check("power: the house's own meter when given", /House now 2.4 kW/.test(et.shadowRoot.getElementById("fc-power-total").textContent), et.shadowRoot.getElementById("fc-power-total").textContent);
+    hp.states["sensor.dryer_power"] = { entity_id: "sensor.dryer_power", state: "900", attributes: { unit_of_measurement: "W" }, last_updated: "d" };
+    const el2 = await mount({ power: { "switch.dehumidifier": ["sensor.dehumidifier_power", "sensor.dryer_power"] } }, hp, 900);
+    const pw2 = el2.shadowRoot.querySelector('#fc-power text[data-power="switch.dehumidifier"]');
+    check("power: a list of meters for one mark is added up", pw2 && pw2.textContent === "⚡1.3 kW", pw2 && pw2.textContent);
+    const en = await mount({ power: false }, hp, 900);
+    check("power: false hides it", !en.shadowRoot.querySelector("#fc-power") && en.shadowRoot.getElementById("fc-power-total").hidden);
+  }
+
+  // the floor plan integration: no `model:`, the plan from HA, drawn again after a save in its editor
+  {
+    const hi = fakeHass("night");
+    let plan = JSON.parse(JSON.stringify(model)), onSaved = null;
+    const base = hi.callWS;
+    hi.callWS = async (m) => (m.type === "living_floorplan/plan" ? { model: plan, version: { id: "v1" }, versions: [{ id: "v1" }] } : base(m));
+    hi.connection = { subscribeEvents: async (cb, ev) => { if (ev === "living_floorplan_saved") onSaved = cb; return () => { onSaved = null; }; } };
+    hi.user = { is_admin: true, name: "Admin" };
+    const ei = document.createElement("house-floorplan-card");
+    ei.style.width = "900px";
+    ei.setConfig({ type: "custom:house-floorplan-card" });
+    document.getElementById("stage").appendChild(ei);
+    ei.hass = hi;
+    for (let i = 0; i < 100 && !ei.shadowRoot.querySelector("svg"); i++) await tick();
+    await tick(150);
+    const nRooms = () => ei.shadowRoot.querySelectorAll("#rooms polygon").length;
+    const n0 = nRooms();
+    check("integration: no model - the plan from Home Assistant", n0 >= 5 && !!onSaved, n0);
+    plan = { ...plan, rooms: plan.rooms.slice(1) };
+    onSaved({ data: { version: "v2" } }); await tick(300);
+    check("integration: a save in the editor draws the plan again", nRooms() === n0 - 1, nRooms() + " / " + n0);
+    const pushed = [], realPush = history.pushState.bind(history);
+    history.pushState = (st, t, url) => pushed.push(url);
+    ei.shadowRoot.getElementById("set-btn").click();
+    const eb = ei.shadowRoot.querySelector("#settings [data-edit]");
+    if (eb) eb.click();
+    history.pushState = realPush;
+    check("integration: ✎ in the settings (admins) opens the editor panel", eb && pushed[0] === "/living-floorplan", JSON.stringify(pushed));
+    // set up, nothing drawn yet: the way in is the panel
+    const he = fakeHass("night");
+    he.callWS = async (m) => (m.type === "living_floorplan/plan" ? { model: null, version: null, versions: [] } : base(m));
+    const ee = document.createElement("house-floorplan-card");
+    ee.setConfig({ type: "custom:house-floorplan-card" });
+    document.getElementById("stage").appendChild(ee);
+    ee.hass = he; await tick(200);
+    const ob = ee.shadowRoot.querySelector(".onb-btn");
+    check("integration: no plan yet - the button goes to the editor panel", ob && ob.getAttribute("href") === "/living-floorplan" && !ob.target, ob && ob.outerHTML);
+  }
+
+  // inside a camera's field of view a lamp a few px away does not take the click; a lamp itself does
+  {
+    const ec2 = await mount({}, fakeHass("night"), 900);
+    const cg = ec2.shadowRoot.querySelector('[data-entity-camera="camera.garden"]') || ec2.shadowRoot.querySelector("[data-entity-camera]");
+    const fan = cg.querySelector(".camera-fan"), m = fan.getScreenCTM();
+    // a point well inside the fan, then the nearest lamp to it
+    const box = fan.getBoundingClientRect();
+    let hitFan = null;
+    for (let fy = 0.2; fy < 0.9 && !hitFan; fy += 0.1) for (let fx = 0.2; fx < 0.9 && !hitFan; fx += 0.1) {
+      const x = box.left + box.width * fx, y = box.top + box.height * fy;
+      if (fan.isPointInFill(new DOMPoint(x, y).matrixTransform(m.inverse())) && !ec2.shadowRoot.elementFromPoint) hitFan = [x, y];
+      if (fan.isPointInFill(new DOMPoint(x, y).matrixTransform(m.inverse()))) hitFan = [x, y];
+    }
+    const camIdOf = cg.getAttribute("data-entity-camera-hq") || cg.getAttribute("data-entity-camera");
+    check("cameras: a click inside the field of view opens the camera", hitFan && ec2._hit(...hitFan) === camIdOf, hitFan && ec2._hit(...hitFan));
+    const lamp = ec2.shadowRoot.querySelector(".light[data-entity] use").getBoundingClientRect();
+    check("cameras: a click on a lamp itself is still the lamp", /^light\./.test(ec2._hit(lamp.left + lamp.width / 2, lamp.top + lamp.height / 2)));
+  }
+
+  // upstairs: a roof window with its cover and contact, a pocket door
+  {
+    const hk = fakeHass("night");
+    hk.states["binary_sensor.landing_skylight"] = { entity_id: "binary_sensor.landing_skylight", state: "on", attributes: {}, last_updated: "o" };
+    const ek = await mount({ floor: "first-floor" }, hk, 900);
+    const sky = ek.shadowRoot.querySelector('.skylight[data-entity="cover.landing_skylight"]');
+    check("roof window: closed cover darkens it, an open contact turns it red", sky && sky.classList.contains("covered") && sky.style.getPropertyValue("--sky") === "0.75" &&
+      sky.classList.contains("open"), sky && sky.getAttribute("class"));
+    const n5 = calls.length, rr = sky.querySelector(".sky-glass").getBoundingClientRect(), wk = ek.shadowRoot.getElementById("wrap");
+    for (const t of ["pointerdown", "pointerup"]) wk.dispatchEvent(new PointerEvent(t, { clientX: rr.left + rr.width / 2, clientY: rr.top + rr.height / 2, pointerId: 81, bubbles: true }));
+    check("roof window: a tap moves its cover", calls.length === n5 + 1 && calls[n5][0] === "cover" && calls[n5][2].entity_id === "cover.landing_skylight", JSON.stringify(calls[n5]));
+    check("pocket door: drawn with its pocket", !!ek.shadowRoot.querySelector('[id="door-bath-pocket"], [id^="door-bath"][stroke-dasharray], #door-bath-pocket'), [...ek.shadowRoot.querySelectorAll('[id^="door-bath"]')].map((e) => e.id).join(","));
+  }
+
+  // widgets: a clock, a calendar, a reading, a scene button
+  {
+    const hw = fakeHass("night");
+    hw.states["calendar.home"] = { entity_id: "calendar.home", state: "off", attributes: { friendly_name: "Home", message: "Dentist", start_time: new Date(Date.now() + 864e5).toISOString().slice(0, 10) + " 09:00:00" }, last_updated: "c" };
+    hw.states["scene.evening"] = { entity_id: "scene.evening", state: "2026-10-26", attributes: { friendly_name: "Evening" }, last_updated: "s" };
+    const ew = await mount({ widgets: [{ type: "clock", at: [10, 8] }, { type: "calendar", entity: "calendar.home", at: [90, 8] },
+      { type: "state", entity: "sensor.solar_power", name: "Solar", at: [90, 92] }, { type: "button", entity: "scene.evening", icon: "🌙", at: [10, 92] }] }, hw, 900);
+    const sw = ew.shadowRoot;
+    const wt = [...sw.querySelectorAll("#fc-widgets [data-w]")].map((g) => g.textContent);
+    check("widgets: clock, the next event, a reading, a button", wt.length === 4 && /\d{1,2}:\d{2}/.test(wt[0]) && /tomorrow 09:00( AM)? Dentist/.test(wt[1]) && /3240 W/.test(wt[2]) && /Evening/.test(wt[3]), wt.join(" | "));
+    const n6 = calls.length, rb = sw.querySelector('#fc-widgets [data-w="3"]').getBoundingClientRect(), ww = sw.getElementById("wrap");
+    for (const t of ["pointerdown", "pointerup"]) ww.dispatchEvent(new PointerEvent(t, { clientX: rb.left + rb.width / 2, clientY: rb.top + rb.height / 2, pointerId: 91, bubbles: true }));
+    check("widgets: a scene button turns the scene on", calls.length === n6 + 1 && calls[n6][0] === "scene" && calls[n6][1] === "turn_on", JSON.stringify(calls[n6]));
+    // without `at`: the bar under the plan
+    const eb3 = await mount({ widgets: [{ type: "clock" }, { type: "state", entity: "weather.home", name: "Weather" }, { type: "button", entity: "scene.evening", icon: "🌙" }] }, hw, 600);
+    const chips = [...eb3.shadowRoot.querySelectorAll("#fc-bar .fc-chip")];
+    check("widgets: the bar under the plan - clock, weather, a button", chips.length === 3 && !eb3.shadowRoot.getElementById("fc-bar").hidden &&
+      /13° clouds/.test(chips[1].textContent) && !eb3.shadowRoot.querySelector("#fc-widgets [data-w]"), chips.map((c) => c.textContent).join(" | "));
+    const btn0 = chips[2], n8 = calls.length;
+    btn0.click();
+    check("widgets: a bar button runs its scene", calls.length === n8 + 1 && calls[n8][0] === "scene", JSON.stringify(calls[n8]));
+    eb3.hass = { ...hw, states: { ...hw.states, "weather.home": { ...hw.states["weather.home"], last_updated: "z", attributes: { temperature: 9 } } } }; await tick(50);
+    check("widgets: live updates keep the bar's nodes", eb3.shadowRoot.querySelectorAll("#fc-bar .fc-chip")[2] === btn0);
+    hw.states["sensor.waste_next"] = { entity_id: "sensor.waste_next", state: "2026-11-06", attributes: { friendly_name: "Waste", info: "Fri 6.11: sorted (plastic, metal, paper, glass), mixed and garden waste" }, last_updated: "w" };
+    const eLong = await mount({ widgets: [{ type: "state", entity: "sensor.waste_next", attribute: "info", name: "Waste" }] }, hw, 360);
+    const bar = eLong.shadowRoot.getElementById("fc-bar"), lc = bar.querySelector(".fc-chip");
+    check("widgets: a long text wraps inside a narrow card", lc.getBoundingClientRect().right <= bar.getBoundingClientRect().right + 0.5 && lc.getBoundingClientRect().height > 45,
+      Math.round(lc.getBoundingClientRect().right) + "/" + Math.round(bar.getBoundingClientRect().right));
+    const e90 = await mount({ rotate: 90, widgets: [{ type: "clock", at: [10, 8] }] }, hw, 380);
+    const tr = e90.shadowRoot.querySelector("#fc-widgets [data-w]").getAttribute("transform");
+    check("widgets: upright on a turned plan (no rotation)", /^translate\(/.test(tr) && !/rotate/.test(tr), tr);
+  }
+
+  // review 26.10: readings do not glow, the legend's chips survive live updates, the banner after a new config
+  {
+    const er2 = await mount({}, fakeHass("night"), 900);
+    const on = (id) => er2.shadowRoot.querySelector(`[data-entity="${id}"]`).classList.contains("on");
+    check("review: a battery or solar reading is not 'on'", !on("sensor.home_battery") && !on("sensor.solar_power"));
+    er2.shadowRoot.getElementById("layer-btn").click(); [...er2.shadowRoot.querySelectorAll("#layer-menu button")][1].click(); await tick(100);
+    const chip0 = er2.shadowRoot.querySelector("#legend .periods button");
+    er2.hass = { ...er2._hass, states: { ...er2._hass.states, "sensor.living_temperature": { entity_id: "sensor.living_temperature", state: "22.9", attributes: {}, last_updated: "new" } } };
+    await tick(50);
+    check("review: a live update keeps the period chips (same nodes)", chip0 && er2.shadowRoot.querySelector("#legend .periods button") === chip0);
+    const ha3 = fakeHass("night");
+    ha3.states["binary_sensor.hall_smoke"] = { entity_id: "binary_sensor.hall_smoke", state: "on", attributes: {}, last_updated: "x" };
+    const eb2 = await mount({}, ha3, 700);
+    eb2.setConfig({ type: "custom:house-floorplan-card", model: MODEL, show_room_names: true }); eb2.hass = ha3; await tick(300);
+    check("review: the alarm banner is back after a new config", eb2.shadowRoot.querySelectorAll("#alerts button").length >= 1);
+  }
+
+  {
+    const ev3 = await mount({ show_version: true }, fakeHass("night"), 600);
+    const lab = ev3.shadowRoot.getElementById("fc-version");
+    check("show_version: the version label in the corner", lab && !lab.hidden && /^0\.\d+\.\d+/.test(lab.textContent), lab && lab.textContent);
+    const ev4 = await mount({}, fakeHass("night"), 600);
+    check("show_version: hidden by default", ev4.shadowRoot.getElementById("fc-version").hidden);
+  }
+
+  // a lamp left on in an empty room
+  {
+    const hf2 = fakeHass("night");
+    const ef2 = await mount({}, hf2, 900);
+    const src = ef2._floorsLowered[0].sources.living;
+    const old = new Date(Date.now() - 2 * 3600e3).toISOString(), fresh = new Date(Date.now() - 60e3).toISOString();
+    const st2 = { ...hf2.states };
+    for (const id of src.presence) st2[id] = { entity_id: id, state: "off", attributes: {}, last_changed: old, last_updated: old };
+    for (const id of src.lights) st2[id] = { entity_id: id, state: "off", attributes: {}, last_changed: old, last_updated: old };
+    st2[src.lights[0]] = { entity_id: src.lights[0], state: "on", attributes: {}, last_changed: old, last_updated: old };
+    ef2.hass = { ...hf2, states: st2 }; await tick(50);
+    const nb = [...ef2.shadowRoot.querySelectorAll("#alerts button.nudge")];
+    check("forgotten: a lamp on for 2 h in an empty room -> a nudge", nb.length === 1 && /Living room: on, nobody there for 120 min/.test(nb[0].textContent), nb.map((b) => b.textContent).join(" | "));
+    check("forgotten: ... and the lamp blinks", !!ef2.shadowRoot.querySelector(`.light.fc-forgotten[data-entity="${src.lights[0]}"]`));
+    const n3 = calls.length; nb[0].click();
+    check("forgotten: the nudge turns it off", calls.length === n3 + 1 && calls[n3][1] === "turn_off" && calls[n3][2].entity_id.includes(src.lights[0]), JSON.stringify(calls[n3]));
+    st2[src.presence[0]] = { ...st2[src.presence[0]], state: "on", last_changed: fresh, last_updated: fresh };
+    ef2.hass = { ...hf2, states: { ...st2 } }; await tick(50);
+    check("forgotten: someone comes in -> no nudge", !ef2.shadowRoot.querySelectorAll("#alerts button.nudge").length);
+  }
+
+  // light and dark
+  {
+    const ed2 = await mount({ theme: "light" }, fakeHass("night"), 600);
+    const room = ed2.shadowRoot.querySelector("#rooms");
+    check("theme: light rooms and panel", room.getAttribute("fill") === "#fdfdfe" && /--fc-bg: #f6f8fa/.test(ed2.shadowRoot.getElementById("palette").textContent), room.getAttribute("fill"));
+    const ha2 = fakeHass("night"); ha2.themes = { darkMode: false };
+    const ea2 = await mount({}, ha2, 600);
+    check("theme: auto follows Home Assistant's light mode", ea2.shadowRoot.querySelector("#rooms").getAttribute("fill") === "#fdfdfe");
+    ea2.hass = { ...ha2, themes: { darkMode: true } }; await tick(100);
+    check("theme: ... and back to dark when HA switches", ea2.shadowRoot.querySelector("#rooms").getAttribute("fill") === "#1e2836");
+    // the plan drawn after the first states: the card's colours must follow (bug seen live, 26.10)
+    const hl = fakeHass("night"); hl.themes = { darkMode: false };
+    const el4 = document.createElement("house-floorplan-card");
+    el4.setConfig({ type: "custom:house-floorplan-card", model: MODEL });
+    document.getElementById("stage").appendChild(el4);
+    el4.hass = hl;
+    for (let i = 0; i < 100 && !el4.shadowRoot.querySelector("svg"); i++) await tick();
+    await tick(100);
+    const tx = el4.shadowRoot.querySelector("#room-climate text");
+    check("theme: texts dark on a light plan when the states came before the plan", getComputedStyle(tx).fill === "rgb(43, 52, 66)" &&
+      /--fc-bg: #f6f8fa/.test(el4.shadowRoot.getElementById("palette").textContent), getComputedStyle(tx).fill);
+    const ac2 = await mount({ accent: "#00bcd4" }, fakeHass("night"), 600);
+    check("theme: accent colour", /--fc-accent: #00bcd4/.test(ac2.shadowRoot.getElementById("palette").textContent));
+  }
+
+  // Polish
+  const el2 = await mount({}, fakeHass("night", "pl"), 600);
+  const f2 = [...el2.shadowRoot.querySelectorAll("#floors button")].map((b) => b.textContent);
+  check("Polish: the ground floor is 'Parter' unless the model names it", f2[0] === "Parter" || f2[0] === (model.floor_name || ""), f2.join("|"));
+  // phone: a wide plan turns
+  const el3 = await mount({ rotate: 90 }, fakeHass("night"), 380);
+  const vb3 = el3.shadowRoot.querySelector("svg").getAttribute("viewBox").split(" ").map(Number);
+  check("rotate: 90 turns the view box", vb3[3] > vb3[2], vb3.join(" "));
+  check("turned plan: texts stay upright (turned back by 90)", [...el3.shadowRoot.querySelectorAll("#room-climate text")].every((t) => /rotate\(-90/.test(t.getAttribute("transform") || "rotate(-90")),
+    [...el3.shadowRoot.querySelectorAll("#room-climate text")].map((t) => t.getAttribute("transform")).join(" "));
+
+  const ok = results.filter((r) => r.ok).length;
+  document.getElementById("results").textContent = results.map((r) => (r.ok ? "PASS  " : "FAIL  ") + r.name + (r.detail ? "  -> " + r.detail : "")).join("\n") +
+    "\n" + (ok === results.length ? "OK  " : "FAILED  ") + ok + "/" + results.length + " checks passed";
+}
+</script>
+</body>
+</html>
