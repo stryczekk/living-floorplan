@@ -243,7 +243,16 @@ export function lowerV2(m) {
       const side = o.swing === "left" ? 1 : -1;
       const hs = o.hinge === "to" ? o.to : o.from, cs = o.hinge === "to" ? o.from : o.to;
       // panes (sashes) and contact sensors: one for the whole opening or one per pane
-      const panes = { panes: o.panes, contacts: o.contacts, tick: wallThickness(m, w) / 2 * k };
+      // panes of their own widths: pane_sizes = the first panes in cm (the last takes the rest) -> the division
+      // points as fractions of the window
+      const splits = (() => {
+        const n2 = o.panes || 1, ps = o.pane_sizes;
+        if (n2 < 2 || !Array.isArray(ps) || ps.length !== n2 - 1) return undefined;
+        let acc = 0; const out = [];
+        for (const v of ps) { acc += Number(v) || 0; out.push(acc / width); }
+        return out.every((f, i) => f > (out[i - 1] || 0) && f < 1) ? out : undefined;
+      })();
+      const panes = { panes: o.panes, contacts: o.contacts, tick: wallThickness(m, w) / 2 * k, splits };
       const contact = (o.contacts || [])[0];
       if (o.type === "window" || o.type === "corner_window") {
         // a corner window: the glass meets its other half on the other wall's centre line (a wall drawn
@@ -261,7 +270,8 @@ export function lowerV2(m) {
       } else if (o.type === "hst") {
         const sashes = {};
         for (const [name, sa] of Object.entries(o.sashes)) sashes[name] = [P(at(sa.from, sa.offset)), P(at(sa.to, sa.offset))];
-        v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), type: "hst", width: width * k, sashes, contacts: o.contacts });
+        v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), type: "hst", width: width * k, sashes, contacts: o.contacts,
+          line: [P(at(o.from)), P(at(o.to))], tick: wallThickness(m, w) / 2 * k });
       } else if (o.type === "door") {
         v1.doors.push({ ...leafAt(o.id, hs, cs, width, side), ...ext(o), contact });
       } else if (o.type === "double_door" || o.type === "double_gate") {
@@ -270,9 +280,23 @@ export function lowerV2(m) {
         v1.doors.push({ ...leafAt(o.id + "-1", o.from, mid, width / 2, side), ...ext(o), contact });
         v1.doors.push({ ...leafAt(o.id + "-2", o.to, mid, width / 2, side), ...ext(o), contact });
       } else if (o.type === "balcony_door") {
-        // glazed: a window line plus one leaf (it can carry a cover like a window)
-        v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
-        v1.doors.push({ ...leafAt(o.id + "-leaf", hs, cs, width, side), ...ext(o), contact });
+        // glazed: a window line plus its leaves (it can carry a cover like a window). Panes of their own:
+        // pane_open[i] = "fixed" | "from" | "to" (where its hinge is) - a leaf for each one that opens
+        const n2 = o.panes || 1;
+        const opens = Array.isArray(o.pane_open) && o.pane_open.length === n2 ? o.pane_open
+          : o.leaves === 2 && n2 === 2 ? ["from", "to"] : null;
+        if (opens) {
+          const edge = (i) => o.from + width * (i <= 0 ? 0 : i >= n2 ? 1 : splits ? splits[i - 1] : i / n2);
+          v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
+          opens.forEach((op, i) => {
+            if (op !== "from" && op !== "to") return;
+            const s0 = edge(i), s1 = edge(i + 1), h2 = op === "to" ? s1 : s0, c2 = op === "to" ? s0 : s1;
+            v1.doors.push({ ...leafAt(o.id + (i ? `-leaf-${i + 1}` : "-leaf"), h2, c2, s1 - s0, side), ...ext(o), contact });
+          });
+        } else {
+          v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
+          v1.doors.push({ ...leafAt(o.id + "-leaf", hs, cs, width, side), ...ext(o), contact });
+        }
       } else if (o.type === "sliding_door") {
         // the leaf on the swing-side face, and its track shifted by half the
         // width towards the side it slides to (the hinge end)
@@ -286,8 +310,13 @@ export function lowerV2(m) {
         v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], width: width * k, ...ext(o), contact });
         v1.doors.push({ id: o.id + "-pocket", lines: [[P(at(end)), P(at(end + dir * width))]], dashed: true, width: width * k, pocket: true });
       } else if (o.type === "garage_door") {
-        // an overhead door: dashed line along the axis
-        v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], dashed: true, width: width * k, ...ext(o), contact });
+        // a sectional (overhead) door as on an architect's drawing: the door across the opening, and dashed
+        // the panel's run along the ceiling into the garage (its depth: o.depth cm, about the door's height)
+        const inSide = o.outside ? (o.outside === "left" ? -1 : 1) : side;
+        const face = wallThickness(m, w) / 2 * inSide, run = face + (o.depth || 240) * inSide;
+        v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], width: width * k, ...ext(o), contact, garage: "door" });
+        v1.doors.push({ id: o.id + "-track", garage: "track", lines: [[P(at(o.from, face)), P(at(o.from, run))], [P(at(o.from, run)), P(at(o.to, run))],
+          [P(at(o.to, run)), P(at(o.to, face))]], dashed: true, width: width * k, pocket: true });
       }
       // "passage": just the gap in the wall
     }
@@ -326,7 +355,37 @@ export function lowerV2(m) {
     ? { ...l, at: P(l.at), circuits: l.circuits.map((c) => ({ ...c, r: S(c.r) })) }
     : { ...l, bulbs: l.bulbs && l.bulbs.map(bulb), rail: l.rail && l.rail.map(P), strip: l.strip && l.strip.map((v) => v * k),
         glow_r: S(l.glow_r), glows: beamGlows(l) });
-  v1.devices = (m.devices || []).map((d) => ({ ...d,
+  // what a motion / presence sensor covers: rays from it across its angle out to its range, each stopped by the
+  // first wall, door or window it meets (doors count as closed, a passage is open; partitions let it through
+  // when it "sees through partitions" -
+  // a radar through plasterboard / wood, never through masonry or the outside walls)
+  const sensorView = (d) => {
+    if (!(d.range > 0) || !d.at) return undefined;
+    const edges = [];
+    for (const w of m.walls) {
+      if (d.through_partitions && w.type === "partition") continue;
+      for (const poly of wallPolygons(m, w)) for (let i = 0; i < poly.length; i++) edges.push([poly[i], poly[(i + 1) % poly.length]]);
+      // doors and windows count as closed (as for the light): only a passage lets it through
+      const u0 = unit(sub(w.b, w.a)), on = (s0) => add(w.a, mul(u0, s0));
+      for (const o of w.openings || []) if (o.type !== "passage") edges.push([on(o.from), on(o.to)]);
+    }
+    const fov = Math.min(360, d.fov ?? 100), dir = d.direction ?? 90, full = fov >= 359.5;
+    const n = Math.max(24, Math.ceil(fov / 2)), pts = [];
+    for (let i = 0; i <= n; i++) {
+      if (full && i === n) break;
+      const a = ((dir - fov / 2 + (fov * i) / n) * Math.PI) / 180, u = [Math.cos(a), Math.sin(a)];
+      let t = d.range;
+      for (const [p, q] of edges) {
+        const e = sub(q, p), c = u[0] * e[1] - u[1] * e[0];
+        if (Math.abs(c) < 1e-9) continue;
+        const v = sub(p, d.at), tt = (v[0] * e[1] - v[1] * e[0]) / c, s2 = (v[0] * u[1] - v[1] * u[0]) / c;
+        if (tt > 0.5 && tt < t && s2 >= 0 && s2 <= 1) t = tt;
+      }
+      pts.push(add(d.at, mul(u, t)));
+    }
+    return full ? pts : [d.at, ...pts];
+  };
+  v1.devices = (m.devices || []).map((d) => ({ ...d, view: (() => { const v = sensorView(d); return v && v.map(P); })(),
     clip: d.clip || (d.glow && beamClip(`beam-${d.id}`, d.glow.at, d.beam_dir, d.beam)),
     at: d.at && P(d.at), hit: d.hit && d.hit.map((v) => v * k),
     glow: d.glow && { at: P(d.glow.at), r: S(d.glow.r), rx: S(d.glow.rx), ry: S(d.glow.ry) }, range: S(d.range),

@@ -15,13 +15,13 @@ import { SHAPES, CORNERS, shapeWalls } from "./shapes.js";
 import { OPENING_TYPES, WINDOW_KINDS, DOOR_KINDS, kindType, DEFAULT_WIDTH, DOOR_TYPES, GLAZED, frame, innerRange, fitOpening, makeOpening, retype, outsideOf, setCorner, cornerPair, cornerPartner, cornerRange, outerCornerAt, setCornerWidth, addCornerPair,
   shiftOpening, openingAt, sashes } from "./openings.js";
 import { faceAt, inset, area as polyArea, perimeter, pointInPolygon } from "../generator/rooms.js";
-import { DEVICE_GROUPS, TWO_POINT, makeDevice, anchor, handles, moveTo, resizeHit, onPolyline } from "./devices.js";
+import { DEVICE_GROUPS, TWO_POINT, makeDevice, anchor, handles, moveTo, resizeHit, onPolyline, stackTarget, rackTarget, uniqueId, RACK_KINDS, SHADE_KINDS, backDeviceToWall, wallSize, setWallSize, tvWidth, tvInches, hitHandles, dragHit } from "./devices.js";
 import { MARKER_ICONS } from "../generator/notes.js";
 import { pickScale, barLength, pdfWithImage, EXPORT_CSS } from "./export.js";
 import { buildHouse } from "./wizard.js";
 import { lightSvg } from "../generator/light.js";
 import { GARDEN_AREAS, GARDEN_LINES, GARDEN_PLANTS, PLANT_R, HEDGE_W } from "../generator/garden.js";
-import { ICON_KINDS } from "../generator/icons.js";
+import { ICON_KINDS, VALUE_KINDS } from "../generator/icons.js";
 import { HaConnection } from "./ha.js";
 import { applyStates, clearStates } from "./live.js";
 import { icon, tiles } from "./ui-icons.js";
@@ -231,9 +231,15 @@ function fit() {
   const pts = S.model.walls.flatMap((w) => [w.a, w.b]);
   if (!pts.length) { S.view = { cx: 400, cy: 300, s: S.view.s }; return draw(); }
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const [W, H] = stageSize();
+  const [W0, H] = stageSize();
+  // the plan fits the area left beside the right panel even while the panel is closed, so selecting something
+  // never covers it (the panel's width when it is not there; none on a phone, where it goes under the plan)
+  const main = document.querySelector("main");
+  const reserve = getComputedStyle($("panel")).display === "none" && getComputedStyle(main).gridTemplateColumns.split(" ").length > 1 ? PANEL_W : 0;
+  const W = W0 - reserve;
   const w = Math.max(...xs) - Math.min(...xs) + 200, h = Math.max(...ys) - Math.min(...ys) + 200;
-  S.view = { cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2, s: Math.min(W / w, H / h) };
+  const s2 = Math.min(W / w, H / h);
+  S.view = { cx: (Math.max(...xs) + Math.min(...xs)) / 2 + reserve / 2 / s2, cy: (Math.max(...ys) + Math.min(...ys)) / 2, s: s2 };
   draw();
 }
 function zoomAt(ev, factor) {
@@ -244,6 +250,17 @@ function zoomAt(ev, factor) {
   draw();
 }
 function draw() { applyView(); renderOverlay(); }
+// The right panel comes and goes with the selection; the plan area narrows / widens by its width, so the view
+// moves by half of it and the plan stays where it was on the screen (not on a phone: the panel goes under it)
+const PANEL_W = 280; // px, as in editor.css (main.has-sel)
+function panelOpen(open) {
+  const main = document.querySelector("main");
+  if (main.classList.contains("has-sel") === open) return;
+  const w0 = stage.getBoundingClientRect().width;
+  main.classList.toggle("has-sel", open);
+  const dw = stage.getBoundingClientRect().width - w0;
+  if (dw) { S.view.cx += dw / 2 / S.view.s; draw(); }
+}
 
 // --- plan (generator output) -----------------------------------------------------------------
 let planSvg = null;
@@ -252,7 +269,7 @@ let planTimer = null, lastPlan = 0;
 function renderPlan() {
   // while dragging: the overlay (outline, dimensions) follows every frame, the
   // whole plan at most every 40 ms - re-inserting ~100 kB of SVG is the costly part
-  if ((S.drag || S.ghost) && performance.now() - lastPlan < 40) {
+  if ((S.drag || S.ghost || S.devGhost) && performance.now() - lastPlan < 40) {
     if (!planTimer) planTimer = setTimeout(() => { planTimer = null; renderPlan(); }, 40);
     return;
   }
@@ -266,6 +283,14 @@ function renderPlan() {
     // walls being drawn / a shape under the cursor are drawn as if placed, so
     // their corners join the existing walls exactly as they will
     if (S.ghost && S.ghost.length) m.walls = [...m.walls, ...ghostWalls(S.ghost)];
+    // the device in hand, drawn where it will stand
+    let dg = S.tool === "devices" && !S.drag && S.devGhost;
+    const under = dg && dg.stack !== undefined && S.model.devices[dg.stack];
+    const rk = dg && dg.rack !== undefined && S.model.devices[dg.rack];
+    if (rk) { dg = { ...dg, item: { ...rk, id: rk.id, items: [...(rk.items || []), { id: "rack-new", kind: dg.kind, entity: "" }] } }; m.devices = m.devices.map((x) => (x === rk ? dg.item : x)); }
+    else if (under && !under.top) { dg = { ...dg, item: { ...under, top: { kind: dg.kind, entity: "" } } }; m.devices = m.devices.map((x) => (x === under ? dg.item : x)); }
+    else if (dg && dg.item) m[dg.list] = [...(m[dg.list] || []), dg.item];
+    else dg = null;
     // an upper floor: the stairs coming up from the floor below are a void in it
     if (S.floor >= 0) {
       const voids = stairVoids(floorModel(S.house, S.floor - 1));
@@ -278,6 +303,7 @@ function renderPlan() {
       planSvg.setAttribute("preserveAspectRatio", "none");
       $("st-msg").textContent = "";
       if (S.live && ha.connected) applyStates(planSvg, ha.states, LOCALE);
+      if (dg) for (const id of dg.rack !== undefined ? ["rack-new"] : [dg.item.id, dg.item.id + "-top"]) { const g = planSvg.getElementById(id); if (g) g.classList.add("ghost"); }
     } catch (e) {
       $("st-msg").textContent = t("draw_error") + e.message;
     }
@@ -572,6 +598,8 @@ function renderOverlay() {
   // off - outline them in the editor
   for (const d of S.model.devices || []) {
     if (!d.hit || d.type === "presence") continue;
+    // drawn as the thing itself (a TV, an A/C, a washer, a boiler...): no outline or name needed
+    if (d.type === "tv" || d.type === "climate_unit" || d.kind) continue;
     overlay.append(el("rect", { class: "ov-device", x: d.hit[0], y: d.hit[1], width: d.hit[2], height: d.hit[3] }));
     overlay.append(el("text", { class: "ov-device-name", x: d.hit[0] + d.hit[2] / 2, y: d.hit[1] + d.hit[3] / 2, "font-size": 10 * px },
       t({ appliance: "d_appliance", tv: "d_tv", climate_unit: "d_ac" }[d.type] || d.type)));
@@ -611,19 +639,34 @@ function renderOverlay() {
     }
     // one circuit: all its bulbs marked and joined by a thin line
     if (sd.list === "lights" && sd.x.bulbs && sd.x.bulbs.length > 1) {
-      overlay.append(el("polyline", { class: "ov-guide", fill: "none", points: sd.x.bulbs.map((q) => q[0] + "," + q[1]).join(" ") }));
+      // (on a rail the rail itself shows the circuit)
+      if (!sd.x.rail) overlay.append(el("polyline", { class: "ov-guide", fill: "none", points: sd.x.bulbs.map((q) => q[0] + "," + q[1]).join(" ") }));
       sd.x.bulbs.forEach((q, k) => { if (k !== sd.bulb) overlay.append(el("circle", { class: "ov-sel", cx: q[0], cy: q[1], r: 6 * px })); });
     }
     for (const j of S.selLights || []) {
       const l = S.model.lights[j];
       for (const q of (l && l.bulbs) || []) overlay.append(el("circle", { class: "ov-sel", cx: q[0], cy: q[1], r: 9 * px }));
     }
-    if (sd.x.hit) overlay.append(el("rect", { class: "ov-sel", x: sd.x.hit[0], y: sd.x.hit[1], width: sd.x.hit[2], height: sd.x.hit[3] }));
+    if (sd.x.hit) {
+      overlay.append(el("rect", { class: "ov-sel", x: sd.x.hit[0], y: sd.x.hit[1], width: sd.x.hit[2], height: sd.x.hit[3] }));
+      // its size handles (corners and sides; the opposite side stays), and the size while dragged
+      if (devResizable(sd)) for (const h of hitHandles(sd.x.hit)) {
+        const r = (h.sx && h.sy ? 4 : 3.2) * px;
+        overlay.append(el("rect", { class: "ov-node sel", x: h.p[0] - r, y: h.p[1] - r, width: 2 * r, height: 2 * r }));
+      }
+      if (S.drag && S.drag.kind === "devSize" && S.drag.moved) {
+        const [W, D] = wallSize(sd.x), h = sd.x.hit;
+        overlay.append(el("text", { class: "ov-dim", x: h[0] + h[2] / 2, y: h[1] + h[3] / 2, "font-size": 12 * px, "text-anchor": "middle" },
+          `${fmt(W)} × ${fmt(D)}` + (sd.x.type === "tv" ? ` · ${Math.round(tvInches(W))}″` : "")));
+      }
+    }
     const x = sd.x;
-    if (x.beam > 0 && x.beam < 360) {
-      const b = x.bulbs && x.bulbs[sd.bulb];
-      const c = b ? b : x.strip ? [x.strip[0] + x.strip[2] / 2, x.strip[1] + x.strip[3] / 2] : x.glow && x.glow.at;
-      const wd = c && beamWedge(c, b ? b[2] : x.beam_dir, x.beam, 60 * px);
+    // the selected bulb's own beam (its 4th value) or the light's; the bulb's position only (x, y)
+    const b = x.bulbs && x.bulbs[sd.bulb];
+    const angle = (b && b[3]) || x.beam;
+    if (angle > 0 && angle < 360 && x.type !== "tv" && x.type !== "climate_unit") {
+      const c = b ? b.slice(0, 2) : x.strip ? [x.strip[0] + x.strip[2] / 2, x.strip[1] + x.strip[3] / 2] : x.glow && x.glow.at;
+      const wd = c && beamWedge(c, b ? b[2] : x.beam_dir, angle, 60 * px);
       if (wd && wd.length) overlay.append(el("polygon", { class: "ov-beam", points: wd.map((q) => q.join(",")).join(" ") }));
     }
     if (sd.list === "cameras" || sd.x.range) for (const h of cameraHandles(sd.x)) {
@@ -795,6 +838,8 @@ function renderOverlay() {
       overlay.append(el("rect", { class: "ov-snap", x: p[0] - 7 * px, y: p[1] - 7 * px, width: 14 * px, height: 14 * px }));
     }
   }
+  // the turn handle last: on top of everything
+  if (S.tool === "select") drawRotHandle(1 / S.view.s);
 }
 
 // Walls not placed yet (a shape, the wall being drawn), drawn with the same
@@ -1025,8 +1070,10 @@ function boxGaps(b, exclude = new Set()) {
 }
 // Snap a moved selection flush to a wall it nearly touches (within 12 px on screen): -> [dx, dy]
 function piecesWallSnap(idx) { return boxWallSnap(piecesBox(idx), new Set(idx.map((i) => S.model.furniture[i]))); }
+// how close (screen px) something has to come to a wall to stand against it
+const FLUSH_PX = 12;
 function boxWallSnap(box, exclude = new Set()) {
-  const g = boxGaps(box, exclude), T = 12 / S.view.s;
+  const g = boxGaps(box, exclude), T = FLUSH_PX / S.view.s;
   const axis = (a, b, sa, sb) => (Math.abs(a.gap) < T && Math.abs(a.gap) <= Math.abs(b.gap) ? sa * a.gap : Math.abs(b.gap) < T ? sb * b.gap : 0);
   return [axis(g.l, g.r, -1, 1), axis(g.u, g.d, -1, 1)];
 }
@@ -1082,7 +1129,8 @@ function furnitureGhost(p, shift) {
   // turned by hand (R in hand): that way, no turning its back to the wall
   if (S.furn.turn !== undefined && S.furn.turn !== null) piece.rot = S.furn.turn;
   if (shift) return piece;
-  if (piece.kind !== "drawn" && (S.furn.turn === undefined || S.furn.turn === null)) backToWall(S.model, piece, p);
+  // near a wall: its back to it; against its face only from close by (as when moved)
+  if (piece.kind !== "drawn" && (S.furn.turn === undefined || S.furn.turn === null)) backToWall(S.model, piece, p, 80, FLUSH_PX / S.view.s);
   const [sx, sy, guides] = snapBox(boxOf([piece]), new Set());
   piece.at = rp([piece.at[0] + sx, piece.at[1] + sy]);
   S.guides = guides;
@@ -1146,6 +1194,21 @@ function renderPanel() {
   }
 }
 // The options of the open tool, under its name on the left.
+function renderSideLists() {
+  const rl = $("rooms-list");
+  if (S.tool === "rooms") {
+    rl.innerHTML = roomList();
+    rl.querySelectorAll("[data-room]").forEach((r) => {
+      r.onclick = () => { clearSel(); S.selRoom = Number(r.dataset.room); renderPanel(); renderOverlay(); };
+    });
+  } else if (rl.innerHTML) rl.innerHTML = "";
+  const pl = $("tb-plan");
+  if (pl.closest(".tool").classList.contains("on")) {
+    const nw = S.model.walls.length;
+    pl.innerHTML = `<div class="empty">${nw ? t("walls_n", { n: nw }) : t("empty")}</div>` + framePanel();
+    frameWire(pl);
+  } else if (pl.innerHTML) pl.innerHTML = "";
+}
 function renderToolBody() {
   const box = document.getElementById("tb-" + S.tool + (S.tool === "opening" ? "-" + opTab() : ""));
   // only one of the two opening tools holds the options (their fields share ids)
@@ -1171,8 +1234,12 @@ function renderPanelInner() {
   $("types").innerHTML = Object.entries(types).map(([k, v]) =>
     `<div class="row"><span>${typeName(k)}</span><label><input type="number" min="1" max="200" data-wt="${k}" value="${v.thickness}"> cm</label></div>`).join("");
   renderToolBody();
-  // the right panel: what is selected (or the plan and its rooms)
+  // the rooms with their areas (in the Rooms tool) and the plan's settings (the Plan section on the left) -
+  // only while they are open: finding every room from the walls is not for each move of a drag
+  renderSideLists();
+  // the right panel: what is selected (it slides in only then)
   const box = $("p-sel");
+  panelOpen(true);
   if (selDevice()) { devicePanel(box); return; }
   if (S.selGarden !== null && (S.model.garden || [])[S.selGarden]) { gardenPanel(box, S.model.garden[S.selGarden]); return; }
   if (S.selFurn !== null && (S.model.furniture || [])[S.selFurn]) {
@@ -1203,12 +1270,9 @@ function renderPanelInner() {
   const so = selOpening();
   if (so) { openingPanel(box, so.w, so.o); return; }
   if (S.sel === null || !S.model.walls[S.sel]) {
-    const n = S.model.walls.length;
-    box.innerHTML = `<h3>${t("plan")}</h3><div class="empty">${n ? t("walls_n", { n }) : t("empty")}</div>` + roomList() + framePanel();
-    box.querySelectorAll("[data-room]").forEach((r) => {
-      r.onclick = () => { clearSel(); S.selRoom = Number(r.dataset.room); renderPanel(); renderOverlay(); };
-    });
-    frameWire(box);
+    // nothing selected: the right panel is only for what is selected - it goes away
+    box.innerHTML = `<div class="empty">${t("panel_hint")}</div>`;
+    panelOpen(false);
     return;
   }
   const w = S.model.walls[S.sel];
@@ -1259,13 +1323,13 @@ function setTool(tool, tab) {
   const isOn = (x) => x.dataset.tool === tool && (tool !== "opening" || !x.dataset.optab || x.dataset.optab === opTab());
   for (const b of document.querySelectorAll("[data-tool]")) b.classList.toggle("on", isOn(b));
   S.folded = false;
-  for (const sec of document.querySelectorAll("#tools .tool")) {
+  for (const sec of document.querySelectorAll("#tools .tool[data-section]")) {
     sec.classList.toggle("on", sec.dataset.section === tool && (tool !== "opening" || !sec.dataset.optab || sec.dataset.optab === opTab()));
     sec.classList.remove("folded");
   }
   stage.classList.toggle("tool-wall", ["wall", "shape", "opening", "divide"].includes(tool));
   stage.classList.toggle("tool-calibrate", tool === "calibrate");
-  S.opCand = null; S.roomHover = null; S.dev.start = null; S.div.start = null; S.furnGhost = null; S.furn.copy = null; S.furn.turn = null; S.addBulb = null; if (S.dev) S.dev.pts = null;
+  S.opCand = null; S.roomHover = null; S.dev.start = null; S.div.start = null; S.furnGhost = null; if (S.devGhost) { S.devGhost = null; renderPlan(); } S.furn.copy = null; S.furn.turn = null; S.addBulb = null; if (S.dev) S.dev.pts = null;
   setGhost(null);
   renderPanel();
   renderOverlay();
@@ -1444,11 +1508,13 @@ function openingPanel(box, w, o) {
         `<input data-cover="${esc(sa)}" value="${esc(coverEntity(o.id, sa))}" placeholder="cover.…">`)).join("")
     : row(t("cover"), `<input data-cover="" value="${esc(coverEntity(o.id))}" placeholder="cover.…">`);
   box.innerHTML = `<h3>${t("o_" + o.type)}</h3>
-    ${tiles("op-type", OPENING_TYPES.map((k) => ({ value: k, label: t("o_" + k) })), o.type, "small")}
+    ${tiles("op-type", (WINDOW_KINDS.includes(o.type) ? WINDOW_KINDS : DOOR_KINDS).map((k) => ({ value: k, label: t("o_" + k) })),
+      o.type === "window" && o.panes === 2 ? "window_2" : o.type === "balcony_door" && o.panes === 2 ? "balcony_door_2"
+        : o.type === "balcony_door" && o.panes === 3 ? "balcony_door_3" : o.type, "small")}
     ${o.id !== undefined ? row("ID", `<input id="op-id" value="${esc(o.id)}">`) : ""}
     ${o.type === "corner_window" ? cornerRows(o, row) : `${row(t("op_width"), `<label><input id="op-width" type="number" min="10" step="1" value="${r2(o.to - o.from)}"> cm</label>`)}
     ${row(t("op_from"), `<label><input id="op-from" type="number" min="0" step="1" value="${r2(o.from - s0)}"> cm</label>`)}`}
-    ${DOOR_TYPES.includes(o.type) && !["double_door", "double_gate"].includes(o.type) ? `<button id="op-hinge">${t("flip_hinge")} (R)</button>` : ""}
+    ${DOOR_TYPES.includes(o.type) && !["double_door", "double_gate"].includes(o.type) && !(o.type === "balcony_door" && (o.panes || 1) > 1) ? `<button id="op-hinge">${t("flip_hinge")} (R)</button>` : ""}
     ${DOOR_TYPES.includes(o.type) ? `<button id="op-side">${t("flip_side")}</button>` : ""}
     ${covers}
     ${contactRows(o, row)}
@@ -1486,9 +1552,29 @@ function openingPanel(box, w, o) {
       if (entity) S.model.covers.push(sash ? { entity, window: o2.id, sash } : { entity, window: o2.id });
     });
   });
+  box.querySelectorAll("[data-pane-open]").forEach((sl) => {
+    sl.onchange = (e) => editOpening((w2, o2) => {
+      const k = o2.panes || 1;
+      const op = [...paneOpen(o2, k)], i = Number(e.target.dataset.paneOpen);
+      op[i] = e.target.value;
+      o2.pane_open = op;
+      // a pane made fixed has no contact any more
+      if (op[i] === "fixed" && o2.contacts && o2.contacts[i]) { o2.contacts[i] = ""; if (!o2.contacts.some(Boolean)) delete o2.contacts; }
+    });
+  });
+  box.querySelectorAll("[data-pane]").forEach((inp) => {
+    inp.onchange = (e) => editOpening((w2, o2) => {
+      const k = o2.panes || 1, W = o2.to - o2.from;
+      const ps = Array.isArray(o2.pane_sizes) && o2.pane_sizes.length === k - 1 ? [...o2.pane_sizes] : Array(k - 1).fill(r2(W / k));
+      ps[Number(e.target.dataset.pane)] = Number(e.target.value);
+      if (ps.some((v) => !(v >= 10)) || W - ps.reduce((x, y) => x + y, 0) < 10) return t("no_fit");
+      o2.pane_sizes = ps;
+    });
+  });
   if ($("op-panes")) $("op-panes").onchange = (e) => editOpening((w2, o2) => {
     const k = Math.max(1, Math.min(8, Math.round(Number(e.target.value)) || 1));
     if (k > 1) o2.panes = k; else delete o2.panes;
+    delete o2.pane_sizes; delete o2.pane_open; // a new number of panes: even again
     if (o2.contacts && o2.contacts.length > 1) o2.contacts = Array.from({ length: k }, (_, i) => o2.contacts[i] || "");
   });
   if ($("op-per-pane")) $("op-per-pane").onchange = (e) => editOpening((w2, o2) => {
@@ -1498,8 +1584,9 @@ function openingPanel(box, w, o) {
   });
   box.querySelectorAll("[data-contact]").forEach((inp) => {
     inp.onchange = (e) => editOpening((w2, o2) => {
-      const i = Number(e.target.dataset.contact), v = e.target.value.trim();
-      const c = o2.contacts ? [...o2.contacts] : [""];
+      const i = Number(e.target.dataset.contact), v = e.target.value.trim(), k = o2.panes || 1;
+      // several panes: one contact slot per pane (empty for a pane without one)
+      const c = k > 1 ? Array.from({ length: k }, (_, j) => (o2.contacts || [])[j] || "") : o2.contacts ? [...o2.contacts] : [""];
       c[i] = v;
       if (c.some(Boolean)) o2.contacts = c; else delete o2.contacts;
     });
@@ -1519,10 +1606,32 @@ function contactRows(o, row) {
   const k = o.panes || 1, c = o.contacts || [];
   const per = c.length > 1;
   let html = paned ? row(t("panes"), `<label><input id="op-panes" type="number" min="1" max="8" step="1" value="${k}"></label>`) : "";
+  // several panes: a contact sensor on each pane that opens, in its row of the panes list below
+  if (paned && k > 1) return html + paneRows(o, k);
+
   if (per) html += c.map((e, i) => row(`${t("contact")} · ${i + 1}`, `<input data-contact="${i}" value="${esc(e)}" placeholder="binary_sensor.…">`)).join("");
   else html += row(t("contact"), `<input data-contact="0" value="${esc(c[0] || "")}" placeholder="binary_sensor.…">`);
   if (paned && k > 1) html += `<div class="row"><span></span><label><input id="op-per-pane" type="checkbox"${per ? " checked" : ""}> ${t("contact_per_pane")}</label></div>`;
   return html;
+}
+// The panes, one row each (like a circuit's bulbs): its width (the last takes the rest), whether it opens and on
+// which side its hinge is (a balcony door draws a leaf for each one that opens), and - when it opens - its contact
+function paneRows(o, k) {
+  const W = o.to - o.from, ps = Array.isArray(o.pane_sizes) && o.pane_sizes.length === k - 1 ? o.pane_sizes : Array(k - 1).fill(r2(W / k));
+  const rest = r2(W - ps.reduce((x, y) => x + Number(y), 0));
+  const op = paneOpen(o, k), c = o.contacts || [];
+  const sel = (i) => `<select data-pane-open="${i}" title="${t("pane_open")}">${["fixed", "from", "to"].map((v) =>
+    `<option value="${v}"${op[i] === v ? " selected" : ""}>${t("po_" + v)}</option>`).join("")}</select>`;
+  return `<div class="sub-h">${t("panes")} · ${k}</div><div class="pane-list">` + Array.from({ length: k }, (_, i) =>
+    `<div class="pane-row"><div class="bulb-row"><b class="pane-n">${i + 1}</b>` +
+    (i < k - 1 ? `<label title="${t("op_width")}"><input data-pane="${i}" type="number" min="10" step="1" value="${ps[i]}"></label>` : `<span class="pane-rest">${rest}</span>`) +
+    `<small>cm</small>${sel(i)}</div>` +
+    (op[i] !== "fixed" ? `<input data-contact="${i}" value="${esc(c[i] || "")}" placeholder="binary_sensor.… (${t("contact")})">` : "") +
+    `</div>`).join("") + `</div>`;
+}
+// which panes open: as set, or by default every pane of a window, the leaves of a balcony door
+function paneOpen(o, k) {
+  return Array.isArray(o.pane_open) && o.pane_open.length === k ? o.pane_open : Array(k).fill("from");
 }
 function deleteOpening() {
   editOpening((w, o) => {
@@ -1799,7 +1908,14 @@ function deviceAt(p) {
   const r = 10 / S.view.s;
   let best = null, bd = r;
   for (const h of handles(S.model)) { const d = len(sub(p, h.p)); if (d <= bd) { best = h; bd = d; } }
-  return best;
+  if (best) return best;
+  // anywhere on a device's outline (a TV, an A/C, an appliance): that device, not the room under it
+  const list = S.model.devices || [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const h = list[i].hit;
+    if (h && p[0] >= h[0] && p[0] <= h[0] + h[2] && p[1] >= h[1] && p[1] <= h[1] + h[3]) return { list: "devices", i, bulb: 0, p: anchor("devices", list[i]) };
+  }
+  return null;
 }
 const camRad = (deg) => (deg * Math.PI) / 180;
 function cameraHandles(c) {
@@ -1807,7 +1923,7 @@ function cameraHandles(c) {
   return [{ kind: "dir", p: at(c.direction) }, { kind: "fovA", p: at(c.direction - c.fov / 2) }, { kind: "fovB", p: at(c.direction + c.fov / 2) }];
 }
 // Lights of these kinds can be joined into one circuit (one entity, all their bulbs)
-const MERGE_KINDS = ["ceiling", "wall", "night"];
+const MERGE_KINDS = ["ceiling", "wall", "night", "spot", ...SHADE_KINDS];
 function mergeLights() {
   const sd = selDevice();
   if (!sd || sd.list !== "lights" || !S.selLights || !S.selLights.size) return;
@@ -1831,7 +1947,7 @@ function placeDevice(p, shift) {
   // "+ bulb" (or Shift + click on the selected light of the same kind): one more bulb on that circuit
   const adding = S.addBulb !== null && S.addBulb !== undefined && S.model.lights[S.addBulb];
   if (adding && !sd) S.selDev = { list: "lights", i: S.addBulb, bulb: 0 };
-  if (adding || (shift && sd && sd.list === "lights" && sd.x.kind === type && sd.x.bulbs && ["ceiling", "wall", "night"].includes(type))) {
+  if (adding || (shift && sd && sd.list === "lights" && sd.x.kind === type && sd.x.bulbs && MERGE_KINDS.includes(type))) {
     const li = adding ? S.addBulb : sd.i;
     const before = snapshot();
     const l = S.model.lights[li];
@@ -1854,8 +1970,32 @@ function placeDevice(p, shift) {
   S.dev.start = null;
   if (q && len(sub(p, q)) < MIN_LEN) { renderOverlay(); return; }
   const before = snapshot();
-  const { list, item } = makeDevice(S.model, type, q || p, q ? p : null);
+  // a washer / a dryer put on the other one: it stands on it (one place, two machines)
+  // a router, a switch, a UPS... put on a rack: it goes into it
+  const rack = !q && !shift && rackTarget(S.model, p, type);
+  if (rack) {
+    (rack.items = rack.items || []).push({ id: uniqueId(S.model, type), kind: type, entity: "" });
+    clearSel();
+    S.selDev = { list: "devices", i: S.model.devices.indexOf(rack), bulb: 0 };
+    S.devGhost = null;
+    $("st-msg").textContent = t("into_rack", { what: t("d_" + type) });
+    commit(before);
+    return;
+  }
+  const under = !q && !shift && stackTarget(S.model, p, type);
+  if (under) {
+    under.top = { kind: type, entity: "" };
+    S.devGhost = null;
+    clearSel();
+    S.selDev = { list: "devices", i: S.model.devices.indexOf(under), bulb: 0 };
+    $("st-msg").textContent = t("stacked", { what: t("d_" + type), on: t("d_" + under.kind) });
+    commit(before);
+    return;
+  }
+  const { list, item } = makeDevice(S.model, type, q || p, q ? p : null, { free: (shift || S.dev.turn != null) && !q, flush: FLUSH_PX / S.view.s });
+  if (S.dev.turn && !q) turnItem(item, { list, bulb: 0 }, S.dev.turn);
   (S.model[list] = S.model[list] || []).push(item);
+  S.devGhost = null;
   clearSel();
   S.selDev = { list, i: S.model[list].length - 1, bulb: 0 };
   commit(before);
@@ -1886,6 +2026,10 @@ function editDevice(f) {
 }
 // Turn the selected device by deg (clockwise on screen): a bulb's icon, a sensor's or
 // camera's view, a TV's / A/C's / appliance's outline (by 90°). false when it does not turn.
+// a device drawn at its size (an appliance, a TV, an A/C, a roof window, a boiler...): resized by handles
+function devResizable(sd) {
+  return !!(sd && sd.list === "devices" && sd.x.hit && sd.x.type !== "presence" && (sd.x.type !== "icon" || sd.x.kind));
+}
 function rotatable(sd) {
   if (!sd) return false;
   const x = sd.x;
@@ -1899,20 +2043,74 @@ function rotatable(sd) {
 function rotateSelected(deg) {
   const sd = selDevice();
   if (!rotatable(sd)) return false;
+  editDevice((y, d) => turnItem(y, d, deg));
+  return true;
+}
+// Turn one device by deg (d: its list and bulb)
+function turnItem(y, d, deg) {
   const turn = (a) => ((Math.round((a ?? 0) + deg) % 360) + 360) % 360;
-  editDevice((y, d) => {
+  {
     if (d.list === "lights" && y.type === "fixture") y.at = [y.at[0], y.at[1], turn(y.at[2])];
     else if (d.list === "lights" && !(y.bulbs && y.bulbs.length)) { if (y.beam) y.beam_dir = turn(y.beam_dir); }
     else if (d.list === "lights") { const b = y.bulbs[d.bulb]; y.bulbs[d.bulb] = [b[0], b[1], turn(b[2]), ...b.slice(3)]; }
     else if (d.list === "notes") { const r = turn(y.rot); if (r) y.rot = r; else delete y.rot; }
     else if (typeof y.direction === "number") y.direction = turn(y.direction);
-    else if (y.hit && Math.abs(deg) % 180 === 90) {
-      if (y.beam) y.beam_dir = turn(y.beam_dir);
+    else if (y.hit && deg % 90 === 0 && deg % 360) {
+      // a TV / an A/C faces where its front is (180 = down the plan unless set)
+      if (y.beam || y.type === "tv" || y.type === "climate_unit" || y.kind) y.beam_dir = turn(y.beam_dir ?? 180);
+      if (Math.abs(deg) % 180 !== 90) return;
       resizeHit(y, y.hit[3], y.hit[2]);
       if (y.glow && y.glow.rx) y.glow = { ...y.glow, rx: y.glow.ry, ry: y.glow.rx };
     }
-  });
-  return true;
+  }
+}
+// The device in hand (Devices tool): drawn on the plan under the cursor as it will be placed (turned by R),
+// or - a washer / a dryer over the other one - that one with it on top. null when a click would not place one.
+function deviceGhost(p, shift = false) {
+  const type = S.dev.type;
+  if (S.dev.start || TWO_POINT.includes(type) || type === "rail" || (S.addBulb !== null && S.addBulb !== undefined)) return null;
+  const rack = !shift && rackTarget(S.model, p, type);
+  if (rack) return { rack: S.model.devices.indexOf(rack), kind: type };
+  const under = !shift && stackTarget(S.model, p, type);
+  if (under) return { stack: S.model.devices.indexOf(under), kind: type };
+  if (deviceAt(p)) return null; // a click there grabs that one
+  try {
+    // near a wall it turns its back to it, unless turned by hand (R)
+    // Shift: exactly at the cursor, no turning, no snapping
+    const { list, item } = makeDevice(S.model, type, p, null, { free: shift || S.dev.turn != null, flush: FLUSH_PX / S.view.s });
+    if (S.dev.turn) turnItem(item, { list, bulb: 0 }, S.dev.turn);
+    return { list, item };
+  } catch (e) { return null; }
+}
+// A piece of equipment taken out of a rack: it stands next to it, keeping its entity
+function rackOut(k) {
+  const sd = selDevice();
+  if (!sd || !sd.x.items || !sd.x.items[k]) return;
+  const before = snapshot();
+  const it = sd.x.items.splice(k, 1)[0], h = sd.x.hit;
+  const { item } = makeDevice(S.model, it.kind, [h[0] + h[2] + 20, h[1] + h[3] / 2], null, { free: true });
+  Object.assign(item, { id: it.id, entity: it.entity || "" });
+  S.model.devices.push(item);
+  S.selDev = { list: "devices", i: S.model.devices.length - 1, bulb: 0 };
+  commit(before);
+}
+// A stack taken apart: the machine on top stands next to the one below, along its wall
+function unstack() {
+  const sd = selDevice();
+  if (!sd || !sd.x.top) return;
+  const before = snapshot();
+  const x = sd.x, top = x.top, a = (((Math.round((x.beam_dir ?? 180) / 90) * 90) % 360) + 360) % 360;
+  delete x.top;
+  const side = a % 180 === 0, c = [x.hit[0] + x.hit[2] / 2, x.hit[1] + x.hit[3] / 2];
+  const p = side ? [c[0] + x.hit[2] + 2, c[1]] : [c[0], c[1] + x.hit[3] + 2];
+  const { item } = makeDevice(S.model, top.kind, p);
+  item.entity = top.entity || "";
+  item.hit = side ? [r2(x.hit[0] + x.hit[2] + 2), x.hit[1], x.hit[2], x.hit[3]] : [x.hit[0], r2(x.hit[1] + x.hit[3] + 2), x.hit[2], x.hit[3]];
+  item.glow = { ...item.glow, at: rp([item.hit[0] + item.hit[2] / 2, item.hit[1] + item.hit[3] / 2]) };
+  item.beam_dir = x.beam_dir ?? 180;
+  S.model.devices.push(item);
+  S.selDev = { list: "devices", i: S.model.devices.length - 1, bulb: 0 };
+  commit(before);
 }
 function deleteDevice() {
   const sd = selDevice();
@@ -2057,6 +2255,48 @@ function editPiece(f) {
   placePiece(S.model, p);
   commit(before);
 }
+// What the round "turn" handle turns: the selected bulb / spotlight / chandelier / strip beam / motion sensor /
+// text / piece of furniture. Angles as on a compass: 0 = up the plan, clockwise. -> { c, get, set, r } or null
+function rotTarget() {
+  const px = 1 / S.view.s;
+  const fi = selPieces();
+  if (fi.length === 1) {
+    const f = S.model.furniture[fi[0]];
+    if (f && !f.group && f.kind !== "custom" && f.size)
+      return { c: f.at, get: () => f.rot || 0, set: (a) => { if (a) f.rot = a; else delete f.rot; }, r: Math.max(...f.size) / 2 + 22 * px };
+    return null;
+  }
+  const sd = selDevice();
+  if (!sd) return null;
+  const x = sd.x, r = 30 * px;
+  if (sd.list === "lights") {
+    if (x.type === "fixture" && x.at) return { c: x.at, get: () => x.at[2] || 0, set: (a) => { x.at = [x.at[0], x.at[1], a]; }, r: r * 2 };
+    if (x.bulbs && x.bulbs[sd.bulb]) {
+      const i = sd.bulb;
+      return { c: x.bulbs[i].slice(0, 2), get: () => x.bulbs[i][2] || 0,
+        set: (a) => { const q = x.bulbs[i]; x.bulbs[i] = [q[0], q[1], a, ...q.slice(3)]; }, r };
+    }
+    if (x.strip && x.beam) return { c: [x.strip[0] + x.strip[2] / 2, x.strip[1] + x.strip[3] / 2], get: () => x.beam_dir || 0, set: (a) => { x.beam_dir = a; }, r };
+    return null;
+  }
+  if ((sd.list === "devices" || sd.list === "cameras") && typeof x.direction === "number" && x.at)
+    return { c: x.at, get: () => x.direction + 90, set: (a) => { x.direction = ((a - 90) % 360 + 360) % 360; }, r };
+  if (sd.list === "notes" && x.type === "text" && x.at) return { c: x.at, get: () => x.rot || 0, set: (a) => { if (a) x.rot = a; else delete x.rot; }, r: r * 1.5 };
+  return null;
+}
+function drawRotHandle(px) {
+  const rt = rotTarget();
+  if (!rt) return;
+  const q = rotPos(rt);
+  overlay.append(el("line", { class: "ov-rot-line", x1: rt.c[0], y1: rt.c[1], x2: q[0], y2: q[1] }));
+  // a round button with a "turn" arrow (↻), the same size whatever the zoom
+  const g = el("g", { class: "ov-rot", "data-x": q[0], "data-y": q[1], transform: `translate(${q[0]} ${q[1]}) scale(${px})` });
+  g.append(el("circle", { class: "ov-rot-bg", r: 9 }));
+  g.append(el("path", { class: "ov-rot-arrow", d: "M4.6 -2.2 A5 5 0 1 0 4.4 2.6" }));
+  g.append(el("path", { class: "ov-rot-head", d: "M5.6 -5.2 L4.8 -1.6 L1.4 -2.8 Z" }));
+  overlay.append(g);
+}
+const rotPos = (rt) => { const a = (rt.get() * Math.PI) / 180; return [rt.c[0] + Math.sin(a) * rt.r, rt.c[1] - Math.cos(a) * rt.r]; };
 function turnPiece(deg) {
   const idx = selPieces();
   if (!idx.length) return;
@@ -2213,6 +2453,9 @@ function devicePalette(box) {
 }
 // the selected device's properties (right panel)
 // the beam angle: empty or 360 = all around (the field goes)
+// a reading under the symbol makes no sense for these (an alarm is its state). A device's kind never changes
+// in its panel: another kind is another device (delete it, place the other one)
+const NO_VALUE_KINDS = ["smoke", "co", "leak", "gate"];
 function setBeam(y, v) {
   const a = Number(v);
   if (v === "" || !(a > 0 && a < 360)) { delete y.beam; delete y.beam_dir; return; }
@@ -2230,10 +2473,15 @@ function devicePanel(box) {
     const ent = (key = "entity", label = t("entity")) => { sets[key] = (y, v) => { y[key] = v; }; return field(label, key, x[key], "text", 'placeholder="domain.object"'); };
     const where = () => row(t("room_h"), `<b>${x.room ? esc((S.model.rooms.find((r) => r.id === x.room) || {}).name || x.room) : x.outdoor ? t("outdoor") : "—"}</b>`);
     const size = () => {
-      sets.w = (y, v) => resizeHit(y, Number(v), y.hit[3]);
-      sets.h = (y, v) => resizeHit(y, y.hit[2], Number(v));
-      return field(t("op_width"), "w", r2(x.hit[2]), "number", 'min="5"') + field(t("p_depth"), "h", r2(x.hit[3]), "number", 'min="5"') +
-        `<button id="dv-swap">${t("swap")}</button>`;
+      // along its wall and out from it (whichever way it faces); a TV also by its diagonal (16:9)
+      const [W, D] = wallSize(x);
+      const ok = (v) => Number(v) >= 5 || t("size_min");
+      sets.w = (y, v) => { const r = ok(v); if (r !== true) return r; setWallSize(y, Number(v), wallSize(y)[1]); };
+      sets.h = (y, v) => { const r = ok(v); if (r !== true) return r; setWallSize(y, wallSize(y)[0], Number(v)); };
+      sets.inch = (y, v) => { if (!(Number(v) >= 10)) return t("size_min"); setWallSize(y, r2(tvWidth(Number(v))), wallSize(y)[1]); };
+      // (turning it is the turn row / handle below - no separate "turn 90°" button)
+      return (x.type === "tv" ? field(t("tv_inches"), "inch", Math.round(tvInches(W) * 10) / 10, "number", 'min="10" step="1"') : "") +
+        field(t("op_width"), "w", r2(W), "number", 'min="5"') + field(t("p_depth"), "h", r2(D), "number", 'min="5"');
     };
     if (L === "lights" && x.type === "fixture") {
       sets.e1 = (y, v) => { y.circuits[0].entity = v; };
@@ -2268,7 +2516,6 @@ function devicePanel(box) {
         `<label title="${t("beam_one")}">∢<input data-df="bbeam${i}" type="number" min="10" max="360" step="15" value="${q[3] ?? ""}" placeholder="${x.beam || 360}"></label>` +
         `<button data-bsplit="${i}" title="${t("split_bulb")}">⇱</button><button data-bdel="${i}" class="danger" title="${t("remove_bulb")}">✕</button></div>`).join("")}</div>` : "";
       form = `<h3>${t("d_" + x.kind)}</h3>${id()}${ent()}
-        ${["ceiling", "wall", "night"].includes(x.kind) ? tiles("df-kind", ["ceiling", "wall", "night"].map((k) => ({ value: k, label: t("d_" + k), icon: devIcon(k) })), x.kind, "small") : ""}
         ${field(t("glow_r"), "glow_r", x.glow_r ?? "", "number", 'min="5" placeholder="auto"')}
         ${n === 1 ? row(t("bulbs"), `<b>1</b>`) : ""}
         ${field(t("watts_all"), "watts", x.watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}
@@ -2277,20 +2524,31 @@ function devicePanel(box) {
         ${b && turns && n === 1 ? field(t("rotation"), "rot", b[2] ?? 0, "number", 'step="15"') : ""}
         ${bulbList}
         ${x.kind === "rail" ? `<button id="dv-addbulb">${t("add_bulb")}</button><div class="empty">${t("rail_hint")}</div>` : ""}
-        ${["ceiling", "wall", "night"].includes(x.kind) ? `<button id="dv-addbulb">${t("add_bulb")}</button><div class="empty">${t("add_bulb_hint")}</div>` : ""}
+        ${MERGE_KINDS.includes(x.kind) ? `<button id="dv-addbulb">${t("add_bulb")}</button><div class="empty">${t("add_bulb_hint")}</div>` : ""}
         ${S.selLights && S.selLights.size ? `<div class="sub-h">${t("lights_sel", { n: S.selLights.size + 1 })}</div><button id="dv-merge">${t("merge_lights")}</button>` : ""}${where()}`;
     } else if (L === "devices" && (x.type === "icon" || x.type === "motion")) {
       sets.kind = (y, v) => { y.kind = v; };
       sets.value_entity = (y, v) => { if (v) y.value_entity = v; else delete y.value_entity; };
+      sets.through_partitions = (y, v) => { if (v) y.through_partitions = true; else delete y.through_partitions; };
       for (const k of ["direction", "fov", "range"]) sets[k] = (y, v) => { y[k] = Number(v); };
+      // a rack: what is in it, each with its own entity
+      const items = x.kind === "rack" ? x.items || [] : null;
+      if (items) items.forEach((it, k) => { sets["ri" + k] = (y, v) => { y.items[k].entity = v; }; });
+      const rackList = items ? `<div class="sub-h">${t("rack_items")} · ${items.length}</div>` + (items.length ? `<div class="bulb-list">${items.map((it, k) =>
+        `<div class="bulb-row rack-row"><span title="${esc(t("d_" + it.kind))}">${icon(devIcon(it.kind))}</span>` +
+        `<input data-df="ri${k}" type="text" value="${esc(it.entity || "")}" placeholder="domain.object" title="${esc(t("d_" + it.kind))}">` +
+        `<button data-rout="${k}" title="${t("rack_out")}">⇱</button><button data-rdel="${k}" class="danger" title="${t("rack_del")}">✕</button></div>`).join("")}</div>` : "") +
+        `<div class="empty">${t("rack_hint")}</div>` : "";
       form = `<h3>${t(x.type === "motion" ? "d_motion" : "d_" + x.kind)}</h3>${id()}${ent()}
-        ${x.type === "icon" ? tiles("df-kind", ICON_KINDS.map((k) => ({ value: k, label: t("d_" + k) })), x.kind, "small") +
-          field(t("value_entity"), "value_entity", x.value_entity ?? "", "text", 'placeholder="sensor.…"') : ""}
+        ${x.type === "icon" && x.hit ? size() : ""}${rackList}
+        ${x.type === "icon" ? (!NO_VALUE_KINDS.includes(x.kind) ? field(t("value_entity"), "value_entity", x.value_entity ?? "", "text", 'placeholder="sensor.…"') : "") : ""}
         ${x.type === "motion" ? field(t("direction"), "direction", x.direction, "number", 'step="5"') +
-          field(t("fov"), "fov", x.fov, "number", 'min="10" max="350" step="5"') + field(t("range"), "range", x.range, "number", 'min="10"') +
+          field(t("fov"), "fov", x.fov, "number", 'min="10" max="360" step="5"') + field(t("range"), "range", x.range, "number", 'min="10"') +
+          field(t("through_partitions"), "through_partitions", !!x.through_partitions, "check") +
           `<div class="empty">${t("cam_hint")}</div>` : ""}${where()}`;
     } else if (L === "devices") {
       if (x.type === "presence") {
+        sets.through_partitions = (y, v) => { if (v) y.through_partitions = true; else delete y.through_partitions; };
         sets.has_range = (y, v) => { if (v) Object.assign(y, { direction: 90, fov: 120, range: 300 }); else { delete y.direction; delete y.fov; delete y.range; } };
         for (const k of ["direction", "fov", "range"]) sets[k] = (y, v) => { y[k] = Number(v); };
       }
@@ -2298,19 +2556,27 @@ function devicePanel(box) {
       if (x.type === "appliance") {
         sets.alert = (y, v) => { y.alert = v; };
         sets.snow = (y, v) => { if (v) y.icon = "snowflake"; else delete y.icon; };
+        if (x.top) sets.top_entity = (y, v) => { y.top.entity = v; };
       }
+      // a stack: the machine below (the device's own entity) and the one on top
+      const stack = x.type === "appliance" && x.top;
+      const ttl = x.type === "appliance" && x.kind ? (stack ? t("stack_of", { a: t("d_" + x.kind), b: t("d_" + x.top.kind) }) : t("d_" + x.kind)) : null;
       if (x.type === "skylight") sets.contact = (y, v) => { if (v) y.contact = v; else delete y.contact; };
-      form = `<h3>${t({ presence: "d_presence", appliance: "d_appliance", tv: "d_tv", climate_unit: "d_ac", skylight: "d_skylight" }[x.type])}</h3>${id()}${ent()}
+      form = `<h3>${ttl || t({ presence: "d_presence", appliance: "d_appliance", tv: "d_tv", climate_unit: "d_ac", skylight: "d_skylight" }[x.type])}</h3>${id()}
+        ${stack ? `<div class="sub-h">${t("stack_below", { what: t("d_" + x.kind) })}</div>${ent()}<div class="sub-h">${t("stack_on_top", { what: t("d_" + x.top.kind) })}</div>` +
+          field(t("entity"), "top_entity", x.top.entity, "text", 'placeholder="domain.object"') + `<button id="dv-unstack">${t("unstack")}</button>` : ent()}
         ${x.type === "skylight" ? field(t("contact"), "contact", x.contact ?? "", "text", 'placeholder="binary_sensor.…"') : ""}
         ${x.type !== "presence" ? size() : ""}
-        ${x.glow ? field(t("beam"), "beam", x.beam ?? "", "number", 'min="10" max="360" step="15" placeholder="360"') +
-          (x.beam ? field(t("beam_dir"), "beam_dir", x.beam_dir ?? 0, "number", 'step="15"') : "") : ""}
+        ${x.glow && x.type !== "tv" && x.type !== "climate_unit" ? field(t("beam"), "beam", x.beam ?? "", "number", 'min="10" max="360" step="15" placeholder="360"') : ""}
         ${x.type === "presence" ? field(t("has_range"), "has_range", !!x.range, "check") + (x.range ? field(t("direction"), "direction", x.direction, "number", 'step="5"') +
-          field(t("fov"), "fov", x.fov, "number", 'min="10" max="350" step="5"') + field(t("range"), "range", x.range, "number", 'min="10"') : "") : ""}
+          field(t("fov"), "fov", x.fov, "number", 'min="10" max="360" step="5"') + field(t("range"), "range", x.range, "number", 'min="10"') +
+          field(t("through_partitions"), "through_partitions", !!x.through_partitions, "check") : "") : ""}
         ${x.type === "appliance" ? field(t("alert"), "alert", x.alert, "check") + field(t("snowflake"), "snow", x.icon === "snowflake", "check") : ""}${where()}`;
     } else if (L === "climate") {
       sets.name = (y, v) => { if (v) y.name = v; else delete y.name; };
-      form = `<h3>${t("d_climate")}</h3>${id()}${ent("temperature", t("temperature"))}${ent("humidity", t("humidity"))}${field(t("label"), "name", x.name ?? "")}`;
+      sets.show_values = (y, v) => { if (v) delete y.display; else y.display = "icon"; };
+      form = `<h3>${t("d_climate")}</h3>${id()}${ent("temperature", t("temperature"))}${ent("humidity", t("humidity"))}${field(t("label"), "name", x.name ?? "")}` +
+        field(t("show_values"), "show_values", x.display !== "icon", "check");
     } else if (L === "cameras") {
       for (const k of ["direction", "fov", "range"]) sets[k] = (y, v) => { y[k] = Number(v); };
       sets.name = (y, v) => { y.name = v; };
@@ -2363,6 +2629,9 @@ function devicePanel(box) {
     };
   });
   if ($("dv-del")) $("dv-del").onclick = deleteDevice;
+  if ($("dv-unstack")) $("dv-unstack").onclick = unstack;
+  box.querySelectorAll("[data-rdel]").forEach((bt) => { bt.onclick = () => editDevice((y) => { y.items.splice(Number(bt.dataset.rdel), 1); }); });
+  box.querySelectorAll("[data-rout]").forEach((bt) => { bt.onclick = () => rackOut(Number(bt.dataset.rout)); });
   if ($("dv-cw")) $("dv-cw").onclick = () => rotateSelected(90);
   if ($("dv-ccw")) $("dv-ccw").onclick = () => rotateSelected(-90);
   if ($("dv-addbulb")) $("dv-addbulb").onclick = () => {
@@ -2667,6 +2936,9 @@ function movePinch() {
   draw();
 }
 function pointerEnd(ev) {
+  // a busy frame can hold back the last moves of a drag (moves are coalesced per frame): the release's own
+  // position is where the drag ends
+  if (S.drag && S.drag.moved && !pinch && ev.type === "pointerup" && Number.isFinite(ev.clientX)) pointerMove(ev);
   if (ev.pointerType === "touch") touches.delete(ev.pointerId);
   if (pinch) {
     if (touches.size >= 2) return;
@@ -2696,15 +2968,28 @@ overlay.addEventListener("pointerdown", (ev) => {
     return;
   }
   if (ev.button === 2) { if (S.draw) endChain(); return; }
+  // the round turn handle of what is selected
+  const rt = S.tool === "select" && rotTarget();
+  if (rt && len(sub(p, rotPos(rt))) <= 9 / S.view.s) {
+    S.drag = { kind: "rot", before: snapshot(), moved: false };
+    return;
+  }
   if (S.tool === "calibrate" && S.underlay) {
     S.drag = { kind: "underlay", x: ev.clientX, y: ev.clientY, at: p, from: [S.underlay.x, S.underlay.y], click: true };
     return;
+  }
+  // the selected device's size handles (Select and Devices tools)
+  const sdh = (S.tool === "select" || S.tool === "devices") && !S.dev.start && selDevice();
+  if (devResizable(sdh)) {
+    const h = hitHandles(sdh.x.hit).find((q) => len(sub(p, q.p)) <= 8 / S.view.s);
+    if (h) { S.drag = { kind: "devSize", sx: h.sx, sy: h.sy, base: [...sdh.x.hit], before: snapshot(), moved: false }; return; }
   }
   // Devices: a press on one already placed grabs it - no switching to Select to move what was just put down
   // (a click on empty floor still places a new one; Shift keeps its meaning there)
   if (S.tool === "devices" && !S.dev.start && !ev.shiftKey) {
     const dv = deviceAt(p);
-    if (dv) {
+    // (a washer / a dryer on the other one is put on top of it instead)
+    if (dv && !stackTarget(S.model, p, S.dev.type) && !rackTarget(S.model, p, S.dev.type)) {
       clearSel();
       S.selDev = { list: dv.list, i: dv.i, bulb: dv.bulb };
       S.drag = { kind: "device", before: snapshot(), moved: false, x: ev.clientX, y: ev.clientY };
@@ -2858,7 +3143,8 @@ overlay.addEventListener("pointerdown", (ev) => {
   const allowed = d.kind === "node" ? !!w && (same(w.a, d.from) || same(w.b, d.from)) : selKey() === selBeforeTouch;
   if (!allowed) S.drag = { kind: "pan", x: ev.clientX, y: ev.clientY, view: { ...S.view } };
 });
-overlay.addEventListener("pointermove", (ev) => {
+overlay.addEventListener("pointermove", (ev) => pointerMove(ev));
+function pointerMove(ev) {
   if (ev.pointerType === "touch" && touches.has(ev.pointerId)) touches.set(ev.pointerId, [ev.clientX, ev.clientY]);
   if (pinch) { movePinch(); return; }
   const p = toModel(ev);
@@ -2869,6 +3155,13 @@ overlay.addEventListener("pointermove", (ev) => {
     if (Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 4) { d.click = false; stage.classList.add("panning"); }
     if (d.click && d.tool) return; // a drawing tool's click until it moves
     if (!d.click) { S.underlay.x = d.from[0] + (p[0] - d.at[0]); S.underlay.y = d.from[1] + (p[1] - d.at[1]); placeUnderlay(); }
+    return;
+  }
+  if (d && d.kind === "devSize") {
+    const x = selDevice().x;
+    dragHit(x, d.base, d.sx, d.sy, p, ev.shiftKey ? (v) => v : (v) => Math.round(v));
+    d.moved = true;
+    renderPlan(); renderOverlay();
     return;
   }
   if (d && d.kind === "furnSize") {
@@ -2919,6 +3212,16 @@ overlay.addEventListener("pointermove", (ev) => {
     renderPlan(); renderOverlay();
     return;
   }
+  if (d && d.kind === "rot") {
+    const rt = rotTarget();
+    if (!rt) return;
+    let a = (Math.atan2(p[0] - rt.c[0], -(p[1] - rt.c[1])) * 180) / Math.PI;
+    if (!ev.shiftKey) a = Math.round(a / 15) * 15;
+    rt.set(Math.round(((a % 360) + 360) % 360));
+    d.moved = true;
+    renderPlan(); renderOverlay(); renderPanel();
+    return;
+  }
   if (d && (d.kind === "railPt" || d.kind === "railMove")) {
     const l = selDevice().x;
     if (d.kind === "railPt") {
@@ -2938,7 +3241,18 @@ overlay.addEventListener("pointermove", (ev) => {
     if (!d.moved && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < 4) return;
     d.moved = true;
     const sd = selDevice();
-    moveTo(S.model, sd.list, sd.x, ev.shiftKey ? rp(p) : snapGrid(p), sd.bulb);
+    const x = sd.x;
+    if (ev.altKey && x.hit && sd.list === "devices" && devResizable(sd)) {
+      // Alt: its back to the nearest wall, against its face
+      backDeviceToWall(S.model, x, p);
+    } else {
+      moveTo(S.model, sd.list, x, ev.shiftKey ? rp(p) : snapGrid(p), sd.bulb);
+      // flush with a wall it nearly touches (Shift: free)
+      if (!ev.shiftKey && x.hit && sd.list === "devices") {
+        const h = x.hit, [sx, sy] = boxWallSnap([h[0], h[1], h[0] + h[2], h[1] + h[3]]);
+        if (sx || sy) moveTo(S.model, sd.list, x, add(anchor(sd.list, x), [sx, sy]), sd.bulb);
+      }
+    }
     renderPlan(); renderOverlay();
     return;
   }
@@ -3011,7 +3325,11 @@ overlay.addEventListener("pointermove", (ev) => {
     S.opCand = openingCandidate(p);
     $("st-snap").textContent = S.opCand && !S.opCand.fit ? t("no_fit") : "";
   } else if (S.tool === "devices") {
-    S.snap = snapPoint(p, { free: ev.shiftKey && !selDevice() });
+    // Shift: free (but Shift + click by a selected light adds a bulb to it)
+    const sdl = selDevice();
+    S.snap = snapPoint(p, { free: ev.shiftKey && !(sdl && sdl.list === "lights") });
+    const gh = deviceGhost(S.snap.p, ev.shiftKey);
+    if (JSON.stringify(gh) !== JSON.stringify(S.devGhost)) { S.devGhost = gh; renderPlan(); }
     if (TWO_POINT.includes(S.dev.type) && S.dev.start) {
       // rails and strips run straight: snap the end to the start's row or column (strips) / 45 degrees (rails)
       S.snap = snapPoint(p, { from: S.dev.start, free: false });
@@ -3047,7 +3365,7 @@ overlay.addEventListener("pointermove", (ev) => {
     S.hover = node ? { kind: "node", p: node } : w !== null ? { kind: "wall", i: w } : null;
   }
   renderOverlay();
-});
+}
 function endDrag() {
   const d = S.drag;
   S.drag = null;
@@ -3071,11 +3389,13 @@ function endDrag() {
     return;
   }
   if ((d.kind === "node" && !same(d.cur, d.from)) || (d.kind === "wall" && d.moved)) merged();
-  if ((d.kind === "node" && !same(d.cur, d.from)) || ((d.kind === "wall" || d.kind === "divider" || d.kind === "opening" || d.kind === "roomLabel" || d.kind === "device" || d.kind === "camera" || d.kind === "furniture" || d.kind === "furnSize" || d.kind === "garden" || d.kind === "railPt" || d.kind === "railMove") && d.moved)) commit(d.before);
+  if ((d.kind === "node" && !same(d.cur, d.from)) || ((d.kind === "wall" || d.kind === "divider" || d.kind === "opening" || d.kind === "roomLabel" || d.kind === "device" || d.kind === "camera" || d.kind === "furniture" || d.kind === "furnSize" || d.kind === "devSize" || d.kind === "garden" || d.kind === "railPt" || d.kind === "railMove" || d.kind === "rot") && d.moved)) commit(d.before);
   else if (d.kind === "node" || d.kind === "wall") { S.model = JSON.parse(d.before); renderPlan(); renderOverlay(); }
 }
 overlay.addEventListener("pointerup", pointerEnd);
 overlay.addEventListener("pointercancel", pointerEnd);
+// the device in hand leaves with the cursor
+overlay.addEventListener("pointerleave", () => { if (S.devGhost) { S.devGhost = null; renderPlan(); } });
 overlay.addEventListener("contextmenu", (ev) => ev.preventDefault());
 overlay.addEventListener("wheel", (ev) => { ev.preventDefault(); zoomAt(ev, Math.exp(-ev.deltaY * 0.0015)); }, { passive: false });
 
@@ -3108,6 +3428,15 @@ window.addEventListener("keydown", (ev) => {
       else S.furn.turn = ((S.furnGhost.rot || 0) + d + 360) % 360;
       S.furnGhost = furnitureGhost(S.furn.lastP, S.furn.lastShift);
       renderOverlay();
+      return;
+    }
+    if (S.tool === "devices" && S.devGhost && S.devGhost.stack === undefined && S.devGhost.rack === undefined) {
+      // the device in hand: R / Shift+R turns it (it stays turned for the next ones)
+      // (the first R starts from how it stands now - its back to a wall, if any)
+      const now = S.dev.turn ?? (((S.devGhost.item.beam_dir ?? 180) - 180 + 360) % 360);
+      S.dev.turn = (now + (ev.shiftKey ? -90 : 90) + 360) % 360;
+      S.devGhost = deviceGhost(S.snap.p, ev.shiftKey);
+      renderPlan(); renderOverlay();
       return;
     }
     if (S.tool === "opening") { S.opening.hinge = S.opening.hinge === "to" ? "from" : "to"; renderOverlay(); return; }
@@ -3151,6 +3480,8 @@ for (const b of document.querySelectorAll("[data-tool]")) b.onclick = () => {
   S.folded = !S.folded;
   b.closest(".tool")?.classList.toggle("folded", S.folded);
 };
+// the Plan and Help sections on the left open and close on their own; the tool stays
+for (const b of document.querySelectorAll("[data-open]")) b.onclick = () => { b.closest(".tool").classList.toggle("on"); renderSideLists(); };
 $("b-undo").onclick = undo;
 $("b-redo").onclick = redo;
 $("b-fit").onclick = fit;
@@ -3172,10 +3503,17 @@ document.addEventListener("click", (e) => {
       const was = o2.type;
       // no longer a corner window: the other half stays, on its own
       if (was === "corner_window" && v !== "corner_window") { const p = cornerPair(S.model, o2); if (p) delete p.o.pair; }
-      retype(S.model, w2, o2, v);
+      const contacts = o2.contacts;
+      retype(S.model, w2, o2, kindType(v));
+      // a window of one pane / two panes: the same type, its panes; a glazed one keeps its contact sensors
+      if (v === "window_2") o2.panes = 2; else if (v === "window") delete o2.panes;
+      if (v === "balcony_door_2") { o2.panes = 2; o2.pane_open = ["from", "to"]; }
+      else if (v === "balcony_door_3") { o2.panes = 3; o2.pane_open = ["from", "fixed", "to"]; }
+      else if (v === "balcony_door") { delete o2.panes; delete o2.pane_open; }
+      if (contacts && GLAZED.includes(o2.type)) o2.contacts = o2.panes ? contacts.slice(0, Math.max(1, contacts.length > 1 ? o2.panes : 1)) : contacts.slice(0, 1);
       if (!GLAZED.includes(o2.type) || (was === "hst") !== (o2.type === "hst")) dropCovers([o2.id]);
     }); return;
-    case "df-kind": editDevice((y) => { y.kind = v; }); return;
+    case "df-kind": editDevice((y) => { y.kind = v; if (v === "spot" && y.bulbs && !y.beam) y.beam = 60; }); return;
     case "nt-icon": editDevice((y) => { y.icon = v; }); return;
     case "gd-kind": S.gard.kind = v; S.gard.pts = []; break;
     case "gd-mode": S.gard.mode = v; S.gard.pts = []; break;

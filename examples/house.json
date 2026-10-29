@@ -2740,6 +2740,17 @@
         1060
       ],
       "color": "#ffab40"
+    },
+    {
+      "id": "text-entrance",
+      "type": "text",
+      "at": [
+        680,
+        1215
+      ],
+      "text": "Entrance",
+      "size": 18,
+      "color": "#ffab40"
     }
   ],
   "garden": [

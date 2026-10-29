@@ -1,7 +1,7 @@
 // Alerts on the plan: the room pulses - smoke, CO and leak detectors, windows
 // open in the cold, and any entity listed under `alerts` in the card config.
 
-export const ALARM_KINDS = ["smoke", "co", "leak"];
+export const ALARM_KINDS = ["smoke", "co", "leak", "gas", "siren"];
 const ON = new Set(["on", "detected", "open", "true", "problem", "wet", "alarm", "triggered"]);
 const isOn = (s) => !!s && ON.has(String(s.state).toLowerCase());
 const num = (s) => (s && s.state !== "" && !isNaN(Number(s.state)) ? Number(s.state) : null);

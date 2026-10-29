@@ -3,7 +3,8 @@
 
 import { wallThickness } from "../generator/model-v2.js";
 import { FURNITURE_SIZE } from "../generator/furniture.js";
-import { roomOf } from "./devices.js";
+import { roomOf, nearestWall } from "./devices.js";
+export { nearestWall };
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -17,22 +18,9 @@ export function uniquePieceId(m, kind) {
 }
 
 // The nearest wall face within reach: {q: foot on the axis, n: unit normal away from the wall, h: half thickness}.
-export function nearestWall(m, p, reach = 80) {
-  let best = null, bd = reach;
-  for (const w of m.walls || []) {
-    const d = sub(w.b, w.a), L2 = d[0] * d[0] + d[1] * d[1];
-    if (!L2) continue;
-    const t = ((p[0] - w.a[0]) * d[0] + (p[1] - w.a[1]) * d[1]) / L2;
-    if (t < 0 || t > 1) continue;
-    const q = [w.a[0] + d[0] * t, w.a[1] + d[1] * t], v = sub(p, q), L = Math.hypot(...v);
-    const h = wallThickness(m, w) / 2, dist = L - h;
-    if (L > 1e-6 && dist < bd) { bd = dist; best = { q, n: [v[0] / L, v[1] / L], h }; }
-  }
-  return best;
-}
-
-// Place (or re-place) a piece at p: near a wall it turns its back to it and stands against its face.
-export function backToWall(m, piece, p, reach = 80) {
+// Place (or re-place) a piece at p: near a wall it turns its back to it, and stands against its face when its
+// back is within `flush` of it (cm; it never goes into the wall) - farther out it stays at p.
+export function backToWall(m, piece, p, reach = 80, flush = Infinity) {
   const w = nearestWall(m, p, reach);
   if (!w) { piece.at = [r2(p[0]), r2(p[1])]; return false; }
   // the back is local -y: turned by rot it points (sin rot, -cos rot) - that must be -n
@@ -40,7 +28,8 @@ export function backToWall(m, piece, p, reach = 80) {
   const off = w.h + piece.size[1] / 2;
   // keep the position along the wall, move across it to the face
   const along = sub(p, w.q), k = along[0] * w.n[0] + along[1] * w.n[1];
-  piece.at = [r2(p[0] + w.n[0] * (off - k)), r2(p[1] + w.n[1] * (off - k))];
+  if (k - off < flush) piece.at = [r2(p[0] + w.n[0] * (off - k)), r2(p[1] + w.n[1] * (off - k))];
+  else piece.at = [r2(p[0]), r2(p[1])];
   return true;
 }
 

@@ -212,7 +212,7 @@ export function applyStates(svg, states, locale = "en", paint = (c) => c) {
   });
   each(`.${N.iconDevice}[data-entity]`, (el) => {
     const id = el.dataset.entity, s = st(id), kind = el.dataset.kind;
-    const alarmKind = ["smoke", "co", "leak"].includes(kind);
+    const alarmKind = ["smoke", "co", "leak", "gas", "siren"].includes(kind);
     const climate = id.startsWith("climate.");
     // a bin glows the day before its collection and on the day
     const due = kind === "bin" ? daysUntil(s) : null;
@@ -221,7 +221,7 @@ export function applyStates(svg, states, locale = "en", paint = (c) => c) {
     set(el, N.isHeating, act === "heating");
     set(el, N.isCooling, act === "cooling");
     // a reading (weather, info, solar power, battery) is not "working": only its text changes
-    const readingOnly = ["weather", "info", "solar", "battery"].includes(kind);
+    const readingOnly = ["weather", "info", "solar", "battery", "meter", "inverter", "ups", "lux", "rain", "water_tank"].includes(kind);
     set(el, alarmKind ? N.isAlarm : "on", kind === "bin" ? due !== null && due <= 1 : readingOnly || climate ? false : isOn(s));
     if (kind === "fan") el.style.setProperty("--fp-spin", fanSpin(s) + "s");
     const txt = el.querySelector("." + N.deviceValue);

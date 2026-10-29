@@ -2,7 +2,13 @@
 
 [![hacs][hacs-badge]][hacs] [![Validate][validate-badge]][validate] [![Buy Me a Coffee][bmc-badge]][bmc]
 
-Your house from the [floor plan editor](../floorplan-editor) (`house.json`), live in Home Assistant:
+Draw your house once, then watch it live: a floor plan editor and a dashboard card for Home Assistant, in one
+integration. The editor is a panel in the sidebar and keeps the plan in Home Assistant (with versions); the card shows
+it with the light, the covers, the sensors and the history of the house.
+
+![Night: light through the doorways](docs/night.png)
+
+## The card
 
 - **light that fills the rooms** - every bulb lights what it can see: walls cast shadows, light spills through open
   doorways into the hall, a door with a contact sensor stops it when closed, an LED strip lights along its length;
@@ -35,14 +41,31 @@ Your house from the [floor plan editor](../floorplan-editor) (`house.json`), liv
   (or [Entity Insights](https://github.com/stryczekk/entity-insights) when installed)
 - a visual editor in the dashboard (Home Assistant's own form); English and Polish
 
-![Night: light through the doorways](docs/night.png)
-
 | | |
 |---|---|
 | ![Temperature map](docs/temperature.png) | ![Hours of light](docs/lighthours.png) |
 | ![Alerts](docs/alerts.png) | ![Time travel](docs/travel.png) |
 | ![Sun through the windows](docs/sun.png) | ![Light theme](docs/light.png) |
-| ![A camera sees someone](docs/camera.png) | |
+| ![A camera sees someone](docs/camera.png) | ![On a phone](docs/phone.png) |
+
+## The editor
+
+![The editor with the example house](docs/editor.png)
+
+- **walls** corner by corner with typed lengths, or from a **shape** or the **Wizard** ("a house in 5 minutes"); walls
+  ending at another wall's face join it, a moved wall pulls the walls across it along
+- **an underlay** to trace: a photo, a scan or a **PDF** of your plan, scaled by two points a known distance apart
+- **windows** (one or two panes, sliding, balcony doors opening inwards, a **corner window** with a length on each wall)
+  and **doors** (single, double, sliding, pocket, garage, gates, passages), with covers and contact sensors
+- **rooms** found from the walls (and dividers for open spaces), their area, floor pattern and colour; ids from the names
+- **lights** as circuits: one entity, its bulbs anywhere (add, merge lamps into one circuit, take one out), each bulb
+  with its own direction and beam; track rails of any shape with bulbs along them; two-circuit chandeliers; LED strips
+- **devices**: covers, presence and motion, temperature, appliances, A/C, TV, cameras with their field of view, locks
+- **furniture**: a library by room, snapping to the walls and to the other pieces, Ctrl / Cmd + click copies, R turns,
+  groups, your own pieces; stairs and **floors**
+- **garden** and **notes** (text, markers, arrows); export as PNG or PDF to scale
+- entity fields suggest only entities of their kind (a cover field covers, a contact field door / window sensors)
+- undo, dimensions on the walls and from the building's corners, *live* states on the plan; English and Polish
 
 ## From a drawing to the card
 
@@ -61,8 +84,7 @@ Your house from the [floor plan editor](../floorplan-editor) (`house.json`), liv
 5. **Add the card** to a dashboard - no options needed: `type: custom:living-floorplan-card`. A save in the editor redraws
    it right away; administrators get *✎ Edit the plan* in its ⚙ menu.
 
-Without the integration the card works from a file too: `model: /local/house.json` (the editor page then saves by
-downloading `house.json`, to be put into `/config/www/`).
+A plan in a file works too: `model: /local/house.json` (a `house.json` saved by the editor, put into `/config/www/`).
 
 ## Configuration
 
@@ -91,7 +113,7 @@ model: /local/house.json          # the editor's model, in /config/www
 | `alerts` | — | `[{ entity, state?, above?, below?, room?, color?, name? }]` - extra alerts; the room comes from where the entity is on the plan, or `room` |
 | `cold` | — | `{ outside: sensor.outdoor_temperature, below: 12 }` - a window with an open contact pulses blue when it is colder outside |
 | `hide` | — | layers hidden on load: `idle_lights` (lamps that are off - still tappable), `sensors`, `devices`, `cameras`, `furniture`; each viewer can switch them in ⚙ |
-| `editor_url` | the editor from HACS | where "Open the editor" leads when there is no model yet |
+| `editor_url` | the integration's panel | where "Open the editor" leads when there is no plan yet |
 | `trail`, `trail_minutes` | `true`, `30` | the trail of movement |
 | `sun` | — | `true` or `{ offset: -12 }` - patches of sunlight through the windows (from the home's latitude / longitude and the facades in the model; `offset` = how many degrees the house is turned from them); also in time travel |
 | `kiosk` | — | `{ idle: 60, night_dim: "22:00-06:00" or sun, dim: 0.4 }` - tablet mode |
@@ -115,21 +137,25 @@ model: /local/house.json          # the editor's model, in /config/www
 
 ## How it works
 
-The card bundles the editor's generator: it builds the same SVG in the browser, so a change in the editor is one file to
-copy. The light field is computed once per floor (a visibility polygon from every bulb against the walls, windows and
+The editor and the card share one SVG generator (`generator/`): the card builds the same plan in the browser from the
+model the integration keeps. The light field is computed once per floor (a visibility polygon from every bulb against the walls, windows and
 closed doors, filled with a radial gradient) and only its opacity follows the states; a door contact rebuilds it.
 Lights with `watts` in the model reach a little further when brighter.
 
 ## Develop
 
     npm install
-    npm run build                  # dist/living-floorplan-card.js
-    npm test                       # geometry, maps, timeline, tablet mode
-    tests/browser/run.sh --shots   # 109 checks in headless Chromium on the example house, docs/*.png
-    tools/sync-generator.sh        # the generator and the editor from ../floorplan-editor
-    node tests/browser/run-webkit.mjs .   # the same checks in WebKit (Safari) as an iPhone and an iPad (needs playwright + webkit)
+    npm run build                  # card, editor page and panel -> custom_components/living_floorplan/frontend/
+    npm test                       # unit tests: geometry, maps, timeline, rules, tablet mode
+    python3 tests/editor/run.py    # the editor in headless Chromium (drawing, rooms, openings, lights, furniture, saving)
+    tests/browser/run.sh --shots   # the card in headless Chromium on the example house, docs/*.png
+    node tests/browser/run-webkit.mjs .   # the card's checks in WebKit (Safari) as an iPhone and an iPad (needs playwright)
 
-`examples/house.json` is the example house from the editor (two floors and a garage). Status: 0.1, local only.
+The editor also runs on its own, without Home Assistant, saving versions into a folder:
+
+    node tools/serve.mjs --data ./plans --port 8090    # http://localhost:8090/editor/
+
+`examples/house.json` is a made-up house (two floors, a garage and a garden). Status: 0.2, before the first release.
 
 ## Support
 

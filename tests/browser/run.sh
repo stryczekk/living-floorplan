@@ -25,4 +25,4 @@ if [ "$1" = "--shots" ]; then
   "$CHROME" $FLAGS --window-size=400,860 --force-device-scale-factor=2 --screenshot=docs/phone.png "$URL?shot=phone" >/dev/null 2>&1
   echo "screenshots in docs/"
 fi
-echo "$OUT" | grep -q "^OK "
+echo "$OUT" | grep -qE "^[[:space:]]*OK +[0-9]+/[0-9]+ checks passed"

@@ -457,9 +457,11 @@ function style(N3) {
        the marker does. */
     #cameras { pointer-events: none; }
     .${N3.cameraHit} { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
-    .${N3.cameraFan} { fill: #a99be0; fill-opacity: 0.14; stroke: #a99be0;
-                   stroke-opacity: 0.55; stroke-width: 0.8; stroke-linejoin: round; }
+    /* the fan's fill is its own gradient (fading with distance); only a faint edge */
+    .${N3.cameraFan} { fill: #a99be0; fill-opacity: 1; stroke: #a99be0;
+                   stroke-opacity: 0.25; stroke-width: 0.6; stroke-linejoin: round; }
     .${N3.cameraMark} { fill: #a99be0; stroke: #131a24; stroke-width: 1.2; }
+    .camera-icon { fill: #131a24; }
     .${N3.camera}[data-off-plan] .${N3.cameraFan} { stroke-dasharray: 3 2; }
 
     .${N3.acGlow} { opacity: 0; transition: opacity 0.8s ease; }
@@ -509,6 +511,39 @@ function style(N3) {
     #rooms polygon.${N3.isOccupied} { fill: #22302a; }
 
     /* Detection range of a motion / presence sensor. */
+    .climate-icon.alt { display: none; }
+    .tv-mount { fill: #2a3547; stroke: #5b6a80; stroke-width: 0.4; }
+    .tv-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .tv-screen { stroke: #6fc9ef; stroke-width: 1.2; stroke-linecap: round; opacity: 0.55; }
+    .tv.on .tv-screen { opacity: 1; }
+    .ac-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .ac-louvre { stroke: #5b6a80; stroke-width: 0.5; }
+    .ac-led { fill: #5b6a80; }
+    .unit-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .unit-line, .unit-rack { stroke: #5b6a80; stroke-width: 0.5; fill: none; }
+    .unit-rack { stroke-dasharray: 1.2 0.8; }
+    .unit-door { fill: none; stroke: #8ea1ba; stroke-width: 0.6; }
+    .unit-glass { fill: #24324a; stroke: #5b6a80; stroke-width: 0.4; }
+    .unit-knob, .unit-duct { fill: none; stroke: #8ea1ba; stroke-width: 0.5; }
+    .unit-handle { stroke: #8ea1ba; stroke-width: 1; stroke-linecap: round; }
+    .unit-arrow { stroke-width: 0.8; }
+    .unit-heat { stroke: #e57373; stroke-width: 0.5; }
+    .rack-unit { fill: #24324a; stroke: #8ea1ba; stroke-width: 0.4; }
+    .rack-empty { fill: none; stroke: #5b6a80; stroke-width: 0.4; stroke-dasharray: 1 0.8; }
+    .rack-led { fill: #5b6a80; }
+    .${N3.appliance}.on .rack-led { fill: #7ccf8a; }
+    .unit-cold { stroke: #6fc9ef; stroke-width: 0.6; stroke-linecap: round; }
+    .unit-zone { fill: none; stroke: #8ea1ba; stroke-width: 0.5; }
+    .${N3.appliance}.on .unit-zone { stroke: #e57373; }
+    .unit-above { fill: none; stroke-dasharray: 2 1.4; }
+    .unit-cup { fill: #8ea1ba; stroke: none; }
+    .unit-led { fill: #5b6a80; stroke: none; }
+    .${N3.appliance}.on .unit-led { fill: #6fc9ef; }
+    .unit-throw { fill: #c3cfdf; fill-opacity: 0; stroke: none; transition: fill-opacity 0.6s ease; }
+    .${N3.appliance}.on .unit-throw { fill-opacity: 0.12; }
+    /* a washer-dryer stack: each half lit while its own machine runs */
+    .unit-half { fill: #ffab40; fill-opacity: 0; stroke: none; transition: fill-opacity 0.6s ease; }
+    .${N3.appliance}.on > .dev-shape .unit-half, .${N3.appliance}.on > g > .unit-half { fill-opacity: 0.22; }
     .${N3.sensorFan} { fill: #7ddba0; fill-opacity: 0.05; stroke: #7ddba0; stroke-opacity: 0.35;
                       stroke-width: 0.6; stroke-linejoin: round; pointer-events: none; }
     .${N3.presence}.${N3.isDetected} .${N3.sensorFan} { fill-opacity: 0.16; }
@@ -517,6 +552,8 @@ function style(N3) {
     .${N3.motion}.on .${N3.sensorBody} { fill: #e57373; stroke: #e57373; }
 
     /* Devices drawn as an icon in a badge. */
+    .ia-red { fill: #e57373; } .ia-yellow { fill: #ffc300; } .ia-blue { fill: #6fc9ef; stroke: #6fc9ef; } .ia-green { fill: #7ddba0; }
+    .ia-blue[fill="none"], .ia-red[fill="none"] { fill: none; }
     .${N3.iconBadge} { fill: #1b2433; stroke: #5b6a80; stroke-width: 0.8; cursor: pointer; }
     .${N3.iconGlyph} { fill: none; stroke: #8ea1ba; stroke-width: 0.9; stroke-linejoin: round;
                       stroke-linecap: round; color: #8ea1ba; pointer-events: none; }
@@ -715,32 +752,65 @@ function resolveNames(overrides) {
 }
 
 // generator/icons.js
-var VALUE_KINDS = ["info", "bin", "weather", "solar", "battery", "thermostat", "trv", "fan"];
-var ALARM_KINDS = ["smoke", "co", "leak"];
+var VALUE_KINDS = ["info", "bin", "weather", "solar", "battery", "thermostat", "trv", "fan", "meter", "inverter", "ups", "lux", "rain", "water_tank"];
+var ALARM_KINDS = ["smoke", "co", "leak", "gas", "siren"];
 var G = {
-  recuperator: '<rect x="-5" y="-4" width="10" height="8" rx="1"/><path d="M-3.5 -1.5 H3 M1.2 -3.2 L3 -1.5 L1.2 0.2 M3.5 1.5 H-3 M-1.2 -0.2 L-3 1.5 L-1.2 3.2"/>',
-  boiler: '<path d="M0 -5 C2 -2 4 0 2.6 3 C1.6 5 -1.6 5 -2.6 3 C-4 0 -1 -1 0 -5 Z M0 1 C1 2 1 3.4 0 4 C-1 3.4 -1 2 0 1 Z"/>',
-  plug: '<path d="M-2 -4 V-1 M2 -4 V-1 M-4 -1 H4 V0.5 A4 4 0 0 1 -4 0.5 Z M0 4.5 V6"/>',
-  media: '<rect x="-3.5" y="-5" width="7" height="10" rx="1"/><circle cx="0" cy="1.6" r="2"/><circle cx="0" cy="-2.6" r="0.7"/>',
-  gate: '<path d="M-5 -4.5 V4.5 M5 -4.5 V4.5 M-5 -2 H5 M-5 2 H5 M-2.5 -2 V2 M0 -2 V2 M2.5 -2 V2"/>',
-  smoke: '<circle cx="0" cy="0" r="4.6"/><circle cx="0" cy="0" r="1.4"/><path d="M-3 -3 L-2 -2 M3 -3 L2 -2 M-3 3 L-2 2 M3 3 L2 2"/>',
-  co: '<circle cx="0" cy="0" r="4.8"/><text x="0" y="1.6" text-anchor="middle" font-size="4.2" font-family="system-ui, sans-serif" stroke="none" fill="currentColor">CO</text>',
-  leak: '<path d="M0 -5 C2 -2 4 0 4 2 A4 4 0 0 1 -4 2 C-4 0 -2 -2 0 -5 Z"/>',
-  air: '<circle cx="0" cy="0" r="4.8"/><text x="0" y="1.4" text-anchor="middle" font-size="3.4" font-family="system-ui, sans-serif" stroke="none" fill="currentColor">CO\u2082</text>',
-  thermostat: '<circle cx="0" cy="0" r="4.8"/><path d="M0 0 L2.6 -2.6"/><circle cx="0" cy="0" r="0.8"/>',
-  trv: '<path d="M-5 -3 V3 M-2.5 -4 V4 M0 -4 V4 M2.5 -4 V4 M5 -3 V3 M-5 3 H5"/>',
-  fan: '<circle cx="0" cy="0" r="5.6" fill="none" stroke="none"/><path d="M0 0 C1 -4.5 4.5 -3 3 -0.8 Z M0 0 C3.4 2.2 1.2 5.4 -1 4.2 Z M0 0 C-4.5 1 -4.4 -3 -2.2 -3.4 Z"/><circle cx="0" cy="0" r="0.8"/>',
-  purifier: '<rect x="-4" y="-5" width="8" height="10" rx="1.5"/><path d="M-2 -2 H2 M-2 0 H2 M-2 2 H2"/>',
-  vacuum: '<circle cx="0" cy="0" r="5"/><circle cx="0" cy="0.8" r="1.6"/><path d="M-3 -2.6 H3"/>',
-  ev: '<path d="M1 -5 L-3 1 H0 L-1 5 L3 -1 H0 Z"/>',
-  valve: '<path d="M-5 -3 L5 3 V-3 L-5 3 Z M0 0 V-5 M-2 -5 H2"/>',
+  recuperator: '<rect x="-5" y="-4.2" width="10" height="8.4" rx="1.4"/><path class="ia-blue" d="M-4 -1.6 H2.6 M1.2 -2.8 L2.8 -1.6 L1.2 -0.4" fill="none" stroke-width="0.8"/><path class="ia-red" d="M4 1.6 H-2.6 M-1.2 0.4 L-2.8 1.6 L-1.2 2.8" fill="none" stroke="#e57373" stroke-width="0.8"/>',
+  boiler: '<rect x="-4" y="-5" width="8" height="10" rx="1.2"/><rect x="-2.4" y="-0.6" width="4.8" height="3.8" rx="0.6" stroke-width="0.6"/><path class="ia-red" d="M0 -0.1 C1 1 1.2 2 0 2.8 C-1.2 2 -1 1 0 -0.1 Z" stroke="none"/><path d="M-2 -3 H2" stroke-width="0.6"/>',
+  plug: '<rect x="-4.8" y="-4.8" width="9.6" height="9.6" rx="2.4"/><circle cx="0" cy="0" r="3.2" stroke-width="0.6"/><circle cx="-1.3" cy="0" r="0.55" fill="currentColor" stroke="none"/><circle cx="1.3" cy="0" r="0.55" fill="currentColor" stroke="none"/><path d="M0 -3.2 V-2.2" stroke-width="0.8"/>',
+  media: '<rect x="-3.6" y="-5" width="7.2" height="10" rx="1.2"/><circle cx="0" cy="1.5" r="2.2"/><circle class="ia-blue" cx="0" cy="1.5" r="0.8" stroke="none"/><circle cx="0" cy="-2.7" r="0.8"/>',
+  gate: '<path d="M-5 -3.6 H5 M-5 2.6 H5 M-3.6 -3.6 V2.6 M-1.2 -3.6 V2.6 M1.2 -3.6 V2.6 M3.6 -3.6 V2.6" stroke-width="0.7"/><circle cx="-3" cy="4" r="0.9"/><circle cx="3" cy="4" r="0.9"/>',
+  smoke: '<circle cx="0" cy="0" r="4.8"/><circle cx="0" cy="0" r="2.8" stroke-width="0.5" stroke-dasharray="1 0.8"/><circle class="ia-red" cx="0" cy="0" r="0.9" stroke="none"/>',
+  co: '<rect x="-4.6" y="-4.6" width="9.2" height="9.2" rx="2"/><text x="0" y="1.2" text-anchor="middle" font-size="3.6" font-weight="600" font-family="system-ui, sans-serif" stroke="none" fill="currentColor">CO</text><circle class="ia-yellow" cx="2.6" cy="-2.6" r="0.7" stroke="none"/>',
+  leak: '<path class="ia-blue" d="M0 -5 C1.8 -2.4 3.2 -0.6 3.2 1 A3.2 3.2 0 0 1 -3.2 1 C-3.2 -0.6 -1.8 -2.4 0 -5 Z" stroke="none"/><path d="M-5 4.8 Q-2.5 3.6 0 4.8 T5 4.8" stroke-width="0.6"/>',
+  air: '<rect x="-4.6" y="-4.6" width="9.2" height="9.2" rx="2.2"/><circle class="ia-green" cx="-1.8" cy="-1.6" r="1.1" stroke="none"/><circle class="ia-green" cx="0.8" cy="0.4" r="1.5" stroke="none"/><circle class="ia-green" cx="2.4" cy="-2.4" r="0.7" stroke="none"/><path d="M-2.8 3 H2.8" stroke-width="0.6"/>',
+  thermostat: '<circle cx="0" cy="0" r="4.8"/><path d="M-3.2 2.6 A4 4 0 1 1 3.2 2.6" stroke-width="0.5" stroke-dasharray="0.6 0.9"/><path class="ia-red" d="M0 0 L2.4 -2.4 L2.9 -1.9 Z" stroke="none"/><circle cx="0" cy="0" r="0.9" fill="currentColor" stroke="none"/>',
+  trv: '<path d="M-5 4.6 H5 M-4 4.6 V1 M-1.4 4.6 V1 M1.2 4.6 V1 M3.8 4.6 V1" stroke-width="0.6"/><rect x="-2" y="-5" width="4" height="5" rx="1.4"/><path d="M-2 -3.4 H2 M-2 -1.8 H2" stroke-width="0.5"/><circle class="ia-red" cx="0" cy="0.6" r="0.6" stroke="none"/>',
+  fan: '<circle cx="0" cy="0" r="5.2" stroke-width="0.5"/><path d="M0 0 C1 -4.3 4.4 -3 3 -0.8 Z M0 0 C3.4 2.2 1.2 5.2 -1 4.1 Z M0 0 C-4.4 1 -4.3 -3 -2.2 -3.3 Z"/><circle cx="0" cy="0" r="0.8" fill="currentColor"/>',
+  purifier: '<rect x="-3.6" y="-5" width="7.2" height="10" rx="2.6"/><path d="M-1.8 -1.6 H1.8 M-1.8 0 H1.8 M-1.8 1.6 H1.8 M-1.8 3.2 H1.8" stroke-width="0.5"/><path class="ia-blue" d="M-2 -5.6 Q0 -7 2 -5.6" stroke-width="0.7" fill="none"/>',
+  vacuum: '<circle cx="0" cy="0" r="5"/><path d="M-4.2 -2.6 A5 5 0 0 1 4.2 -2.6" stroke-width="1.4"/><circle cx="0" cy="1" r="1.8" stroke-width="0.6"/><circle class="ia-green" cx="0" cy="1" r="0.6" stroke="none"/>',
+  ev: '<rect x="-4.4" y="-5" width="6" height="10" rx="1.2"/><path class="ia-yellow" d="M-1 -3.2 L-2.6 0 H-1.2 L-1.8 2.8 L0 -0.4 H-1.4 Z" stroke="none"/><path d="M1.6 -1 H3.2 Q4.8 -1 4.8 1 V4.6" stroke-width="0.7"/>',
+  valve: '<path d="M-5.4 1 H-2.4 M2.4 1 H5.4 M-5.4 -1 H-2.4 M2.4 -1 H5.4" stroke-width="0.6"/><path d="M-2.4 -2.6 L2.4 2.6 V-2.6 L-2.4 2.6 Z"/><path d="M0 0 V-4.4" stroke-width="0.7"/><rect class="ia-red" x="-2.4" y="-5.4" width="4.8" height="1.4" rx="0.5" stroke="none"/>',
   info: '<circle cx="0" cy="0" r="4.8"/><path d="M0 -0.6 V3"/><circle cx="0" cy="-2.6" r="0.6" fill="currentColor"/>',
-  bin: '<path d="M-4 -3 H4 M-1.6 -3 V-4.4 H1.6 V-3 M-3.2 -3 L-2.4 5 H2.4 L3.2 -3 M-0.8 -1 V3 M0.8 -1 V3"/>',
-  mailbox: '<path d="M-5 4 V-1 A3 3 0 0 1 1 -1 V4 Z M1 -4 H4.5 V-1 M-2 -1 A1 1 0 0 1 -2 -1.01 M-5 4 H5 V-1 A3 3 0 0 0 1 -4"/>',
-  irrigation: '<path d="M0 5 V0 M0 0 C-1 -2 -3 -2.5 -4.5 -2 M0 0 C1 -2 3 -2.5 4.5 -2 M0 0 V-4.5 M-3 3 H3"/>',
-  weather: '<circle cx="-1.6" cy="-1.4" r="2.4"/><path d="M-1.6 -5.4 V-4.6 M-5.6 -1.4 H-4.8 M-4.4 -4.2 L-3.8 -3.6 M1.2 -4.2 L0.6 -3.6 M-1 4.4 H3.4 A2.2 2.2 0 0 0 3.4 0 A3 3 0 0 0 -2.2 1 A1.8 1.8 0 0 0 -1 4.4 Z"/>',
-  solar: '<path d="M-5 3 L-3 -3 H5 L3 3 Z M-4 0 H4 M-1 -3 L-2 3 M2 -3 L1 3"/>',
-  battery: '<rect x="-3.5" y="-4" width="7" height="9" rx="1"/><path d="M-1.5 -5 H1.5 M-1.5 0 H1.5 M0 -1.5 V1.5"/>'
+  bin: '<path d="M-3.6 -3 L-2.8 4 H2.8 L3.6 -3 Z"/><path d="M-4.4 -3 H4.4 M-1.4 -3 V-4.4 H1.4 V-3" stroke-width="0.7"/><circle cx="-2.2" cy="4.6" r="0.8"/><circle cx="2.2" cy="4.6" r="0.8"/><path d="M-0.9 -1 V2.4 M0.9 -1 V2.4" stroke-width="0.5"/>',
+  mailbox: '<path d="M-5 4 V-0.6 A3 3 0 0 1 1 -0.6 V4 Z M1 -3.6 H3 A2 2 0 0 1 5 -1.6 V4 H-5"/><path d="M-0.6 0 V-5.2" stroke-width="0.6"/><rect class="ia-red" x="-0.6" y="-5.4" width="2.8" height="1.6" stroke="none"/>',
+  irrigation: '<path d="M0 5 V0.6 M-2 5 H2" stroke-width="0.8"/><path class="ia-blue" d="M0 0.6 Q-3 -2 -5 -1 M0 0.6 Q-1.4 -3.4 -2.6 -4.6 M0 0.6 Q1.4 -3.4 2.6 -4.6 M0 0.6 Q3 -2 5 -1" fill="none" stroke-width="0.6" stroke-dasharray="1 0.6"/>',
+  weather: '<circle class="ia-yellow" cx="-1.6" cy="-1.6" r="2.4" stroke="none"/><path d="M-1 4.4 H3.4 A2.2 2.2 0 0 0 3.4 0 A3 3 0 0 0 -2.2 1 A1.8 1.8 0 0 0 -1 4.4 Z" fill="#1b2433"/>',
+  solar: '<path d="M-5 4 L-3.4 -2 H5 L3.4 4 Z"/><path d="M-4.2 1 H4.2 M-0.6 -2 L-1.4 4 M2.2 -2 L1.4 4" stroke-width="0.5"/><circle class="ia-yellow" cx="-3.6" cy="-4.2" r="1.3" stroke="none"/>',
+  doorbell: '<rect x="-3.2" y="-5.2" width="6.4" height="10.4" rx="1.6"/><circle cx="0" cy="-2.4" r="1.3" stroke-width="0.6"/><circle class="ia-blue" cx="0" cy="-2.4" r="0.5" stroke="none"/><circle cx="0" cy="2.2" r="1.6"/>',
+  power_strip: '<rect x="-5.4" y="-1.9" width="10.8" height="3.8" rx="1"/><circle cx="-3" cy="0" r="0.7"/><circle cx="0" cy="0" r="0.7"/><circle cx="3" cy="0" r="0.7"/><path d="M-5.4 0 H-6 Q-6.6 0 -6.6 1.6 V4" stroke-width="0.6"/><circle class="ia-green" cx="4.6" cy="-1" r="0.35" stroke="none"/>',
+  router: '<rect x="-5" y="0" width="10" height="3.8" rx="1"/><path d="M-3.4 0 V-4.6 M3.4 0 V-4.6" stroke-width="0.7"/><circle class="ia-green" cx="-2.6" cy="1.9" r="0.45" stroke="none"/><circle class="ia-green" cx="-1" cy="1.9" r="0.45" stroke="none"/><circle cx="0.6" cy="1.9" r="0.45" stroke="none" fill="currentColor"/>',
+  ap: '<circle cx="0" cy="1.6" r="3.6"/><circle class="ia-blue" cx="0" cy="1.6" r="0.6" stroke="none"/><path d="M-3.4 -2.6 A5 5 0 0 1 3.4 -2.6 M-1.8 -1.2 A2.6 2.6 0 0 1 1.8 -1.2" stroke-width="0.6"/>',
+  net_switch: '<rect x="-5.4" y="-2.6" width="10.8" height="5.2" rx="0.8"/><path d="M-4 -0.6 H-2.8 V0.8 H-4 Z M-1.6 -0.6 H-0.4 V0.8 H-1.6 Z M0.8 -0.6 H2 V0.8 H0.8 Z M3.2 -0.6 H4.4 V0.8 H3.2 Z" stroke-width="0.4"/><circle class="ia-green" cx="-3.4" cy="-1.6" r="0.3" stroke="none"/><circle class="ia-green" cx="-1" cy="-1.6" r="0.3" stroke="none"/>',
+  button: '<rect x="-4.6" y="-4.6" width="9.2" height="9.2" rx="1.6"/><circle cx="0" cy="0" r="2.2"/>',
+  gas: '<circle cx="0" cy="0" r="4.9"/><path class="ia-blue" d="M0 -3.2 C1.6 -1.4 2.4 -0.2 2.4 1 A2.4 2.4 0 0 1 -2.4 1 C-2.4 -0.2 -1.4 -0.8 -1 -2 C-0.6 -1 0 -0.8 0 -3.2 Z" stroke="none"/>',
+  lux: '<circle cx="0" cy="0" r="2.2"/><path d="M0 -5.2 V-3.6 M0 3.6 V5.2 M-5.2 0 H-3.6 M3.6 0 H5.2 M-3.7 -3.7 L-2.6 -2.6 M2.6 2.6 L3.7 3.7 M-3.7 3.7 L-2.6 2.6 M2.6 -2.6 L3.7 -3.7" stroke-width="0.7"/><circle class="ia-yellow" cx="0" cy="0" r="1.2" stroke="none"/>',
+  vibration: '<rect x="-2.4" y="-3.8" width="4.8" height="7.6" rx="1"/><path d="M-3.8 -3 L-5 -1.5 L-3.8 0 L-5 1.5 L-3.8 3 M3.8 -3 L5 -1.5 L3.8 0 L5 1.5 L3.8 3" stroke-width="0.6"/>',
+  alarm_panel: '<rect x="-4.6" y="-5" width="9.2" height="10" rx="0.8"/><path class="ia-red" d="M0 -3.2 L2.6 -2.2 V0.2 C2.6 1.9 1.4 3 0 3.6 C-1.4 3 -2.6 1.9 -2.6 0.2 V-2.2 Z" stroke="none"/>',
+  keypad: '<rect x="-4.4" y="-5" width="8.8" height="10" rx="1.2"/><rect x="-3" y="-3.8" width="6" height="2" rx="0.3" stroke-width="0.5"/><path d="M-2.2 0.4 h0.01 M0 0.4 h0.01 M2.2 0.4 h0.01 M-2.2 2.1 h0.01 M0 2.1 h0.01 M2.2 2.1 h0.01 M-2.2 3.8 h0.01 M0 3.8 h0.01 M2.2 3.8 h0.01" stroke-width="1.1" stroke-linecap="round"/>',
+  siren: '<path d="M-3.8 2.8 V0 A3.8 3.8 0 0 1 3.8 0 V2.8 Z"/><path d="M-5 2.8 H5 V4.6 H-5 Z"/><path class="ia-red" d="M-1.5 0 A1.5 1.5 0 0 1 1.5 0 V2.8 H-1.5 Z" stroke="none"/><path d="M-5.4 -3.8 L-4.2 -2.6 M5.4 -3.8 L4.2 -2.6 M0 -5.6 V-4.6" stroke-width="0.6"/>',
+  nvr: '<rect x="-5.4" y="-3" width="10.8" height="6" rx="0.8"/><path d="M-3.8 -1 H1 M-3.8 1 H1" stroke-width="0.5"/><circle class="ia-red" cx="3.2" cy="0" r="0.8" stroke="none"/>',
+  fireplace: '<path d="M-4.6 5 V-2 H4.6 V5"/><path d="M-5.6 -2 H5.6 V-4.2 H-5.6 Z"/><path class="ia-red" d="M0 4.4 C-2.2 4.4 -2.6 2.4 -1.6 1 C-1.2 2 -0.6 2 -0.4 1.2 C-0.4 0 0.4 -0.6 0.6 -1 C1.2 0.4 2.4 1.4 2.2 2.8 C2 3.8 1.2 4.4 0 4.4 Z" stroke="none"/>',
+  floor_heating: '<path d="M-5 -3.6 H5 M-5 -1 H5" stroke-width="1"/><path d="M-3.6 -1 V4.8 M-1.2 -1 V4.8 M1.2 -1 V4.8 M3.6 -1 V4.8" stroke-width="0.6"/><circle class="ia-red" cx="-3.6" cy="-3.6" r="0.6" stroke="none"/><circle class="ia-blue" cx="3.6" cy="-1" r="0.6" stroke="none"/>',
+  water_tank: '<rect x="-3.6" y="-5.2" width="7.2" height="10.4" rx="3"/><path d="M-3.6 -0.6 H3.6" stroke-width="0.5"/><circle class="ia-red" cx="0" cy="2.2" r="1" stroke="none"/><circle class="ia-blue" cx="0" cy="-2.8" r="0.8" stroke="none"/>',
+  heat_pump: '<rect x="-5.4" y="-4" width="10.8" height="8" rx="1"/><circle cx="-1" cy="0" r="2.8"/><path d="M-1 -2.8 V2.8 M-3.8 0 H1.8" stroke-width="0.4"/><path d="M3 -2 H4.4 M3 0 H4.4 M3 2 H4.4" stroke-width="0.5"/>',
+  dehumidifier: '<rect x="-3.8" y="-5" width="7.6" height="10" rx="1.6"/><path class="ia-blue" d="M0 -3.2 C1.2 -1.6 1.8 -0.6 1.8 0.4 A1.8 1.8 0 0 1 -1.8 0.4 C-1.8 -0.6 -1.2 -1.6 0 -3.2 Z" stroke="none"/><path d="M-1.6 3.2 H1.6" stroke-width="0.6"/>',
+  humidifier: '<path d="M-3.4 5 V0.4 A3.4 3.4 0 0 1 3.4 0.4 V5 Z"/><path d="M-1.2 -1.6 C-2 -2.6 -0.4 -3.4 -1.2 -4.8 M1.2 -1.6 C0.4 -2.6 2 -3.4 1.2 -4.8" stroke-width="0.6"/><circle class="ia-blue" cx="0" cy="2.4" r="1" stroke="none"/>',
+  radiator: '<path d="M-4.8 -4 V4 M-2.4 -4 V4 M0 -4 V4 M2.4 -4 V4 M4.8 -4 V4 M-5.4 -2.6 H5.4 M-5.4 2.6 H5.4" stroke-width="0.8"/>',
+  amplifier: '<rect x="-5.4" y="-3" width="10.8" height="6" rx="0.8"/><circle cx="2.8" cy="0" r="1.7"/><path d="M-4 -0.8 H-0.6 M-4 1 H-1.6" stroke-width="0.5"/>',
+  set_top: '<rect x="-5.2" y="-2.2" width="10.4" height="4.4" rx="0.8"/><path d="M-3.8 0 H-0.6" stroke-width="0.5"/><circle class="ia-green" cx="3.4" cy="0" r="0.6" stroke="none"/>',
+  printer: '<path d="M-3.4 -1.4 V-5 H3.4 V-1.4"/><rect x="-5.2" y="-1.4" width="10.4" height="5" rx="1"/><path d="M-3 2.4 V5 H3 V2.4"/><circle class="ia-green" cx="3.6" cy="0.2" r="0.5" stroke="none"/>',
+  pool_pump: '<circle cx="-0.8" cy="0.4" r="3.8"/><path d="M-0.8 0.4 C0.6 -1 1.4 -2 1 -3.2 M-0.8 0.4 C-2.6 0.2 -3.6 1 -3.6 2 M-0.8 0.4 C0 2.2 0.6 3.2 1.8 3.4" stroke-width="0.6"/><path d="M3 -1.6 H5.6 M3 1.4 H5.6" stroke-width="0.8"/>',
+  rain: '<path d="M-4.2 -2 H4.2 L1.4 1.6 V5 H-1.4 V1.6 Z"/><circle class="ia-blue" cx="-2.4" cy="-4.4" r="0.7" stroke="none"/><circle class="ia-blue" cx="0" cy="-5" r="0.7" stroke="none"/><circle class="ia-blue" cx="2.4" cy="-4.4" r="0.7" stroke="none"/>',
+  intercom: '<rect x="-3.4" y="-5.2" width="6.8" height="10.4" rx="1"/><path d="M-1.8 -3.4 H1.8 M-1.8 -2.2 H1.8 M-1.8 -1 H1.8" stroke-width="0.4"/><circle cx="0" cy="2.6" r="1.3"/>',
+  meter: '<rect x="-4.4" y="-5" width="8.8" height="10" rx="1"/><rect x="-3" y="-3.6" width="6" height="2.4" rx="0.3" stroke-width="0.5"/><path class="ia-yellow" d="M0.4 0.4 L-1.2 2.8 H0 L-0.4 4.4 L1.2 2 H0 Z" stroke="none"/>',
+  fuse_box: '<rect x="-5" y="-5" width="10" height="10" rx="0.8"/><path d="M-2.6 -3.4 V-0.8 M-0.8 -3.4 V-0.8 M1 -3.4 V-0.8 M2.8 -3.4 V-0.8 M-2.6 0.8 V3.4 M-0.8 0.8 V3.4 M1 0.8 V3.4" stroke-width="1"/>',
+  inverter: '<rect x="-4.4" y="-5" width="8.8" height="10" rx="1"/><path d="M-2.4 -2.8 H2.4 M-2.4 -1.6 H2.4" stroke-width="0.5"/><path d="M-2.6 2 C-1.8 0.8 -1 0.8 -0.2 2 C0.6 3.2 1.4 3.2 2.2 2" stroke-width="0.6"/>',
+  ups: '<rect x="-3.8" y="-5" width="7.6" height="10" rx="1"/><path d="M-2.2 -3.4 H2.2" stroke-width="0.5"/><path class="ia-yellow" d="M0.6 -1.4 L-1.6 1.8 H-0.1 L-0.6 4 L1.6 0.8 H0.1 Z" stroke="none"/>',
+  nas: '<rect x="-4" y="-5" width="8" height="10" rx="1"/><path d="M-2.6 -3 H2.6 M-2.6 -1 H2.6 M-2.6 1 H2.6" stroke-width="0.5"/><circle class="ia-green" cx="2" cy="3.4" r="0.5" stroke="none"/><circle class="ia-blue" cx="0.4" cy="3.4" r="0.5" stroke="none"/>',
+  zigbee: '<rect x="-2" y="-2.4" width="4" height="7.4" rx="0.8"/><path d="M-1.2 -2.4 V-4.4 H1.2 V-2.4"/><path d="M-4.4 -3 A6 6 0 0 0 -4.4 3 M4.4 -3 A6 6 0 0 1 4.4 3" stroke-width="0.5"/>',
+  rack: '<rect x="-4" y="-5.2" width="8" height="10.4" rx="0.6"/><path d="M-2.8 -3.2 H2.8 M-2.8 -1 H2.8 M-2.8 1.2 H2.8 M-2.8 3.4 H2.8" stroke-width="0.5"/><circle class="ia-green" cx="2" cy="-2.1" r="0.4" stroke="none"/><circle class="ia-green" cx="2" cy="0.1" r="0.4" stroke="none"/>',
+  battery: '<rect x="-3.4" y="-4" width="6.8" height="9" rx="1.1"/><path d="M-1.4 -5 H1.4" stroke-width="1.2"/><rect class="ia-green" x="-2.2" y="0" width="4.4" height="3.8" rx="0.5" stroke="none"/>'
 };
 function iconDefs(kinds) {
   return [...new Set(kinds)].filter((k) => G[k]).map((k) => `    <g id="icon-${k}">${G[k]}</g>`).join("\n");
@@ -1202,7 +1272,18 @@ function lowerV2(m) {
       const width = o.to - o.from;
       const side = o.swing === "left" ? 1 : -1;
       const hs = o.hinge === "to" ? o.to : o.from, cs = o.hinge === "to" ? o.from : o.to;
-      const panes = { panes: o.panes, contacts: o.contacts, tick: wallThickness(m, w) / 2 * k };
+      const splits = (() => {
+        const n22 = o.panes || 1, ps = o.pane_sizes;
+        if (n22 < 2 || !Array.isArray(ps) || ps.length !== n22 - 1) return void 0;
+        let acc = 0;
+        const out = [];
+        for (const v of ps) {
+          acc += Number(v) || 0;
+          out.push(acc / width);
+        }
+        return out.every((f, i) => f > (out[i - 1] || 0) && f < 1) ? out : void 0;
+      })();
+      const panes = { panes: o.panes, contacts: o.contacts, tick: wallThickness(m, w) / 2 * k, splits };
       const contact = (o.contacts || [])[0];
       if (o.type === "window" || o.type === "corner_window") {
         let g0 = o.from, g1 = o.to;
@@ -1219,7 +1300,17 @@ function lowerV2(m) {
       } else if (o.type === "hst") {
         const sashes = {};
         for (const [name, sa] of Object.entries(o.sashes)) sashes[name] = [P(at(sa.from, sa.offset)), P(at(sa.to, sa.offset))];
-        v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), type: "hst", width: width * k, sashes, contacts: o.contacts });
+        v1.windows.push({
+          id: o.id,
+          facade: o.facade,
+          inward: inward(o),
+          type: "hst",
+          width: width * k,
+          sashes,
+          contacts: o.contacts,
+          line: [P(at(o.from)), P(at(o.to))],
+          tick: wallThickness(m, w) / 2 * k
+        });
       } else if (o.type === "door") {
         v1.doors.push({ ...leafAt(o.id, hs, cs, width, side), ...ext(o), contact });
       } else if (o.type === "double_door" || o.type === "double_gate") {
@@ -1227,8 +1318,20 @@ function lowerV2(m) {
         v1.doors.push({ ...leafAt(o.id + "-1", o.from, mid, width / 2, side), ...ext(o), contact });
         v1.doors.push({ ...leafAt(o.id + "-2", o.to, mid, width / 2, side), ...ext(o), contact });
       } else if (o.type === "balcony_door") {
-        v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
-        v1.doors.push({ ...leafAt(o.id + "-leaf", hs, cs, width, side), ...ext(o), contact });
+        const n22 = o.panes || 1;
+        const opens = Array.isArray(o.pane_open) && o.pane_open.length === n22 ? o.pane_open : o.leaves === 2 && n22 === 2 ? ["from", "to"] : null;
+        if (opens) {
+          const edge = (i) => o.from + width * (i <= 0 ? 0 : i >= n22 ? 1 : splits ? splits[i - 1] : i / n22);
+          v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
+          opens.forEach((op, i) => {
+            if (op !== "from" && op !== "to") return;
+            const s0 = edge(i), s1 = edge(i + 1), h2 = op === "to" ? s1 : s0, c2 = op === "to" ? s0 : s1;
+            v1.doors.push({ ...leafAt(o.id + (i ? `-leaf-${i + 1}` : "-leaf"), h2, c2, s1 - s0, side), ...ext(o), contact });
+          });
+        } else {
+          v1.windows.push({ id: o.id, facade: o.facade, inward: inward(o), line: [P(at(o.from)), P(at(o.to))], ...panes });
+          v1.doors.push({ ...leafAt(o.id + "-leaf", hs, cs, width, side), ...ext(o), contact });
+        }
       } else if (o.type === "sliding_door") {
         const face = wallThickness(m, w) / 2 * side, track = face + 4 * side;
         const dir = o.hinge === "to" ? 1 : -1;
@@ -1241,7 +1344,14 @@ function lowerV2(m) {
         v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], width: width * k, ...ext(o), contact });
         v1.doors.push({ id: o.id + "-pocket", lines: [[P(at(end)), P(at(end + dir * width))]], dashed: true, width: width * k, pocket: true });
       } else if (o.type === "garage_door") {
-        v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], dashed: true, width: width * k, ...ext(o), contact });
+        const inSide = o.outside ? o.outside === "left" ? -1 : 1 : side;
+        const face = wallThickness(m, w) / 2 * inSide, run = face + (o.depth || 240) * inSide;
+        v1.doors.push({ id: o.id, lines: [[P(at(o.from)), P(at(o.to))]], width: width * k, ...ext(o), contact, garage: "door" });
+        v1.doors.push({ id: o.id + "-track", garage: "track", lines: [
+          [P(at(o.from, face)), P(at(o.from, run))],
+          [P(at(o.from, run)), P(at(o.to, run))],
+          [P(at(o.to, run)), P(at(o.to, face))]
+        ], dashed: true, width: width * k, pocket: true });
       }
     }
   }
@@ -1278,8 +1388,37 @@ function lowerV2(m) {
     glow_r: S(l.glow_r),
     glows: beamGlows(l)
   });
+  const sensorView = (d) => {
+    if (!(d.range > 0) || !d.at) return void 0;
+    const edges = [];
+    for (const w of m.walls) {
+      if (d.through_partitions && w.type === "partition") continue;
+      for (const poly of wallPolygons(m, w)) for (let i = 0; i < poly.length; i++) edges.push([poly[i], poly[(i + 1) % poly.length]]);
+      const u0 = unit(sub2(w.b, w.a)), on = (s0) => add2(w.a, mul2(u0, s0));
+      for (const o of w.openings || []) if (o.type !== "passage") edges.push([on(o.from), on(o.to)]);
+    }
+    const fov = Math.min(360, d.fov ?? 100), dir = d.direction ?? 90, full = fov >= 359.5;
+    const n5 = Math.max(24, Math.ceil(fov / 2)), pts3 = [];
+    for (let i = 0; i <= n5; i++) {
+      if (full && i === n5) break;
+      const a = (dir - fov / 2 + fov * i / n5) * Math.PI / 180, u = [Math.cos(a), Math.sin(a)];
+      let t = d.range;
+      for (const [p2, q] of edges) {
+        const e = sub2(q, p2), c = u[0] * e[1] - u[1] * e[0];
+        if (Math.abs(c) < 1e-9) continue;
+        const v = sub2(p2, d.at), tt = (v[0] * e[1] - v[1] * e[0]) / c, s2 = (v[0] * u[1] - v[1] * u[0]) / c;
+        if (tt > 0.5 && tt < t && s2 >= 0 && s2 <= 1) t = tt;
+      }
+      pts3.push(add2(d.at, mul2(u, t)));
+    }
+    return full ? pts3 : [d.at, ...pts3];
+  };
   v1.devices = (m.devices || []).map((d) => ({
     ...d,
+    view: (() => {
+      const v = sensorView(d);
+      return v && v.map(P);
+    })(),
     clip: d.clip || d.glow && beamClip(`beam-${d.id}`, d.glow.at, d.beam_dir, d.beam),
     at: d.at && P(d.at),
     hit: d.hit && d.hit.map((v) => v * k),
@@ -1376,8 +1515,14 @@ var GLOW = {
   wall: { r: 45, fill: "light-pool" },
   main: { r: 110, fill: "light-pool" },
   night: { r: 22, fill: "night-pool" },
-  strip: { r: 50, fill: "light-pool" }
+  spot: { r: 80, fill: "light-pool" },
+  strip: { r: 50, fill: "light-pool" },
+  pendant: { r: 75, fill: "light-pool" },
+  floor_lamp: { r: 55, fill: "light-pool" },
+  table_lamp: { r: 35, fill: "light-pool" },
+  garden_lamp: { r: 45, fill: "light-pool" }
 };
+var SHADES = { pendant: 10, floor_lamp: 9, table_lamp: 7 };
 var NIGHT_BULB_SCALE = 0.65;
 var COVER_OUT = 4.5;
 var COVER_ICON_IN = 15;
@@ -1512,6 +1657,12 @@ ${spans.join("\n")}
   for (const k of model.climate || []) {
     const [x, y] = k.at;
     const X = n4(x);
+    const icon = (alt) => `    <g id="climate-${k.id}${alt ? "-icon" : ""}" class="climate-icon${alt ? " alt" : ""}" transform="translate(${X} ${n4(y)}) rotate(${n4(textRot)})"${attrs({ "data-temp": alt ? void 0 : k.temperature, "data-hum": alt ? void 0 : k.humidity })}><circle r="7" fill="#1b2433" stroke="#8ea1ba" stroke-width="0.8"/><path d="M-2.2 1.6 V-3.6 A1.2 1.2 0 0 1 0.2 -3.6 V1.6 A2.2 2.2 0 1 1 -2.2 1.6 Z" fill="none" stroke="#c3cfdf" stroke-width="0.7"/><circle cx="-1" cy="3.2" r="1.1" fill="#e57373"/><path d="M3.6 -2.6 C2.6 -1.2 2.2 -0.4 2.2 0.4 A1.4 1.4 0 0 0 5 0.4 C5 -0.4 4.6 -1.2 3.6 -2.6 Z" fill="#6fc9ef"/></g>`;
+    if (k.display !== "icon") w(icon(true));
+    if (k.display === "icon") {
+      w(icon(false));
+      continue;
+    }
     const name = k.name ? `<tspan class="climate-name" x="${X}">${esc3(k.name)}</tspan>` : "";
     w(`    <text id="climate-${k.id}" x="${X}" y="${n4(y)}" transform="rotate(${n4(textRot)} ${X} ${n4(y)})"${attrs({ "data-temp": k.temperature, "data-hum": k.humidity })}>${name}<tspan class="climate-temp" x="${X}"${k.name ? ' dy="15"' : ""}>\u2014</tspan><tspan class="climate-hum" x="${X}" dy="13">\u2014</tspan></text>`);
   }
@@ -1543,33 +1694,70 @@ ${spans.join("\n")}
   for (const win of model.windows) {
     if (win.type === "hst") {
       w(`    <g id="${win.id}" data-facade="${win.facade}" data-type="hst" data-width="${n4(win.width)}"${contactAttr((win.contacts || [])[0])}>`);
-      for (const [sash, line2] of Object.entries(win.sashes)) {
-        w(`      <line id="${win.id}-${sash}" ${lineXY(line2)} stroke="#6fc9ef" stroke-width="1.4"/>`);
+      if (win.line) {
+        const H = win.tick || 4, S2 = H * 0.15, [a, b] = win.line, L0 = len2(win.line);
+        const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
+        const dist = (q) => Math.abs((q[0] - a[0]) * mx + (q[1] - a[1]) * my);
+        const t = Math.max(...Object.values(win.sashes).map((l) => dist(l[0]))), ds = t * 0.55, F = t + ds;
+        const B = Math.min(0.8 * F, L0 / 6);
+        const ln = (p2, q, cls, sw, extra = "") => `      <line class="${cls}"${extra} x1="${n4(p2[0])}" y1="${n4(p2[1])}" x2="${n4(q[0])}" y2="${n4(q[1])}" stroke="#6fc9ef" stroke-width="${sw}"/>`;
+        for (const o of [H, -H, H + S2, -H - S2])
+          w(ln([a[0] + mx * o, a[1] + my * o], [b[0] + mx * o, b[1] + my * o], "sill", 0.5).replace('stroke="#6fc9ef"', 'stroke="#8ea1ba"'));
+        const box = (p2, q, d, cls) => {
+          const c2 = [[p2[0] + mx * d, p2[1] + my * d], [q[0] + mx * d, q[1] + my * d], [q[0] - mx * d, q[1] - my * d], [p2[0] - mx * d, p2[1] - my * d]];
+          return `      <polygon class="${cls}" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`;
+        };
+        w(box(a, b, F, "frame"));
+        for (const e of [[a, B], [b, -B]]) {
+          const q = [e[0][0] + ux * e[1], e[0][1] + uy * e[1]];
+          w(ln([q[0] + mx * F, q[1] + my * F], [q[0] - mx * F, q[1] - my * F], "frame-cross", 0.6));
+        }
+        for (const [sash, line2] of Object.entries(win.sashes)) {
+          const along = (q2) => (q2[0] - a[0]) * ux + (q2[1] - a[1]) * uy;
+          const cut2 = (q2) => {
+            const s = along(q2), s2 = Math.min(Math.max(s, B), L0 - B);
+            return [q2[0] + ux * (s2 - s), q2[1] + uy * (s2 - s)];
+          };
+          const p2 = cut2(line2[0]), q = cut2(line2[1]);
+          w(box(p2, q, ds, "sash"));
+          w(`      <line id="${win.id}-${sash}" ${lineXY([p2, q])} stroke="#6fc9ef" stroke-width="0.6"/>`);
+        }
+      } else {
+        for (const [sash, line2] of Object.entries(win.sashes)) {
+          w(`      <line id="${win.id}-${sash}" ${lineXY(line2)} stroke="#6fc9ef" stroke-width="1.4"/>`);
+        }
       }
       w(`    </g>`);
     } else {
       const panes = win.panes || 1, cts = win.contacts || [];
       const one = cts.length === 1 ? cts[0] : null;
-      if (panes <= 1 && cts.length <= 1) {
-        w(`    <g id="${win.id}" data-facade="${win.facade}" data-width="${n4(win.width || len2(win.line))}"${contactAttr(one)}>
-      <line ${lineXY(win.line)} stroke="#6fc9ef" stroke-width="1.4"/>
-    </g>`);
-      } else {
-        const [a, b] = win.line, k2 = Math.max(panes, cts.length);
-        const at = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-        const L0 = len2(win.line), nx = -(b[1] - a[1]) / L0, ny = (b[0] - a[0]) / L0, tk = win.tick || 4;
-        const parts = [];
-        for (let i = 0; i < k2; i++) {
-          parts.push(`      <line class="${N.pane}" ${lineXY([at(i / k2), at((i + 1) / k2)])} stroke="#6fc9ef" stroke-width="1.4"${cts.length > 1 ? contactAttr(cts[i]) : ""}/>`);
-          if (i) {
-            const q = at(i / k2);
-            parts.push(`      <line class="${N.paneTick}" ${lineXY([[q[0] - nx * tk, q[1] - ny * tk], [q[0] + nx * tk, q[1] + ny * tk]])}/>`);
-          }
+      const H = win.tick || 4, F = H * 0.18, S2 = H * 0.15;
+      const [a, b] = win.line, L0 = len2(win.line), k2 = Math.max(panes, cts.length);
+      const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
+      const at0 = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+      const div = (i) => i <= 0 ? 0 : i >= k2 ? 1 : win.splits && win.splits.length === k2 - 1 ? win.splits[i - 1] : i / k2;
+      const at = (f) => at0(f);
+      const off = (q, t) => [q[0] + ux * t, q[1] + uy * t];
+      const B = Math.min(0.8 * F, L0 / (3 * k2));
+      const across = (q, cls = "frame-cross") => `      <line class="${cls}" x1="${n4(q[0] + mx * F)}" y1="${n4(q[1] + my * F)}" x2="${n4(q[0] - mx * F)}" y2="${n4(q[1] - my * F)}" stroke="#6fc9ef" stroke-width="0.6"/>`;
+      const parts = [];
+      for (const o of [H, -H, H + S2, -H - S2])
+        parts.push(`      <line class="sill" x1="${n4(a[0] + mx * o)}" y1="${n4(a[1] + my * o)}" x2="${n4(b[0] + mx * o)}" y2="${n4(b[1] + my * o)}" stroke="#8ea1ba" stroke-width="0.5"/>`);
+      const c2 = [[a[0] + mx * F, a[1] + my * F], [b[0] + mx * F, b[1] + my * F], [b[0] - mx * F, b[1] - my * F], [a[0] - mx * F, a[1] - my * F]];
+      parts.push(`      <polygon class="frame" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`);
+      parts.push(across(off(a, B)), across(off(b, -B)));
+      for (let i = 0; i < k2; i++) {
+        const p0 = off(at(div(i)), i ? B / 2 : B), p1 = off(at(div(i + 1)), i + 1 < k2 ? -B / 2 : -B);
+        parts.push(`      <line class="${N.pane}" ${lineXY([p0, p1])} stroke="#6fc9ef" stroke-width="0.6"${cts.length > 1 ? contactAttr(cts[i]) : ""}/>`);
+        if (i) {
+          const q = at(div(i));
+          parts.push(across(off(q, -B / 2)), across(off(q, B / 2)));
+          parts.push(`      <line class="${N.paneTick}" ${lineXY([[q[0] - mx * H, q[1] - my * H], [q[0] + mx * H, q[1] + my * H]])} stroke-opacity="0"/>`);
         }
-        w(`    <g id="${win.id}" data-facade="${win.facade}" data-width="${n4(win.width || L0)}"${contactAttr(one)}>
+      }
+      w(`    <g id="${win.id}" data-facade="${win.facade}" data-width="${n4(win.width || L0)}"${contactAttr(one)}>
 ${parts.join("\n")}
     </g>`);
-      }
     }
   }
   for (const d of doors.filter((d2) => d2.exterior)) {
@@ -1604,7 +1792,8 @@ function fanPath(x, y, dir, fov, r) {
 }
 function doorShape(d, named) {
   if (d.lines) {
-    const dash = d.dashed ? ' stroke-dasharray="4 3"' : "";
+    const look = d.garage === "door" ? ' stroke="#8ea1ba" stroke-width="2.4"' : d.garage === "track" ? ' stroke="#6b7a90" stroke-width="1"' : "";
+    const dash = (d.dashed ? ' stroke-dasharray="4 3"' : "") + look;
     return d.lines.map((l) => `      <line ${lineXY(l)}${dash}/>`).join("\n");
   }
   return named ? `      <line id="${d.id}-leaf" x1="${n4(d.hinge[0])}" y1="${n4(d.hinge[1])}" x2="${n4(d.leaf[0])}" y2="${n4(d.leaf[1])}"/>
@@ -1643,7 +1832,11 @@ function light(l, clipOf, upright) {
     const [x, y, sw, sh] = l.strip;
     lines.push(`      <rect class="led" x="${n4(x)}" y="${n4(y)}" width="${n4(sw)}" height="${n4(sh)}" rx="0.3"/>`);
   }
-  for (const b of bulbs) lines.push("      " + bulbUse(b, l.kind, upright));
+  for (const b of bulbs) {
+    if (SHADES[l.kind]) lines.push(`      <circle class="shade" cx="${n4(b[0])}" cy="${n4(b[1])}" r="${SHADES[l.kind]}" fill="none" stroke-width="0.7"${l.kind === "pendant" ? ' stroke-dasharray="1.6 1.1"' : ""}/>`);
+    if (l.kind === "garden_lamp") lines.push(`      <rect class="shade" x="${n4(b[0] - 7.5)}" y="${n4(b[1] - 7.5)}" width="15" height="15" rx="2" fill="none" stroke-width="0.7"/>`);
+    lines.push("      " + bulbUse(b, l.kind, upright));
+  }
   lines.push(`    </g>`);
   return lines.join("\n");
 }
@@ -1671,9 +1864,151 @@ function device(d, clipOf, upright = 0) {
   const valueEntity = d.type === "icon" ? d.value_entity || (VALUE_KINDS.includes(d.kind) ? d.entity : void 0) : void 0;
   const extra = d.type === "icon" ? attrs({ "data-kind": d.kind, [N.attrValue]: valueEntity }) : d.type === "skylight" ? attrs({ [N.attrContact]: d.contact }) : "";
   const L = [`    <g id="${d.id}" data-entity="${esc3(d.entity)}" class="${cls}"${extra}>`];
+  let topGroup = "", rackRows = null;
   if (d.hit) L.push("      " + hitRect(d.hit));
+  const shaped = d.type === "tv" || d.type === "climate_unit" || d.type === "appliance" && d.kind || d.type === "icon" && d.hit;
+  if (d.hit && shaped) {
+    const [x, y, w, h] = d.hit, a = (Math.round((d.beam_dir ?? 180) / 90) * 90 % 360 + 360) % 360;
+    const side = a % 180 === 0, W2 = side ? w : h, D = side ? h : w;
+    const tf = `translate(${n4(x + w / 2)} ${n4(y + h / 2)}) rotate(${a - 180})`;
+    const X0 = -W2 / 2, Y0 = -D / 2, g = [];
+    if (d.type === "tv") {
+      const t = Math.max(1.6, D * 0.35), y1 = Y0 + D * 0.45;
+      g.push(`<rect class="tv-mount" x="${n4(-W2 * 0.18)}" y="${n4(Y0)}" width="${n4(W2 * 0.36)}" height="${n4(y1 - Y0)}" rx="0.6"/>`);
+      g.push(`<rect class="tv-body" x="${n4(X0)}" y="${n4(y1)}" width="${n4(W2)}" height="${n4(t)}" rx="${n4(Math.min(1.2, t / 2))}"/>`);
+      g.push(`<line class="tv-screen" x1="${n4(X0 + 1)}" y1="${n4(y1 + t)}" x2="${n4(-X0 - 1)}" y2="${n4(y1 + t)}"/>`);
+    } else if (d.type === "climate_unit") {
+      const r = Math.min(D * 0.45, W2 * 0.12);
+      g.push(`<path class="ac-body" d="M${n4(X0)} ${n4(Y0)} H${n4(-X0)} V${n4(-Y0 - r)} Q${n4(-X0)} ${n4(-Y0)} ${n4(-X0 - r)} ${n4(-Y0)} H${n4(X0 + r)} Q${n4(X0)} ${n4(-Y0)} ${n4(X0)} ${n4(-Y0 - r)} Z"/>`);
+      for (const f of [0.55, 0.7, 0.85]) {
+        const yy = Y0 + D * f, inset2 = W2 * 0.08;
+        g.push(`<line class="ac-louvre" x1="${n4(X0 + inset2)}" y1="${n4(yy)}" x2="${n4(-X0 - inset2)}" y2="${n4(yy)}"/>`);
+      }
+      g.push(`<circle class="ac-led" cx="${n4(-X0 - W2 * 0.1)}" cy="${n4(Y0 + D * 0.3)}" r="${n4(Math.max(0.6, D * 0.06))}"/>`);
+    } else {
+      const k = d.kind, m0 = Math.min(W2, D), rr = (x0, y0, w0, h0, r0, cls2) => `<rect class="${cls2}" x="${n4(x0)}" y="${n4(y0)}" width="${n4(w0)}" height="${n4(h0)}" rx="${n4(r0)}"/>`;
+      g.push(rr(X0, Y0, W2, D, Math.min(3, m0 * 0.08), "unit-body"));
+      const cs = (cx, cy, r, cls2) => `<circle class="${cls2}" cx="${n4(cx)}" cy="${n4(cy)}" r="${n4(r)}"/>`;
+      const ln = (x1, y1, x2, y2, cls2) => `<line class="${cls2}" x1="${n4(x1)}" y1="${n4(y1)}" x2="${n4(x2)}" y2="${n4(y2)}"/>`;
+      if ((k === "washer" || k === "dryer") && d.top) {
+        g.push(`<polygon class="unit-half" points="${n4(X0)},${n4(Y0)} ${n4(X0)},${n4(-Y0)} ${n4(-X0)},${n4(-Y0)}"/>`);
+        g.push(ln(X0, Y0, -X0, -Y0, "unit-line"));
+        const half = (kk, cx, cy) => {
+          const r = m0 * 0.15, out = [cs(cx, cy, r, "unit-door"), cs(cx, cy, r * 0.62, "unit-glass")];
+          if (kk === "dryer") for (const f of [-0.35, 0, 0.35]) out.push(ln(cx - r * 0.45, cy + r * f, cx + r * 0.45, cy + r * f, "unit-line"));
+          return out;
+        };
+        g.push(...half(k, X0 + W2 * 0.3, -Y0 - D * 0.3), ...half(d.top.kind, -X0 - W2 * 0.3, Y0 + D * 0.3));
+      } else if (k === "washer" || k === "dryer") {
+        g.push(ln(X0, Y0 + D * 0.2, -X0, Y0 + D * 0.2, "unit-line"), cs(X0 + W2 * 0.22, Y0 + D * 0.1, m0 * 0.05, "unit-knob"));
+        g.push(cs(0, D * 0.1, m0 * 0.3, "unit-door"), cs(0, D * 0.1, m0 * 0.2, "unit-glass"));
+        if (k === "dryer") for (const f of [-0.06, 0.04, 0.14]) g.push(ln(-m0 * 0.12, D * f + D * 0.04, m0 * 0.12, D * f + D * 0.04, "unit-line"));
+      } else if (k === "dishwasher") {
+        g.push(ln(X0, -Y0 - D * 0.14, -X0, -Y0 - D * 0.14, "unit-line"));
+        for (const f of [-0.25, -0.05, 0.15]) g.push(ln(X0 + W2 * 0.12, D * f, -X0 - W2 * 0.12, D * f, "unit-rack"));
+      } else if (k === "fridge") {
+        g.push(ln(X0, -Y0 - D * 0.1, -X0, -Y0 - D * 0.1, "unit-line"));
+        g.push(ln(-X0 - W2 * 0.12, -Y0 - D * 0.04, -X0 - W2 * 0.12, -Y0 - D * 0.24, "unit-handle"));
+      } else if (k === "fridge_sbs") {
+        g.push(ln(X0, -Y0 - D * 0.1, -X0, -Y0 - D * 0.1, "unit-line"), ln(0, Y0 + D * 0.08, 0, -Y0, "unit-line"));
+        g.push(ln(-W2 * 0.06, -Y0 - D * 0.04, -W2 * 0.06, -Y0 - D * 0.24, "unit-handle"), ln(W2 * 0.06, -Y0 - D * 0.04, W2 * 0.06, -Y0 - D * 0.24, "unit-handle"));
+      } else if (k === "freezer") {
+        g.push(ln(X0, -Y0 - D * 0.1, -X0, -Y0 - D * 0.1, "unit-line"), ln(-X0 - W2 * 0.12, -Y0 - D * 0.04, -X0 - W2 * 0.12, -Y0 - D * 0.24, "unit-handle"));
+        for (const a2 of [0, 60, 120]) {
+          const r = m0 * 0.16, c = Math.cos(a2 * Math.PI / 180) * r, s2 = Math.sin(a2 * Math.PI / 180) * r;
+          g.push(ln(-c, -D * 0.05 - s2, c, -D * 0.05 + s2, "unit-cold"));
+        }
+      } else if (k === "oven") {
+        g.push(rr(X0 + W2 * 0.12, -Y0 - D * 0.28, W2 * 0.76, D * 0.18, 1, "unit-glass"), ln(X0 + W2 * 0.15, -Y0 - D * 0.04, -X0 - W2 * 0.15, -Y0 - D * 0.04, "unit-handle"));
+        for (const f of [-0.3, -0.1, 0.1, 0.3]) g.push(cs(W2 * f, -Y0 - D * 0.42, m0 * 0.04, "unit-knob"));
+      } else if (k === "cooktop") {
+        g.push(cs(-W2 * 0.22, -D * 0.18, m0 * 0.17, "unit-zone"), cs(W2 * 0.22, -D * 0.18, m0 * 0.13, "unit-zone"));
+        g.push(cs(-W2 * 0.22, D * 0.18, m0 * 0.13, "unit-zone"), cs(W2 * 0.22, D * 0.18, m0 * 0.17, "unit-zone"));
+        g.push(ln(X0 + W2 * 0.25, -Y0 - D * 0.07, -X0 - W2 * 0.25, -Y0 - D * 0.07, "unit-line"));
+      } else if (k === "microwave") {
+        g.push(rr(X0 + W2 * 0.08, -Y0 - D * 0.3, W2 * 0.6, D * 0.22, 1, "unit-glass"), ln(X0 + W2 * 0.76, Y0, X0 + W2 * 0.76, -Y0, "unit-line"));
+        g.push(cs(X0 + W2 * 0.88, -Y0 - D * 0.2, m0 * 0.06, "unit-knob"));
+      } else if (k === "hood") {
+        g.length = 0;
+        g.push(rr(X0, Y0, W2, D, Math.min(3, m0 * 0.08), "unit-body unit-above"));
+        for (const f of [-0.25, 0, 0.25]) g.push(ln(W2 * f, Y0 + D * 0.2, W2 * f, -Y0 - D * 0.25, "unit-rack"));
+      } else if (k === "coffee") {
+        g.push(rr(X0 + W2 * 0.15, Y0 + D * 0.08, W2 * 0.7, D * 0.3, 1, "unit-glass"));
+        g.push(cs(0, -Y0 - D * 0.2, m0 * 0.22, "unit-door"), cs(0, -Y0 - D * 0.2, m0 * 0.1, "unit-cup"));
+      } else if (k === "soundbar") {
+        g.length = 0;
+        g.push(rr(X0, Y0, W2, D, Math.min(1.5, D / 2), "unit-body"));
+        for (let i = 1; i < 10; i++) g.push(cs(X0 + W2 * i / 10, D * 0.15, Math.min(0.9, D * 0.12), "unit-knob"));
+      } else if (k === "projector") {
+        g.push(cs(-W2 * 0.2, -Y0 - D * 0.18, m0 * 0.16, "unit-door"), cs(-W2 * 0.2, -Y0 - D * 0.18, m0 * 0.08, "unit-glass"));
+        g.push(`<path class="unit-throw" d="M${n4(-W2 * 0.2 - m0 * 0.1)} ${n4(-Y0)} L${n4(-W2 * 0.2 - W2 * 0.6)} ${n4(-Y0 + D * 1.6)} H${n4(-W2 * 0.2 + W2 * 0.6)} L${n4(-W2 * 0.2 + m0 * 0.1)} ${n4(-Y0)} Z"/>`);
+        g.push(ln(W2 * 0.1, Y0 + D * 0.3, -X0 - W2 * 0.1, Y0 + D * 0.3, "unit-rack"));
+      } else if (k === "console") {
+        g.push(ln(X0 + W2 * 0.15, -Y0 - D * 0.25, -X0 - W2 * 0.35, -Y0 - D * 0.25, "unit-line"), cs(-X0 - W2 * 0.15, -Y0 - D * 0.25, m0 * 0.07, "unit-led"));
+      } else if (k === "washdry") {
+        g.push(ln(X0, Y0 + D * 0.2, -X0, Y0 + D * 0.2, "unit-line"), cs(X0 + W2 * 0.22, Y0 + D * 0.1, m0 * 0.05, "unit-knob"));
+        g.push(cs(0, D * 0.1, m0 * 0.3, "unit-door"), cs(0, D * 0.1, m0 * 0.2, "unit-glass"));
+        for (const f of [-0.06, 0.1]) g.push(`<path class="unit-heat" d="M${n4(-m0 * 0.12)} ${n4(D * f + D * 0.04)} q${n4(m0 * 0.06)} ${n4(-m0 * 0.04)} ${n4(m0 * 0.12)} 0 t${n4(m0 * 0.12)} 0" fill="none"/>`);
+      } else if (k === "wine_fridge") {
+        g.push(rr(X0 + W2 * 0.08, Y0 + D * 0.12, W2 * 0.84, D * 0.74, 1, "unit-glass"));
+        for (const f of [-0.25, 0, 0.25]) g.push(cs(W2 * f, -D * 0.02, m0 * 0.08, "unit-knob"));
+        g.push(ln(-X0 - W2 * 0.12, -Y0 - D * 0.04, -X0 - W2 * 0.12, -Y0 - D * 0.22, "unit-handle"));
+      } else if (k === "mower") {
+        g.length = 0;
+        g.push(`<path class="unit-body" d="M${n4(X0)} ${n4(Y0)} H${n4(-X0)} V${n4(-Y0 - W2 * 0.4)} Q${n4(-X0)} ${n4(-Y0)} 0 ${n4(-Y0)} Q${n4(X0)} ${n4(-Y0)} ${n4(X0)} ${n4(-Y0 - W2 * 0.4)} Z"/>`);
+        g.push(rr(X0 - 2, Y0 + D * 0.05, 4, D * 0.35, 1, "unit-handle"), rr(-X0 - 2, Y0 + D * 0.05, 4, D * 0.35, 1, "unit-handle"));
+        g.push(cs(0, D * 0.05, m0 * 0.12, "unit-door"));
+      } else if (k === "radiator") {
+        const nf = Math.max(3, Math.round(W2 / 8));
+        for (let i = 1; i < nf; i++) g.push(ln(X0 + W2 * i / nf, Y0 + D * 0.2, X0 + W2 * i / nf, -Y0 - D * 0.2, "unit-line"));
+      } else if (k === "heat_pump") {
+        g.push(cs(-W2 * 0.15, 0, Math.min(D, W2) * 0.38, "unit-door"), cs(-W2 * 0.15, 0, Math.min(D, W2) * 0.12, "unit-knob"));
+        for (const f of [0.2, 0.28, 0.36, 0.44]) g.push(ln(W2 * f, Y0 + D * 0.15, W2 * f, -Y0 - D * 0.15, "unit-line"));
+      } else if (k === "water_tank") {
+        g.length = 0;
+        g.push(cs(0, 0, m0 / 2, "unit-body"), cs(0, 0, m0 * 0.32, "unit-line"));
+        g.push(`<circle class="ia-red" cx="${n4(-m0 * 0.15)}" cy="${n4(Y0 + D * 0.12)}" r="${n4(m0 * 0.05)}"/>`, `<circle class="ia-blue" cx="${n4(m0 * 0.15)}" cy="${n4(Y0 + D * 0.12)}" r="${n4(m0 * 0.05)}"/>`);
+      } else if (k === "rack") {
+        const items = d.items || [], rows = Math.max(items.length, 3), top = Y0 + D * 0.12, h2 = D * 0.8 / rows;
+        for (let i = 0; i < rows; i++) g.push(rr(X0 + W2 * 0.1, top + i * h2 + h2 * 0.12, W2 * 0.8, h2 * 0.76, 0.6, items[i] ? "rack-unit" : "rack-empty"));
+        rackRows = { tf, items, x: X0 + W2 * 0.1, w: W2 * 0.8, top, h: h2 };
+      } else if (k === "recuperator") {
+        for (const f of [-0.33, -0.11, 0.11, 0.33]) g.push(cs(W2 * f, Y0 + D * 0.18, m0 * 0.09, "unit-duct"));
+        g.push(`<path class="unit-arrow ia-blue" d="M${n4(X0 + W2 * 0.15)} ${n4(D * 0.05)} H${n4(-X0 - W2 * 0.2)}" fill="none"/>`);
+        g.push(`<path class="unit-arrow ia-red" d="M${n4(-X0 - W2 * 0.15)} ${n4(D * 0.25)} H${n4(X0 + W2 * 0.2)}" fill="none" stroke="#e57373"/>`);
+      } else if (k === "boiler") {
+        g.push(rr(-W2 * 0.2, -D * 0.05, W2 * 0.4, D * 0.35, 1, "unit-line"));
+        g.push(`<path class="ia-red" d="M0 ${n4(D * 0)} C${n4(W2 * 0.08)} ${n4(D * 0.1)} ${n4(W2 * 0.08)} ${n4(D * 0.18)} 0 ${n4(D * 0.24)} C${n4(-W2 * 0.08)} ${n4(D * 0.18)} ${n4(-W2 * 0.08)} ${n4(D * 0.1)} 0 ${n4(D * 0)} Z"/>`);
+        g.push(ln(X0 + W2 * 0.25, Y0 + D * 0.2, -X0 - W2 * 0.25, Y0 + D * 0.2, "unit-line"));
+      } else if (k === "media") {
+        g.push(cs(0, D * 0.12, m0 * 0.28, "unit-door"), cs(0, D * 0.12, m0 * 0.1, "unit-glass"), cs(0, Y0 + D * 0.2, m0 * 0.08, "unit-knob"));
+      } else {
+        g.push(cs(0, 0, m0 * 0.25, "unit-door"));
+      }
+    }
+    L.push(`      <g class="dev-shape" transform="${tf}" pointer-events="none">${g.join("")}</g>`);
+    if (rackRows) {
+      const R = rackRows;
+      topGroup = R.items.map((it, i) => {
+        const y2 = R.top + i * R.h + R.h * 0.12, hh = R.h * 0.76;
+        return `    <g id="${it.id}" data-entity="${esc3(it.entity || "")}" class="${N.appliance} rack-item"${attrs({ "data-kind": it.kind })}>
+      <g transform="${R.tf}"><rect class="${N.hitArea}" x="${n4(R.x)}" y="${n4(y2)}" width="${n4(R.w)}" height="${n4(hh)}"/><circle class="rack-led" cx="${n4(R.x + R.w - hh * 0.5)}" cy="${n4(y2 + hh / 2)}" r="${n4(Math.min(1.4, hh * 0.22))}" pointer-events="none"/></g>
+    </g>`;
+      }).join("\n");
+    }
+    if (d.type === "appliance" && d.top) {
+      const tri = `${n4(X0)},${n4(Y0)} ${n4(-X0)},${n4(Y0)} ${n4(-X0)},${n4(-Y0)}`;
+      topGroup = `    <g id="${d.id}-top" data-entity="${esc3(d.top.entity || "")}" class="${N.appliance} stack-top"${attrs({ "data-kind": d.top.kind })}>
+      <g transform="${tf}"><polygon class="${N.hitArea}" points="${tri}"/><polygon class="unit-half" points="${tri}" pointer-events="none"/></g>
+    </g>`;
+    }
+  }
   const fan = () => {
     if (!d.range) return;
+    if (d.view && d.view.length > 2) {
+      L.push(`      <polygon class="${N.sensorFan}" points="${d.view.map((p2) => `${n4(p2[0])},${n4(p2[1])}`).join(" ")}"/>`);
+      return;
+    }
     const path = `<path class="${N.sensorFan}" d="${fanPath(d.at[0], d.at[1], d.direction ?? 90, d.fov ?? 100, d.range)}"/>`;
     L.push(clip ? `      <g${clipAttr2(clip)}>${path}</g>` : `      ${path}`);
   };
@@ -1694,8 +2029,10 @@ function device(d, clipOf, upright = 0) {
     L.push(`      <g class="glows"${clipAttr2(clip)}>`);
     L.push(`        <circle class="glow ${N.deviceGlow}" cx="${n4(x)}" cy="${n4(y)}" r="${n4(d.glow_r || 40)}" fill="url(#${pool})" stroke="none"/>`);
     L.push(`      </g>`);
-    L.push(`      <circle class="${N.iconBadge}" cx="${n4(x)}" cy="${n4(y)}" r="7.5"/>`);
-    L.push(`      <g transform="translate(${n4(x)} ${n4(y)}) rotate(${n4(upright)}) scale(0.95)"><use class="${N.iconGlyph}" href="#icon-${d.kind}"/></g>`);
+    if (!d.hit) {
+      L.push(`      <circle class="${N.iconBadge}" cx="${n4(x)}" cy="${n4(y)}" r="7.5"/>`);
+      L.push(`      <g transform="translate(${n4(x)} ${n4(y)}) rotate(${n4(upright)}) scale(0.95)"><use class="${N.iconGlyph}" href="#icon-${d.kind}"/></g>`);
+    }
     if (valueEntity) L.push(`      <text class="${N.deviceValue}" x="${n4(x)}" y="${n4(y + 12)}" transform="rotate(${n4(upright)} ${n4(x)} ${n4(y)})">\u2014</text>`);
   } else if (d.type === "presence") {
     const [x, y] = d.at;
@@ -1723,6 +2060,7 @@ function device(d, clipOf, upright = 0) {
     if (d.icon === "snowflake") L.push(`      <path class="${N.snowflake}" d="${snowflake(x, y)}"/>`);
   }
   L.push(`    </g>`);
+  if (topGroup) L.push(topGroup);
   return L.join("\n");
 }
 function snowflake(cx, cy) {
@@ -1798,8 +2136,11 @@ function camera(cam) {
       "data-entity-detect": cam.detect,
       "data-entity-camera-2-hq": cam.entity_2_hq
     })}>`,
-    `      <path class="${N.cameraFan}" d="${fan}"/>`,
-    `      <circle class="${N.cameraMark}" cx="${n4(x)}" cy="${n4(y)}" r="3.4"/>`,
+    // the fan fades with distance and the camera itself is drawn at its tip - so it does not read as a door swing
+    `      <radialGradient id="${esc3(cam.id)}-fade" gradientUnits="userSpaceOnUse" cx="${n4(x)}" cy="${n4(y)}" r="${n4(r)}"><stop offset="0" stop-color="#a99be0" stop-opacity="0.32"/><stop offset="1" stop-color="#a99be0" stop-opacity="0"/></radialGradient>`,
+    `      <path class="${N.cameraFan}" d="${fan}" style="fill:url(#${esc3(cam.id)}-fade)"/>`,
+    `      <circle class="${N.cameraMark}" cx="${n4(x)}" cy="${n4(y)}" r="5.5"/>`,
+    `      <g class="camera-icon" transform="translate(${n4(x)} ${n4(y)}) rotate(${n4(cam.direction)})" pointer-events="none"><rect x="-3.6" y="-2.2" width="5" height="4.4" rx="0.8"/><path d="M1.4 -1.2 L3.8 -2.4 V2.4 L1.4 1.2 Z"/></g>`,
     `      <circle class="${N.cameraHit}" cx="${n4(x)}" cy="${n4(y)}" r="${n4(cam.hit_r || CAMERA_HIT_R)}"/>`,
     `    </g>`
   ].join("\n");
@@ -1821,7 +2162,19 @@ function lock(lk, upright) {
 
 // card/lighting.js
 var EPS3 = 1e-4;
-var REACH_CM = { ceiling: 330, rail: 300, wall: 230, night: 90, strip: 200, main: 380 };
+var REACH_CM = {
+  ceiling: 330,
+  rail: 300,
+  wall: 230,
+  night: 90,
+  strip: 200,
+  main: 380,
+  spot: 420,
+  pendant: 300,
+  floor_lamp: 250,
+  table_lamp: 150,
+  garden_lamp: 250
+};
 function wallPolygons2(model) {
   const out = [];
   for (const list of Object.values(model.walls || {})) {
@@ -1982,9 +2335,15 @@ function bulbsOf(model) {
       const len3 = along ? w : h, n5 = Math.max(1, Math.round(len3 * k / 40));
       pts3 = Array.from({ length: n5 }, (_, i) => along ? [x + (i + 0.5) * w / n5, y + h / 2] : [x + w / 2, y + (i + 0.5) * h / n5]);
     }
-    const beam = l.beam > 0 && l.beam < 360 ? { dir: (l.beam_dir || 0) - 90, angle: l.beam } : null;
+    const narrow = (a) => a > 0 && a < 360;
+    const beamOf = (b) => {
+      const angle = narrow(b[3]) ? b[3] : l.beam;
+      if (!narrow(angle)) return null;
+      const dir = l.bulbs && l.bulbs.length ? b[2] || 0 : l.beam_dir || 0;
+      return { dir: dir - 90, angle };
+    };
     const per = Number(l.watts) > 0 && pts3.length ? Number(l.watts) / pts3.length : null;
-    for (const b of pts3) out.push({ entity: l.entity, kind: l.kind || "ceiling", x: b[0], y: b[1], R: reach2(l.kind, per), watts: per, beam });
+    for (const b of pts3) out.push({ entity: l.entity, kind: l.kind || "ceiling", x: b[0], y: b[1], R: reach2(l.kind, per), watts: per, beam: beamOf(b) });
   }
   return out;
 }
@@ -2223,13 +2582,13 @@ function applyStates(svg, states, locale = "en", paint = (c) => c) {
   });
   each(`.${N2.iconDevice}[data-entity]`, (el) => {
     const id = el.dataset.entity, s = st(id), kind = el.dataset.kind;
-    const alarmKind = ["smoke", "co", "leak"].includes(kind);
+    const alarmKind = ["smoke", "co", "leak", "gas", "siren"].includes(kind);
     const climate = id.startsWith("climate.");
     const due = kind === "bin" ? daysUntil(s) : null;
     const act = climate ? climateAction(s) : null;
     set(el, N2.isHeating, act === "heating");
     set(el, N2.isCooling, act === "cooling");
-    const readingOnly = ["weather", "info", "solar", "battery"].includes(kind);
+    const readingOnly = ["weather", "info", "solar", "battery", "meter", "inverter", "ups", "lux", "rain", "water_tank"].includes(kind);
     set(el, alarmKind ? N2.isAlarm : "on", kind === "bin" ? due !== null && due <= 1 : readingOnly || climate ? false : isOn(s));
     if (kind === "fan") el.style.setProperty("--fp-spin", fanSpin(s) + "s");
     const txt = el.querySelector("." + N2.deviceValue);
@@ -2374,7 +2733,7 @@ function paletteCss(name, accent) {
 }
 
 // card/alerts.js
-var ALARM_KINDS2 = ["smoke", "co", "leak"];
+var ALARM_KINDS2 = ["smoke", "co", "leak", "gas", "siren"];
 var ON = /* @__PURE__ */ new Set(["on", "detected", "open", "true", "problem", "wet", "alarm", "triggered"]);
 var isOn2 = (s) => !!s && ON.has(String(s.state).toLowerCase());
 var num2 = (s) => s && s.state !== "" && !isNaN(Number(s.state)) ? Number(s.state) : null;
@@ -3197,7 +3556,7 @@ var STRINGS = {
     loading: "Loading the plan\u2026",
     load_error: "Could not load {url}: {msg}",
     onb_title: "Draw your house",
-    onb_text: "Open the floor plan editor that came with this card: draw the walls (or trace a photo of your plan), place lights, covers and sensors and pick their entities. Save house.json into /config/www and set it as this card's model, e.g. /local/house.json.",
+    onb_text: "Open the floor plan editor (Floor plan in the sidebar): draw the walls or trace a photo or PDF of your plan, place lights, covers and sensors and pick their entities. Save - this card shows the plan at once.",
     onb_button: "Open the editor",
     ground_floor: "Ground floor",
     zoom_in: "Zoom in",
@@ -3214,6 +3573,8 @@ var STRINGS = {
     alert_smoke: "Smoke",
     alert_co: "Carbon monoxide",
     alert_leak: "Leak",
+    alert_gas: "Gas",
+    alert_siren: "Alarm",
     alert_cold: "Window open, {t}\xB0 outside",
     time_travel: "Go back in time",
     live: "Live",
@@ -3291,7 +3652,7 @@ var STRINGS = {
     loading: "Wczytuj\u0119 rzut\u2026",
     load_error: "Nie uda\u0142o si\u0119 wczyta\u0107 {url}: {msg}",
     onb_title: "Narysuj sw\xF3j dom",
-    onb_text: "Otw\xF3rz edytor rzutu, kt\xF3ry przyszed\u0142 z t\u0105 kart\u0105: narysuj \u015Bciany (albo odrysuj zdj\u0119cie planu), postaw lampy, rolety i czujniki i wybierz ich encje. Zapisz house.json w /config/www i ustaw go jako model karty, np. /local/house.json.",
+    onb_text: "Otw\xF3rz edytor rzutu (Floor plan w menu bocznym): narysuj \u015Bciany albo odrysuj zdj\u0119cie lub PDF planu, postaw lampy, rolety i czujniki i wybierz ich encje. Zapisz \u2014 karta od razu poka\u017Ce plan.",
     onb_button: "Otw\xF3rz edytor",
     ground_floor: "Parter",
     zoom_in: "Przybli\u017C",
@@ -3308,6 +3669,8 @@ var STRINGS = {
     alert_smoke: "Dym",
     alert_co: "Czad",
     alert_leak: "Zalanie",
+    alert_gas: "Gaz",
+    alert_siren: "Alarm",
     alert_cold: "Okno otwarte, na dworze {t}\xB0",
     time_travel: "Cofnij si\u0119 w czasie",
     live: "Na \u017Cywo",
@@ -3773,7 +4136,7 @@ var LivingFloorplanCard = class extends HTMLElement {
   #fc-sun { mix-blend-mode: var(--fc-blend); }
   #fc-map-text text { fill: var(--fc-text); paint-order: stroke; stroke: var(--fc-halo); stroke-width: 3px; stroke-linejoin: round; }
   /* a camera that saw someone: its fan red */
-  .camera.detected .camera-fan { fill: #e53935; fill-opacity: 0.3; stroke: #e53935; stroke-opacity: 0.9; animation: fc-cam 1.2s ease-in-out infinite; }
+  .camera.detected .camera-fan { fill: #e53935 !important; fill-opacity: 0.3; stroke: #e53935; stroke-opacity: 0.9; animation: fc-cam 1.2s ease-in-out infinite; }
   .camera.detected .camera-mark { fill: #e53935; }
   @keyframes fc-cam { 50% { fill-opacity: 0.12; } }
   /* a lamp on in an empty room */
@@ -4870,7 +5233,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     const camId = (g) => g.getAttribute("data-entity-camera-hq") || g.getAttribute("data-entity-camera");
     if (camBest && (!best || camBest.d < best.d)) return camId(camBest.g);
     if (best && best.d === 0) return best.el.getAttribute("data-entity");
-    for (const el of this._svg.querySelectorAll("#room-climate text[data-temp]")) {
+    for (const el of this._svg.querySelectorAll("#room-climate [data-temp]")) {
       const r = el.getBoundingClientRect();
       if (r.width && clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return el.getAttribute("data-temp");
     }
@@ -4883,7 +5246,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       }
     }
     if (best) return best.el.getAttribute("data-entity");
-    for (const el of this._svg.querySelectorAll("#room-climate text[data-temp]")) {
+    for (const el of this._svg.querySelectorAll("#room-climate [data-temp]")) {
       const r = el.getBoundingClientRect();
       if (!r.width) continue;
       const dx = Math.max(r.left - clientX, 0, clientX - r.right), dy = Math.max(r.top - clientY, 0, clientY - r.bottom);

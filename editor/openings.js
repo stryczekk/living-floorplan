@@ -6,11 +6,14 @@ import { wallThickness, wallEnds } from "../generator/model-v2.js";
 export const OPENING_TYPES = ["window", "hst", "corner_window", "balcony_door", "door", "double_door", "sliding_door", "pocket_door",
   "garage_door", "double_gate", "passage"];
 // the openings tool's two tabs; "window_2" is a window of two panes (with "window": the two most common)
-export const WINDOW_KINDS = ["window", "window_2", "balcony_door", "hst", "corner_window"];
+export const WINDOW_KINDS = ["window", "window_2", "balcony_door", "balcony_door_2", "balcony_door_3", "hst", "corner_window"];
 export const DOOR_KINDS = ["door", "double_door", "sliding_door", "pocket_door", "garage_door", "double_gate", "passage"];
-const VARIANTS = { window_2: { type: "window", panes: 2 } };
+// variants of a type: its panes and which of them open (the panes list in the panel changes them)
+const VARIANTS = { window_2: { type: "window", panes: 2 },
+  balcony_door_2: { type: "balcony_door", panes: 2, pane_open: ["from", "to"] },
+  balcony_door_3: { type: "balcony_door", panes: 3, pane_open: ["from", "fixed", "to"] } };
 export const kindType = (k) => (VARIANTS[k] ? VARIANTS[k].type : k);
-export const DEFAULT_WIDTH = { window: 90, window_2: 150, hst: 250, corner_window: 150, balcony_door: 90, door: 90, double_door: 160, sliding_door: 90,
+export const DEFAULT_WIDTH = { window: 90, window_2: 150, balcony_door_2: 160, balcony_door_3: 240, hst: 250, corner_window: 150, balcony_door: 90, door: 90, double_door: 160, sliding_door: 90,
   pocket_door: 90, garage_door: 250, double_gate: 300, passage: 90 };
 // have a hinge / swing side (a pocket door: the side of its pocket)
 export const DOOR_TYPES = ["door", "double_door", "sliding_door", "pocket_door", "balcony_door", "double_gate"];
@@ -98,6 +101,7 @@ export function makeOpening(model, w, kind, from, to, { hinge = "from", side = "
   // a balcony door opens into the house, whichever side it was put in from
   if (type === "balcony_door" && o.outside) o.swing = o.outside === "left" ? "right" : "left";
   if (VARIANTS[kind] && VARIANTS[kind].panes) o.panes = VARIANTS[kind].panes;
+  if (VARIANTS[kind] && VARIANTS[kind].pane_open) o.pane_open = [...VARIANTS[kind].pane_open];
   if (TWO_LEAVES.includes(type)) delete o.hinge;
   // a corner window: which end of the wall it reaches (the wall's corner is glass there)
   setCorner(o, frame(w).L);

@@ -7,7 +7,8 @@
 const EPS = 1e-4;
 
 // Light reach per fixture kind, in cm (converted with canvas.cm_per_svg).
-export const REACH_CM = { ceiling: 330, rail: 300, wall: 230, night: 90, strip: 200, main: 380 };
+export const REACH_CM = { ceiling: 330, rail: 300, wall: 230, night: 90, strip: 200, main: 380, spot: 420,
+  pendant: 300, floor_lamp: 250, table_lamp: 150, garden_lamp: 250 };
 
 // Wall pieces (rectangles [x, y, w, h] or polygons), window lines and the
 // doorways of doors listed as closed -> segments [x1, y1, x2, y2].
@@ -185,10 +186,18 @@ export function bulbsOf(model) {
       const len = along ? w : h, n = Math.max(1, Math.round((len * k) / 40));
       pts = Array.from({ length: n }, (_, i) => (along ? [x + ((i + 0.5) * w) / n, y + h / 2] : [x + w / 2, y + ((i + 0.5) * h) / n]));
     }
-    const beam = l.beam > 0 && l.beam < 360 ? { dir: (l.beam_dir || 0) - 90, angle: l.beam } : null;
+    // a beam narrower than all around: a bulb's own angle (its 4th value) or the lamp's, towards the bulb's
+    // direction (its 3rd value; a strip: beam_dir)
+    const narrow = (a) => a > 0 && a < 360;
+    const beamOf = (b) => {
+      const angle = narrow(b[3]) ? b[3] : l.beam;
+      if (!narrow(angle)) return null;
+      const dir = l.bulbs && l.bulbs.length ? (b[2] || 0) : (l.beam_dir || 0);
+      return { dir: dir - 90, angle };
+    };
     // a lamp's power is shared by its bulbs
     const per = Number(l.watts) > 0 && pts.length ? Number(l.watts) / pts.length : null;
-    for (const b of pts) out.push({ entity: l.entity, kind: l.kind || "ceiling", x: b[0], y: b[1], R: reach(l.kind, per), watts: per, beam });
+    for (const b of pts) out.push({ entity: l.entity, kind: l.kind || "ceiling", x: b[0], y: b[1], R: reach(l.kind, per), watts: per, beam: beamOf(b) });
   }
   return out;
 }

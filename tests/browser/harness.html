@@ -197,6 +197,16 @@ if (shot) {
   await tick(400);
   void el;
   }
+  // screenshots show the house, not the whole made-up garden round it
+  const last = [...document.querySelectorAll("living-floorplan-card")].pop();
+  const svgL = last && last.shadowRoot && last.shadowRoot.querySelector("svg");
+  const ext = svgL && svgL.querySelector("#walls-exterior");
+  if (ext && !["phone", "onboarding", "gif"].includes(shot)) {
+    const b = ext.getBBox(), pad = Math.max(b.width, b.height) * 0.08;
+    last._vb = [b.x - pad, b.y - pad, b.width + 2 * pad, b.height + 2 * pad];
+    last._applyVB();
+    await tick(300);
+  }
 } else {
   const hass = fakeHass("night");
   const el = await mount({ doors: "open" }, hass, 900);
@@ -277,7 +287,7 @@ if (shot) {
   }
   // notes: text, markers, arrows from the model; a marker's tap shows its note
   {
-    check("notes drawn: text, two markers, an arrow", svg.querySelectorAll("#notes .note-text").length === 1 && svg.querySelectorAll("#notes .note-marker").length === 2 &&
+    check("notes drawn: two texts, two markers, an arrow", svg.querySelectorAll("#notes .note-text").length === 2 && svg.querySelectorAll("#notes .note-marker").length === 2 &&
       svg.querySelectorAll("#notes .note-arrow").length === 1, svg.querySelectorAll("#notes > *").length);
     const pin = svg.querySelector("#marker-valve .note-pin").getBoundingClientRect(), n1 = calls.length;
     const cx = pin.left + pin.width / 2, cy = pin.top + pin.height / 2;

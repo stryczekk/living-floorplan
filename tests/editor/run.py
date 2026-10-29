@@ -125,6 +125,10 @@ def walls():
 try:
     call("Page.enable")
     call("Page.navigate", url=f"http://127.0.0.1:{PORT}/editor/?lang=en"); time.sleep(1.5)
+    # tests run without animations (the users get them), and with the right panel always in its column: the
+    # scenario's clicks and snapping count on a plan area that does not change with the selection
+    ev("(() => { const st = document.createElement('style'); st.textContent = '*, *::before, *::after { transition: none !important; animation: none !important; } "
+       "main, main.has-sel { grid-template-columns: 256px minmax(0, 1fr) 270px; } #panel { display: block; }'; document.head.append(st); return 1; })()")
     ev("localStorage.clear(); floorplanEditor.load(floorplanEditor.emptyModel(), ''); "
        "floorplanEditor.state.view = {cx: 500, cy: 400, s: 0.8}; 1")
     # the scenario below counts on a fixed 10 cm grid (the default is "auto")
@@ -196,8 +200,11 @@ try:
     click([500, 400])  # the partition
     key("Delete")
     check("partition deleted", len(walls()) == 4 and all(w["type"] == "exterior" for w in walls()), len(walls()))
-    check("panel cleared after delete", ev("document.querySelector('#p-sel h3').textContent") == "Plan",
-          ev("document.getElementById('p-sel').textContent.slice(0, 80)"))
+    check("panel cleared after delete: only a hint (the right panel is for what is selected)", not ev("document.querySelector('#p-sel h3')")
+          and ev("document.querySelector('#p-sel .empty') !== null"), ev("document.getElementById('p-sel').textContent.slice(0, 80)"))
+    check("the right panel comes only with a selection (main.has-sel)", not ev("document.querySelector('main').classList.contains('has-sel')"))
+    check("the rooms list is in the Rooms tool, the plan's settings and the help on the left",
+          ev("!!document.querySelector('#rooms-list') && (document.querySelector('[data-open=plan]').click(), !!document.querySelector('#tb-plan #pl-rot')) && !!document.querySelector('[data-panel=help] #help-list li')"))
 
     # 9. the plan rendered without errors
     time.sleep(0.2)
@@ -308,6 +315,13 @@ try:
     check("windows and doors: two tools on the toolbar", ev("document.querySelectorAll('[data-pick=optype][data-value=door]').length") == 0
           and ev("document.querySelectorAll('.tool-h[data-optab]').length") == 2
           and ev("document.querySelector('.tool-h[data-optab=windows]').classList.contains('on')"))
+    # a triple balcony door: the outer panes open, the middle one is fixed; panes of their own widths
+    set_op("balcony_door_3"); click([330, 878])
+    b3 = [o for o in ops(2) if o["type"] == "balcony_door" and o.get("panes") == 3]
+    check("balcony door, triple: three panes, the outer ones open", b3 and b3[0]["pane_open"] == ["from", "fixed", "to"], b3)
+    leaves = ev("(() => { const o = floorplanEditor.model.walls[2].openings.find((x) => x.panes === 3); return o ? document.querySelectorAll('#plan g[id^=\\\"' + o.id + '-leaf\\\"]').length : -1; })()")
+    check("balcony door, triple: a leaf for each pane that opens", leaves == 2, leaves)
+    ev("floorplanEditor.undo(); 1")
     ev("floorplanEditor.undo(); floorplanEditor.undo(); 1")
     # a corner window: one click near a corner glazes both walls; two lengths in its panel; deleted together
     snap0 = ev("JSON.stringify(floorplanEditor.model.walls)")
@@ -345,6 +359,14 @@ try:
     click([400, 120])                      # the window (x 340..460)
     check("opening selected", ev("JSON.stringify(floorplanEditor.state.selOp)") == '{"w":0,"o":0}' and
           ev("document.querySelector('#p-sel h3').textContent").startswith("Window"), ev("JSON.stringify(floorplanEditor.state.selOp)"))
+    types = json.loads(ev("JSON.stringify([...document.querySelectorAll('#p-sel [data-pick=op-type]')].map((b) => b.dataset.value))"))
+    check("a window's type: only window kinds (no doors), a two-pane window among them", "door" not in types and "window_2" in types, types)
+    ev("document.querySelector('#p-sel [data-pick=op-type][data-value=window_2]').click(); 1"); time.sleep(0.2)
+    check("a window made two-pane from its panel", ops(0)[0].get("panes") == 2 and ops(0)[0]["type"] == "window"
+          and ev("document.querySelectorAll('#plan .pane-tick').length") >= 1, ops(0)[0])
+    sym = json.loads(ev("JSON.stringify((() => { const g = document.querySelector('#plan #window-1'); return g ? [g.querySelectorAll('polygon.frame').length, g.querySelectorAll('.frame-cross').length, g.querySelectorAll('.sill').length] : null; })())"))
+    check("a window drawn as on the owner's drawing: one frame, blocks at both ends and between the sashes, the sills", sym == [1, 4, 4], sym)
+    ev("document.querySelector('#p-sel [data-pick=op-type][data-value=window]').click(); 1"); time.sleep(0.2)
     drag([400, 120], [500, 120])
     check("window dragged along its wall", ops(0)[0]["from"] == 320 and ops(0)[0]["to"] == 440, ops(0))
     ev("(() => { const i = document.getElementById('op-width'); i.value = '200'; i.dispatchEvent(new Event('change')); })()")
@@ -462,10 +484,11 @@ try:
     hand = [r for r in R if r["id"] == "hand"]
     check("hand-drawn room taken from the walls", hand and "points" not in hand[0] and hand[0].get("at") == [880, 300], hand)
     key("Escape")
-    check("two rooms in one area flagged, counted once", "⚠" in ev("document.getElementById('p-sel').textContent") and
-          "65,38" in ev("document.getElementById('p-sel').textContent").replace(".", ","), ev("document.getElementById('p-sel').textContent"))
-    check("room list with the total", "m²" in ev("document.getElementById('p-sel').textContent") and
-          ev("document.querySelectorAll('#p-sel .room-row').length") == 4, ev("document.getElementById('p-sel').textContent")[:120])
+    ev("floorplanEditor.setTool('rooms'); 1")                # the list of rooms is in the Rooms tool
+    check("two rooms in one area flagged, counted once", "⚠" in ev("document.getElementById('rooms-list').textContent") and
+          "65,38" in ev("document.getElementById('rooms-list').textContent").replace(".", ","), ev("document.getElementById('rooms-list').textContent"))
+    check("room list with the total", "m²" in ev("document.getElementById('rooms-list').textContent") and
+          ev("document.querySelectorAll('#rooms-list .room-row').length") == 4, ev("document.getElementById('rooms-list').textContent")[:120])
     if os.environ.get("SHOT_ROOMS"):
         key("p"); move([300, 700]); time.sleep(0.3)
         open(os.environ["SHOT_ROOMS"], "wb").write(base64.b64decode(call("Page.captureScreenshot", format="png")["data"]))
@@ -540,21 +563,26 @@ try:
     key("d"); pick("motion"); click([300, 200]); setf("fov", 80)
     pick("smoke"); click([200, 650])
     pick("plug"); click([300, 650]); setf("entity", "switch.tree"); setf("value_entity", "sensor.tree_power")
-    setf("kind", "media")
     D = model("devices")
     check("motion detector and icon devices placed", [d["type"] for d in D[-3:]] == ["motion", "icon", "icon"] and
-          D[-3]["fov"] == 80 and D[-1]["kind"] == "media" and D[-1]["value_entity"] == "sensor.tree_power", D[-3:])
+          D[-3]["fov"] == 80 and D[-1]["kind"] == "plug" and D[-1]["value_entity"] == "sensor.tree_power", D[-3:])
     key("v"); click([300, 750])                     # the presence sensor
     setf("has_range", True)
     check("presence sensor got a range", model("devices")[0].get("range") == 300, model("devices")[0])
     key("o"); set_op("window", 240); click([400, 122])
     key("v"); click([400, 120])
     ev("(() => { const i = document.getElementById('op-panes'); i.value = '3'; i.dispatchEvent(new Event('change')); })()")
-    ev("(() => { const c = document.getElementById('op-per-pane'); c.checked = true; c.dispatchEvent(new Event('change')); })()")
+    # each pane of a window opens by default: its contact in its row of the panes list
     for i in range(3):
         ev(f"(() => {{ const i = document.querySelector('[data-contact=\"{i}\"]'); i.value = 'binary_sensor.w{i}'; i.dispatchEvent(new Event('change')); }})()")
     win = [o for o in walls()[0]["openings"] if o["type"] == "window"][0]
     check("window with three panes and a contact per pane", win.get("panes") == 3 and win.get("contacts") == ["binary_sensor.w0", "binary_sensor.w1", "binary_sensor.w2"], win)
+    ev("(() => { const s = document.querySelector('[data-pane-open=\"1\"]'); s.value = 'fixed'; s.dispatchEvent(new Event('change')); })()"); time.sleep(0.2)
+    win = [o for o in walls()[0]["openings"] if o["type"] == "window"][0]
+    check("a pane made fixed: no contact field and its contact gone", win.get("contacts") == ["binary_sensor.w0", "", "binary_sensor.w2"]
+          and not ev("document.querySelector('[data-contact=\"1\"]')"), win)
+    ev("(() => { const s = document.querySelector('[data-pane-open=\"1\"]'); s.value = 'from'; s.dispatchEvent(new Event('change')); })()")
+    ev("(() => { const i = document.querySelector('[data-contact=\"1\"]'); i.value = 'binary_sensor.w1'; i.dispatchEvent(new Event('change')); })()"); time.sleep(0.2)
     key("p"); click([600, 500]); key("v")
     ev("(() => { const s = document.getElementById('rm-tint-kind'); s.value = 'heating'; s.dispatchEvent(new Event('change')); })()")
     ev("(() => { const i = document.getElementById('rm-tint'); i.value = 'climate.living'; i.dispatchEvent(new Event('change')); })()")
@@ -563,7 +591,7 @@ try:
     q = lambda sel: ev(f"document.querySelectorAll('#plan {sel}').length")
     check("new devices render", ev("document.getElementById('st-msg').textContent") == "" and q("[data-entity-contact]") == 3 and
           q(".pane-tick") == 2 and q("[data-tint-kind=heating]") == 1 and q(".icon-device") == 2 and q(".motion") == 1 and
-          q(".sensor-fan") == 2 and q("#icon-smoke, #icon-media") == 2,
+          q(".sensor-fan") == 2 and q("#icon-smoke, #icon-plug") == 2,
           [q(x) for x in ("[data-entity-contact]", ".pane-tick", "[data-tint-kind=heating]", ".icon-device", ".motion", ".sensor-fan")])
     if os.environ.get("SHOT_DEV2"):
         key("d"); time.sleep(0.3)
@@ -1116,6 +1144,8 @@ try:
     ev("(() => { const i = document.querySelector('.bulb-row.on [data-df^=brot]'); i.value = '90'; i.dispatchEvent(new Event('change')); })()"); time.sleep(0.2)
     b3 = json.loads(ev("JSON.stringify(floorplanEditor.model.lights[0].bulbs[3])"))
     clips = ev("document.querySelectorAll('#plan clipPath[id^=clip-beam-]').length")
+    beam_pts = ev("(() => { const p = document.querySelector('#overlay .ov-beam'); return p ? p.getAttribute('points').trim().split(/\\s+/).every((q) => q.split(',').length === 2) : null; })()")
+    check("lights: the selected bulb's own beam drawn around it (a proper wedge)", beam_pts is True, beam_pts)
     check("lights: the circuit's bulbs listed, each with its own direction and beam angle", rows == 4 and b3 == [700, 500, 90, 60] and clips == 1, (rows, b3, clips))
     ev("document.querySelector('.bulb-row.on [data-bsplit]').click(); 1"); time.sleep(0.2)
     ls = json.loads(ev("JSON.stringify(floorplanEditor.model.lights)"))
@@ -1146,6 +1176,214 @@ try:
     drag([420, 350], [470, 400])
     rl = json.loads(ev("JSON.stringify(floorplanEditor.model.lights)"))
     check("rail: a bulb dragged slides along it", rl[0]["bulbs"][0] == [470, 350], rl)
+    key("Escape")
+
+    # 18f8k. a spotlight: a narrow beam turned away from the wall; the round handle turns it (and a piece of furniture)
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); floorplanEditor.state.model.walls = [{id: 'n', a: [0, 0], b: [1000, 0], thickness: 20, type: 'interior'}]; floorplanEditor.renderPanel(); 1")
+    key("d")
+    ev("""(() => { for (const h of document.querySelectorAll('#tb-devices [data-group]:not(.open)')) {
+        if (document.querySelector('[data-pick=dev][data-value=spot]')) break; h.click(); }
+        document.querySelector('[data-pick=dev][data-value=spot]').click(); return 1; })()""")
+    click([500, 60]); key("Escape")
+    sp = json.loads(ev("JSON.stringify(floorplanEditor.model.lights[0])"))
+    check("spotlight: a narrow beam (60), turned away from the wall near it", sp["kind"] == "spot" and sp["beam"] == 60 and sp["bulbs"][0][2] == 180, sp)
+    key("v"); click([500, 60]); time.sleep(0.2)
+    hp = json.loads(ev("(() => { const c = document.querySelector('#overlay .ov-rot'); return c ? JSON.stringify([Number(c.dataset.x), Number(c.dataset.y)]) : 'null'; })()"))
+    check("turn handle: shown for the selected light, where it points", hp and abs(hp[0] - 500) < 1 and hp[1] > 60, hp)
+    drag(hp, [hp[0] + 80, 60])               # to its right: east
+    sp = json.loads(ev("JSON.stringify(floorplanEditor.model.lights[0])"))
+    check("turn handle: dragging it turns the light (15 degree steps)", sp["bulbs"][0][2] == 90, sp)
+    ev("floorplanEditor.state.model.furniture = [{id: 'sofa', kind: 'sofa', at: [500, 400], size: [200, 90], rot: 0}]; floorplanEditor.state.selDev = null; floorplanEditor.renderPanel(); 1")
+    click([500, 400]); time.sleep(0.2)
+    hp = json.loads(ev("(() => { const c = document.querySelector('#overlay .ov-rot'); return c ? JSON.stringify([Number(c.dataset.x), Number(c.dataset.y)]) : 'null'; })()"))
+    drag(hp, [700, 400])
+    check("turn handle: a piece of furniture turns too", ev("floorplanEditor.model.furniture[0].rot") == 90, ev("floorplanEditor.model.furniture[0].rot"))
+    key("Escape")
+
+    # 18f8l. a motion sensor's range stops at the walls (through a doorway only); "through partitions" lets a radar through
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); floorplanEditor.state.model.walls = ["
+       "{id: 'n', a: [0, 0], b: [900, 0], thickness: 45, type: 'exterior'}, {id: 'e', a: [900, 0], b: [900, 600], thickness: 45, type: 'exterior'},"
+       "{id: 's', a: [900, 600], b: [0, 600], thickness: 45, type: 'exterior'}, {id: 'w', a: [0, 600], b: [0, 0], thickness: 45, type: 'exterior'},"
+       "{id: 'p', a: [450, 0], b: [450, 600], thickness: 12, type: 'partition'}];"
+       "floorplanEditor.state.model.devices = [{id: 'm1', type: 'motion', entity: '', at: [225, 300], direction: 0, fov: 359, range: 600}]; floorplanEditor.renderPanel(); 1"); time.sleep(0.3)
+    def fan_max_x():
+        return ev("(() => { const p = document.querySelector('#plan .sensor-fan'); if (!p || !p.getAttribute('points')) return null; "
+                  "const svg = document.querySelector('#plan svg'); const m = p.getCTM(), s = svg.getCTM().inverse(); "
+                  "return Math.max(...p.getAttribute('points').trim().split(/\\s+/).map((q) => Number(q.split(',')[0]))); })()")
+    x1 = fan_max_x()
+    ev("floorplanEditor.state.model.devices[0].through_partitions = true; floorplanEditor.renderPanel(); 1"); time.sleep(0.3)
+    x2 = fan_max_x()
+    check("motion sensor: its range stops at a wall (doors closed); seen through partitions it reaches the next room", x1 is not None and x2 is not None and x2 > x1 * 1.3, (x1, x2))
+    ev("(() => { const d = floorplanEditor.state.model.devices[0]; delete d.through_partitions; floorplanEditor.state.model.walls[4].openings = [{type: 'door', id: 'door-1', from: 250, to: 340, hinge: 'from', swing: 'left'}]; floorplanEditor.renderPanel(); return 1; })()"); time.sleep(0.3)
+    x3 = fan_max_x()
+    ev("floorplanEditor.state.model.walls[4].openings = [{type: 'passage', from: 250, to: 340}]; floorplanEditor.renderPanel(); 1"); time.sleep(0.3)
+    x4 = fan_max_x()
+    check("motion sensor: a door counts as closed, a passage lets it through", x3 is not None and x3 < x1 * 1.1 and x4 > x1 * 1.3, (x1, x3, x4))
+
+    # 18f8m. a temperature / humidity sensor: a symbol by default, its readings on the plan as a choice
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d")
+    ev("""(() => { for (const h of document.querySelectorAll('#tb-devices [data-group]:not(.open)')) {
+        if (document.querySelector('[data-pick=dev][data-value=climate]')) break; h.click(); }
+        document.querySelector('[data-pick=dev][data-value=climate]').click(); return 1; })()""")
+    click([300, 300]); key("Escape")
+    check("climate sensor: a symbol by default", ev("!!document.querySelector('#plan .climate-icon') && !document.querySelector('#plan .climate-temp')"))
+    key("v"); click([300, 300]); setf("show_values", True)
+    check("climate sensor: its readings on the plan instead when chosen - the editor still shows its symbol",
+          ev("!!document.querySelector('#plan .climate-temp') && getComputedStyle(document.querySelector('#plan .climate-icon.alt')).display !== 'none'"))
+    key("Escape")
+
+    # 18f8n. a TV is selected anywhere on its outline, not only at its middle
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); floorplanEditor.state.model.devices = [{id: 'tv-1', type: 'tv', entity: '', hit: [300, 300, 160, 20], glow: {at: [380, 320], r: 80}}]; floorplanEditor.renderPanel(); 1"); time.sleep(0.2)
+    key("v"); click([310, 305])
+    check("a TV: a click near its end selects it", json.loads(ev("JSON.stringify(floorplanEditor.state.selDev)")) == {"list": "devices", "i": 0, "bulb": 0},
+          ev("JSON.stringify(floorplanEditor.state.selDev)"))
+    key("Escape")
+
+    # 18f8o. appliances and units drawn as themselves: a washer, a boiler (with their outline and a front)
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d")
+    for kind, at in (("washer", [300, 300]), ("boiler", [500, 300])):
+        ev(f"""(() => {{ for (const h of document.querySelectorAll('#tb-devices [data-group]:not(.open)')) {{
+            if (document.querySelector('[data-pick=dev][data-value={kind}]')) break; h.click(); }}
+            document.querySelector('[data-pick=dev][data-value={kind}]').click(); return 1; }})()""")
+        click(at)
+    key("Escape")
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a washer and a boiler: their size and a front", [d.get("kind") for d in D] == ["washer", "boiler"] and D[0]["hit"][2:] == [60, 60]
+          and D[1]["hit"][2:] == [44, 36] and all(d.get("beam_dir") == 180 for d in D), D)
+    check("drawn as themselves (a door on the washer, no badge on the boiler)", ev("document.querySelectorAll('#plan .unit-door').length") >= 1
+          and ev("document.querySelectorAll('#plan .icon-badge').length") == 0)
+
+    # 18f8p. a dryer put on a washer stands on it (one device, two entities), and is put back beside it
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d")
+    def pick_dev(kind):
+        ev(f"""(() => {{ for (const h of document.querySelectorAll('#tb-devices [data-group]:not(.open)')) {{
+            if (document.querySelector('[data-pick=dev][data-value={kind}]')) break; h.click(); }}
+            document.querySelector('[data-pick=dev][data-value={kind}]').click(); return 1; }})()""")
+    pick_dev("washer"); click([300, 300])
+    pick_dev("dryer"); click([310, 310])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a dryer on a washer: one stacked device", len(D) == 1 and D[0].get("top") == {"kind": "dryer", "entity": ""}, D)
+    setf("entity", "sensor.washer"); setf("top_entity", "sensor.dryer")
+    check("a stack: both machines in the plan, each with its entity",
+          ev("document.querySelector('#plan [data-entity=\"sensor.washer\"]') && document.querySelector('#plan .stack-top[data-entity=\"sensor.dryer\"]') ? 1 : 0") == 1)
+    ev("document.getElementById('dv-unstack').click(); 1")
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("put side by side: two devices, the dryer keeps its entity", len(D) == 2 and "top" not in D[0] and D[1].get("kind") == "dryer"
+          and D[1]["entity"] == "sensor.dryer" and D[1]["hit"][0] >= D[0]["hit"][0] + 60, D)
+    pick_dev("washer_dryer"); click([600, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("the washer + dryer tile places a stack", D[-1].get("kind") == "washer" and D[-1].get("top", {}).get("kind") == "dryer", D[-1])
+    pick_dev("fridge"); click([800, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a fridge is 60 x 60 by default", D[-1]["hit"][2:] == [60, 60], D[-1])
+    pick_dev("fridge_sbs"); click([1000, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a side-by-side fridge: 91 x 72, two handles", D[-1].get("kind") == "fridge_sbs" and D[-1]["hit"][2:] == [91, 72]
+          and ev(f"document.querySelectorAll('#{D[-1]['id']} .unit-handle').length") == 2, D[-1])
+    pick_dev("fridge"); click([800, 500])
+    # its own size: along the wall / out from it, kept when it faces a side wall
+    setf("w", "91"); setf("h", "72")
+    check("size fields: width along its wall, depth out from it", json.loads(ev("JSON.stringify(floorplanEditor.model.devices.at(-1).hit)"))[2:] == [91, 72])
+    key("r")
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices.at(-1))"))
+    check("turned: the same width along its wall", D["hit"][2:] == [72, 91] and ev("document.querySelector('[data-df=w]').value") == "91", D)
+    key("Escape")
+    # a resize handle: the opposite side stays
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d"); pick_dev("dishwasher"); click([400, 400])
+    h0 = json.loads(ev("JSON.stringify(floorplanEditor.model.devices[0].hit)"))
+    drag([h0[0] + h0[2], h0[1] + h0[3] / 2], [h0[0] + h0[2] + 25, h0[1] + h0[3] / 2])
+    h1 = json.loads(ev("JSON.stringify(floorplanEditor.model.devices[0].hit)"))
+    check("a side handle: wider by the drag, the other side stays", h1[0] == h0[0] and abs(h1[2] - (h0[2] + 25)) <= 1 and h1[3] == h0[3], (h0, h1))
+    # a TV by its diagonal
+    pick_dev("tv"); click([400, 700])
+    setf("inch", "55")
+    W = json.loads(ev("JSON.stringify(floorplanEditor.model.devices.at(-1).hit)"))
+    check("a TV of 55 inches is about 122 cm wide", abs(max(W[2], W[3]) - 121.76) < 0.1, W)
+    key("Escape")
+
+    # 18f8q. a device in hand: drawn under the cursor before the click, turned by R, placed as shown
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d"); pick_dev("washer")
+    move([300, 300]); time.sleep(0.15)
+    check("the washer in hand is drawn under the cursor", ev("document.querySelectorAll('#plan .appliance.ghost').length") == 1
+          and len(json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))) == 0)
+    key("r"); move([302, 300]); time.sleep(0.15)
+    check("R turns the one in hand", ev("floorplanEditor.state.devGhost.item.beam_dir") == 270)
+    click([302, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("placed as it was shown (turned)", len(D) == 1 and D[0].get("beam_dir") == 270 and ev("document.querySelectorAll('#plan .ghost').length") == 0, D)
+    pick_dev("dryer"); move([305, 305]); time.sleep(0.15)
+    check("a dryer over the washer: shown on top of it", ev("document.querySelectorAll('#plan .stack-top.ghost').length") == 1)
+    key("Escape")
+    check("leaving the tool drops the one in hand", ev("document.querySelectorAll('#plan .ghost').length") == 0)
+
+    # 18f8r. near a wall a device in hand turns its back to it and stands against its face
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); floorplanEditor.state.model.walls = [{type: 'exterior', a: [0, 100], b: [1000, 100]}]; floorplanEditor.renderPanel(); 1")
+    key("d"); pick_dev("washer"); click([400, 150])
+    pick_dev("dryer"); click([600, 50])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("below the wall: front down, back on its face", D[0]["beam_dir"] == 180 and D[0]["hit"][1] == 120, D[0])
+    check("above the wall: front up, back on its face", D[1]["beam_dir"] == 0 and D[1]["hit"][1] + D[1]["hit"][3] == 80, D[1])
+    pick_dev("tv"); click([800, 130])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a TV on the wall: against its face, screen to the room", D[2]["beam_dir"] == 180 and D[2]["hit"][1] == 120, D[2])
+    pick_dev("dishwasher"); click([300, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("farther from the wall: turned to it, but left where the cursor is", D[-1]["beam_dir"] == 180 and D[-1]["hit"][1] == 270,
+          (D[-1], ev("floorplanEditor.state.view.s")))
+    click([900, 30], shift=True)
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("Shift: exactly at the cursor, not turned", D[-1]["beam_dir"] == 180 and D[-1]["hit"][1] == 0, D[-1])
+    ev("floorplanEditor.state.model.devices.splice(-2, 2); floorplanEditor.renderPanel(); 1")
+    pick_dev("tv"); move([200, 150]); time.sleep(0.15); key("r"); click([200, 150])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("turned by hand (R): it keeps that turn by a wall", D[3]["beam_dir"] == 270 and D[3]["hit"][1] != 120, D[3])
+    key("Escape")
+
+    # 18f8s. kitchen appliances and TV / audio: their own palette groups, each drawn as itself
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    key("d")
+    kinds = ["freezer", "oven", "cooktop", "microwave", "hood", "coffee", "soundbar", "projector", "console"]
+    for i, k in enumerate(kinds):
+        pick_dev(k); click([150 + i * 130, 300])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("new appliances placed with their kinds", [d.get("kind") for d in D] == kinds, [d.get("kind") for d in D])
+    check("each drawn as itself", all(ev(f"document.querySelector('#{d['id']} .dev-shape') ? 1 : 0") == 1 for d in D))
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    k2 = ["doorbell", "power_strip", "router", "ap", "net_switch"]
+    for i, k in enumerate(k2):
+        pick_dev(k); click([150 + i * 130, 500])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("doorbell, power strip, router, AP, switch: placed as badges with their glyphs", [d.get("kind") for d in D] == k2
+          and all(ev(f"document.querySelector('#plan use[href=\"#icon-{k}\"]') ? 1 : 0") == 1 for k in k2), D)
+    # a rack: a router and a switch dropped on it go into it, each with its entity; one taken out again
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    pick_dev("rack"); click([400, 400])
+    pick_dev("router"); click([400, 400])
+    pick_dev("net_switch"); click([405, 405])
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("a rack with a router and a switch in it", len(D) == 1 and [i["kind"] for i in D[0].get("items", [])] == ["router", "net_switch"], D)
+    setf("ri0", "device_tracker.router"); setf("ri1", "switch.poe")
+    check("each piece in the rack in the plan with its entity", ev("document.querySelectorAll('#plan .rack-item[data-entity=\"device_tracker.router\"], #plan .rack-item[data-entity=\"switch.poe\"]').length") == 2)
+    ev("document.querySelector('[data-rout=\"0\"]').click(); 1")
+    D = json.loads(ev("JSON.stringify(floorplanEditor.model.devices)"))
+    check("taken out: next to the rack, keeping its entity", len(D) == 2 and len(D[0]["items"]) == 1 and D[1]["kind"] == "router" and D[1]["entity"] == "device_tracker.router", D)
+    # every new kind places and draws
+    ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); 1")
+    allk = ["pendant", "floor_lamp", "table_lamp", "garden_lamp", "gas", "lux", "vibration", "button", "alarm_panel", "keypad", "siren", "nvr",
+            "radiator", "floor_heating", "heat_pump", "water_tank", "fireplace", "dehumidifier", "humidifier", "intercom", "rain", "pool_pump",
+            "meter", "fuse_box", "inverter", "ups", "washdry", "wine_fridge", "mower", "amplifier", "set_top", "printer", "nas", "zigbee"]
+    for i, k in enumerate(allk):
+        pick_dev(k); click([100 + (i % 10) * 120, 200 + (i // 10) * 150])
+    n = ev("floorplanEditor.model.devices.length + floorplanEditor.model.lights.length")
+    check(f"all {len(allk)} new kinds placed", n == len(allk), n)
+    check("the lamps with their shade", ev("document.querySelectorAll('#plan .light .shade').length") == 4)
+    check("AGD and RTV groups in the palette", ev("[...document.querySelectorAll('#tb-devices [data-group]')].map(b => b.dataset.group).join()").count("g_appliances") == 1
+          and ev("[...document.querySelectorAll('#tb-devices [data-group]')].map(b => b.dataset.group).join()").count("g_av") == 1)
     key("Escape")
 
     # 18f8d. a PDF as the underlay: its page drawn into a picture (pdf.js from the CDN; skipped offline)

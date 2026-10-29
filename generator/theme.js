@@ -88,9 +88,11 @@ export function style(N) {
        the marker does. */
     #cameras { pointer-events: none; }
     .${N.cameraHit} { fill: transparent; stroke: none; pointer-events: all; cursor: pointer; }
-    .${N.cameraFan} { fill: #a99be0; fill-opacity: 0.14; stroke: #a99be0;
-                   stroke-opacity: 0.55; stroke-width: 0.8; stroke-linejoin: round; }
+    /* the fan's fill is its own gradient (fading with distance); only a faint edge */
+    .${N.cameraFan} { fill: #a99be0; fill-opacity: 1; stroke: #a99be0;
+                   stroke-opacity: 0.25; stroke-width: 0.6; stroke-linejoin: round; }
     .${N.cameraMark} { fill: #a99be0; stroke: #131a24; stroke-width: 1.2; }
+    .camera-icon { fill: #131a24; }
     .${N.camera}[data-off-plan] .${N.cameraFan} { stroke-dasharray: 3 2; }
 
     .${N.acGlow} { opacity: 0; transition: opacity 0.8s ease; }
@@ -140,6 +142,39 @@ export function style(N) {
     #rooms polygon.${N.isOccupied} { fill: #22302a; }
 
     /* Detection range of a motion / presence sensor. */
+    .climate-icon.alt { display: none; }
+    .tv-mount { fill: #2a3547; stroke: #5b6a80; stroke-width: 0.4; }
+    .tv-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .tv-screen { stroke: #6fc9ef; stroke-width: 1.2; stroke-linecap: round; opacity: 0.55; }
+    .tv.on .tv-screen { opacity: 1; }
+    .ac-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .ac-louvre { stroke: #5b6a80; stroke-width: 0.5; }
+    .ac-led { fill: #5b6a80; }
+    .unit-body { fill: #1b2433; stroke: #8ea1ba; stroke-width: 0.6; }
+    .unit-line, .unit-rack { stroke: #5b6a80; stroke-width: 0.5; fill: none; }
+    .unit-rack { stroke-dasharray: 1.2 0.8; }
+    .unit-door { fill: none; stroke: #8ea1ba; stroke-width: 0.6; }
+    .unit-glass { fill: #24324a; stroke: #5b6a80; stroke-width: 0.4; }
+    .unit-knob, .unit-duct { fill: none; stroke: #8ea1ba; stroke-width: 0.5; }
+    .unit-handle { stroke: #8ea1ba; stroke-width: 1; stroke-linecap: round; }
+    .unit-arrow { stroke-width: 0.8; }
+    .unit-heat { stroke: #e57373; stroke-width: 0.5; }
+    .rack-unit { fill: #24324a; stroke: #8ea1ba; stroke-width: 0.4; }
+    .rack-empty { fill: none; stroke: #5b6a80; stroke-width: 0.4; stroke-dasharray: 1 0.8; }
+    .rack-led { fill: #5b6a80; }
+    .${N.appliance}.on .rack-led { fill: #7ccf8a; }
+    .unit-cold { stroke: #6fc9ef; stroke-width: 0.6; stroke-linecap: round; }
+    .unit-zone { fill: none; stroke: #8ea1ba; stroke-width: 0.5; }
+    .${N.appliance}.on .unit-zone { stroke: #e57373; }
+    .unit-above { fill: none; stroke-dasharray: 2 1.4; }
+    .unit-cup { fill: #8ea1ba; stroke: none; }
+    .unit-led { fill: #5b6a80; stroke: none; }
+    .${N.appliance}.on .unit-led { fill: #6fc9ef; }
+    .unit-throw { fill: #c3cfdf; fill-opacity: 0; stroke: none; transition: fill-opacity 0.6s ease; }
+    .${N.appliance}.on .unit-throw { fill-opacity: 0.12; }
+    /* a washer-dryer stack: each half lit while its own machine runs */
+    .unit-half { fill: #ffab40; fill-opacity: 0; stroke: none; transition: fill-opacity 0.6s ease; }
+    .${N.appliance}.on > .dev-shape .unit-half, .${N.appliance}.on > g > .unit-half { fill-opacity: 0.22; }
     .${N.sensorFan} { fill: #7ddba0; fill-opacity: 0.05; stroke: #7ddba0; stroke-opacity: 0.35;
                       stroke-width: 0.6; stroke-linejoin: round; pointer-events: none; }
     .${N.presence}.${N.isDetected} .${N.sensorFan} { fill-opacity: 0.16; }
@@ -148,6 +183,8 @@ export function style(N) {
     .${N.motion}.on .${N.sensorBody} { fill: #e57373; stroke: #e57373; }
 
     /* Devices drawn as an icon in a badge. */
+    .ia-red { fill: #e57373; } .ia-yellow { fill: #ffc300; } .ia-blue { fill: #6fc9ef; stroke: #6fc9ef; } .ia-green { fill: #7ddba0; }
+    .ia-blue[fill="none"], .ia-red[fill="none"] { fill: none; }
     .${N.iconBadge} { fill: #1b2433; stroke: #5b6a80; stroke-width: 0.8; cursor: pointer; }
     .${N.iconGlyph} { fill: none; stroke: #8ea1ba; stroke-width: 0.9; stroke-linejoin: round;
                       stroke-linecap: round; color: #8ea1ba; pointer-events: none; }

@@ -10,20 +10,40 @@ import { ICON_KINDS } from "../generator/icons.js";
 
 // palette: what the devices tool can place, in groups
 export const DEVICE_GROUPS = {
-  g_lights: ["ceiling", "wall", "night", "rail", "strip", "fixture"],
-  g_sensors: ["presence", "motion", "climate", "smoke", "co", "leak", "air"],
-  g_security: ["camera", "lock", "gate"],
-  g_climate: ["ac", "thermostat", "trv", "recuperator", "boiler", "fan", "purifier"],
-  g_outside: ["bin", "mailbox", "irrigation", "weather"],
-  g_energy: ["solar", "battery", "ev", "plug"],
-  g_other: ["info", "tv", "media", "appliance", "skylight", "vacuum", "valve"],
+  g_lights: ["ceiling", "wall", "night", "spot", "rail", "strip", "fixture", "pendant", "floor_lamp", "table_lamp", "garden_lamp"],
+  g_sensors: ["presence", "motion", "climate", "smoke", "co", "leak", "gas", "air", "lux", "vibration", "button"],
+  g_security: ["camera", "doorbell", "lock", "gate", "alarm_panel", "keypad", "siren", "nvr"],
+  g_climate: ["ac", "thermostat", "trv", "radiator", "floor_heating", "recuperator", "boiler", "heat_pump", "water_tank", "fireplace",
+    "fan", "purifier", "dehumidifier", "humidifier"],
+  g_outside: ["bin", "mailbox", "intercom", "irrigation", "rain", "pool_pump", "weather"],
+  g_energy: ["meter", "fuse_box", "solar", "inverter", "battery", "ups", "ev", "plug", "power_strip"],
+  g_appliances: ["fridge", "fridge_sbs", "freezer", "dishwasher", "oven", "cooktop", "microwave", "hood", "coffee", "washer", "dryer",
+    "washer_dryer", "washdry", "wine_fridge", "vacuum", "mower", "appliance"],
+  g_av: ["tv", "soundbar", "media", "amplifier", "set_top", "projector", "console", "printer"],
+  g_network: ["rack", "router", "net_switch", "ap", "nas", "zigbee"],
+  g_other: ["info", "skylight", "valve"],
   g_notes: ["text", "marker", "arrow"],
 };
 export const DEVICE_TYPES = Object.values(DEVICE_GROUPS).flat();
+// appliances drawn as themselves and their default size (cm, along the wall x out from it)
+export const APPLIANCE_KINDS = { washer: [60, 60], dryer: [60, 60], fridge: [60, 60], fridge_sbs: [91, 72], dishwasher: [60, 60],
+  freezer: [60, 60], oven: [60, 57], cooktop: [60, 52], microwave: [50, 40], hood: [60, 50], coffee: [25, 40],
+  // audio / video drawn the same way (on while playing)
+  soundbar: [100, 10], projector: [30, 25], console: [30, 20],
+  washdry: [60, 60], wine_fridge: [60, 57], mower: [55, 40] };
+// a washer with a dryer standing on it: one place, two machines (the one on top in `top`)
+export const STACKABLE = ["washer", "dryer"];
+// devices of the "icon" type drawn as the thing itself rather than a badge, and their default size (cm)
+export const SHAPED_KINDS = { recuperator: [75, 56], boiler: [44, 36], media: [22, 20],
+  rack: [60, 60], radiator: [80, 10], heat_pump: [90, 35], water_tank: [55, 55] };
+// what goes into a rack (dropped on it): its equipment, listed in `items`
+export const RACK_KINDS = ["router", "net_switch", "nas", "zigbee", "nvr", "ups", "alarm_panel", "power_strip", "amplifier", "set_top"];
+// lamps with a shade (seen from above) or a post: bulbs like a ceiling light
+export const SHADE_KINDS = ["pendant", "floor_lamp", "table_lamp", "garden_lamp"];
 // placed with two clicks (start and end)
 export const TWO_POINT = ["rail", "strip", "arrow"];
 // light kinds
-export const LIGHT_KINDS = ["ceiling", "wall", "night", "rail", "strip"];
+export const LIGHT_KINDS = ["ceiling", "wall", "night", "spot", "rail", "strip", "pendant", "floor_lamp", "table_lamp", "garden_lamp"];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
@@ -35,7 +55,10 @@ const rp = (p) => [r2(p[0]), r2(p[1])];
 function usedIds(m) {
   const ids = new Set();
   for (const l of m.lights || []) { ids.add(l.id); for (const c of l.circuits || []) ids.add(c.id); }
-  for (const x of [...(m.devices || []), ...(m.cameras || []), ...(m.locks || [])]) ids.add(x.id);
+  for (const x of [...(m.devices || []), ...(m.cameras || []), ...(m.locks || [])]) {
+    ids.add(x.id); if (x.top) ids.add(x.id + "-top");
+    for (const it of x.items || []) ids.add(it.id);
+  }
   for (const c of m.climate || []) ids.add("climate-" + c.id);
   for (const x of m.notes || []) ids.add(x.id);
   return ids;
@@ -79,6 +102,44 @@ export function wallRotation(m, p, reach = 60) {
   return Math.round((Math.atan2(n[0], -n[1]) * 180) / Math.PI + 360) % 360;
 }
 
+// The nearest wall within reach whose face p is in front of: {q: the point on its axis, n: out of it towards p,
+// h: half its thickness}
+export function nearestWall(m, p, reach = 80) {
+  let best = null, bd = reach;
+  for (const w of m.walls || []) {
+    const d = sub(w.b, w.a), L2 = d[0] * d[0] + d[1] * d[1];
+    if (!L2) continue;
+    const t = ((p[0] - w.a[0]) * d[0] + (p[1] - w.a[1]) * d[1]) / L2;
+    if (t < 0 || t > 1) continue;
+    const q = [w.a[0] + d[0] * t, w.a[1] + d[1] * t], v = sub(p, q), L = Math.hypot(...v);
+    const h = wallThickness(m, w) / 2, dist = L - h;
+    if (L > 1e-6 && dist < bd) { bd = dist; best = { q, n: [v[0] / L, v[1] / L], h }; }
+  }
+  return best;
+}
+
+// A device drawn at its size (an appliance, a TV, a boiler...) placed at p: near a wall it turns its back to it
+// and stands against its face (its front, beam_dir, out into the room; whole quarter turns only)
+// (flush: as backToWall - against the face only when the back is that close to it, cm)
+export function backDeviceToWall(m, d, p, reach = 80, flush = Infinity) {
+  const w = nearestWall(m, p, reach);
+  if (!w || !d.hit) return false;
+  const [W, D] = wallSize(d);
+  d.beam_dir = (Math.round((Math.atan2(w.n[0], -w.n[1]) * 180) / Math.PI / 90) * 90 + 360) % 360;
+  const n = [[0, -1], [1, 0], [0, 1], [-1, 0]][d.beam_dir / 90];
+  // keep the position along the wall, move across it to the face
+  const along = sub(p, w.q), k = along[0] * n[0] + along[1] * n[1], off = w.h + D / 2;
+  const c = k - off < flush ? [p[0] + n[0] * (off - k), p[1] + n[1] * (off - k)] : [p[0], p[1]];
+  const [hw, hh] = n[0] ? [D, W] : [W, D];
+  d.hit = [r2(c[0] - hw / 2), r2(c[1] - hh / 2), r2(hw), r2(hh)];
+  if (d.glow && d.glow.at) {
+    d.glow = { ...d.glow, at: rp(c) };
+    if (d.glow.rx) { const big = Math.max(d.glow.rx, d.glow.ry), small = Math.min(d.glow.rx, d.glow.ry); d.glow = { ...d.glow, rx: n[0] ? small : big, ry: n[0] ? big : small }; }
+  }
+  if (d.at) d.at = rp(c);
+  return true;
+}
+
 // Room / outdoor of a light after it moved.
 function placeLight(m, l) {
   const p = (l.bulbs && l.bulbs[0]) || (l.at) || (l.strip && [l.strip[0] + l.strip[2] / 2, l.strip[1] + l.strip[3] / 2]);
@@ -92,11 +153,14 @@ function placeDevice(m, d, p) {
 
 // A new element of palette type `type` at p (and q for two-point ones).
 // -> {list: "lights" | "devices" | "climate" | "cameras" | "locks", item}
-export function makeDevice(m, type, p, q = null) {
+// free: no turning its back to a nearby wall (a device turned by hand)
+export function makeDevice(m, type, p, q = null, { free = false, flush = Infinity } = {}) {
   p = rp(p);
-  if (["ceiling", "wall", "night"].includes(type)) {
+  if (["ceiling", "wall", "night", "spot", ...SHADE_KINDS].includes(type)) {
     const l = { id: uniqueId(m, "light"), entity: "", kind: type, bulbs: [p] };
     if (type === "wall" || type === "night") { const rot = wallRotation(m, p); if (rot !== null) l.bulbs = [[...p, rot]]; }
+    // a spotlight: a narrow beam, turned away from the wall near it (or down the plan)
+    if (type === "spot") { const rot = wallRotation(m, p, 120); l.bulbs = [[...p, rot === null ? 180 : rot]]; l.beam = 60; }
     placeLight(m, l);
     return { list: "lights", item: l };
   }
@@ -126,21 +190,28 @@ export function makeDevice(m, type, p, q = null) {
     placeDevice(m, d, p);
     return { list: "devices", item: d };
   }
-  if (type === "appliance") {
-    const d = { id: uniqueId(m, "appliance"), type: "appliance", entity: "", hit: [r2(p[0] - 30), r2(p[1] - 30), 60, 60],
-      glow: { at: p, r: 75 }, alert: false };
+  if (type === "appliance" || type === "washer_dryer" || APPLIANCE_KINDS[type]) {
+    // a washer, a dryer, a fridge, a dishwasher (or any appliance): its outline, front down the plan;
+    // a washer with a dryer on top: one appliance, the dryer in `top`
+    const kind = type === "washer_dryer" ? "washer" : type;
+    const [w, h] = APPLIANCE_KINDS[kind] || [60, 60];
+    const d = { id: uniqueId(m, type === "appliance" ? "appliance" : type), type: "appliance", entity: "", hit: [r2(p[0] - w / 2), r2(p[1] - h / 2), w, h],
+      glow: { at: p, r: 75 }, alert: false, ...(APPLIANCE_KINDS[kind] ? { kind, beam_dir: 180 } : {}) };
+    if (type === "washer_dryer") d.top = { kind: "dryer", entity: "" };
+    if (d.kind && !free) backDeviceToWall(m, d, p, 80, flush);
     placeDevice(m, d, p);
     return { list: "devices", item: d };
   }
   if (type === "tv" || type === "ac") {
     // hung on a wall: lengthwise along it (a vertical wall turns it by 90 degrees)
     const [w, h, rx, ry] = type === "tv" ? [124, 24, 110, 88] : [116, 32, 130, 85];
-    const rot = wallRotation(m, p, 80);
+    const rot = free ? null : wallRotation(m, p, 80);
     const turn = rot === 90 || rot === 270;
     // a TV and an A/C light up only their front: half a circle, away from the wall
     const d = { id: uniqueId(m, type), type: type === "tv" ? "tv" : "climate_unit", entity: "", hit: [0, 0, 0, 0],
       glow: { at: p, rx: turn ? ry : rx, ry: turn ? rx : ry }, beam: 180, beam_dir: rot ?? 180 };
     d.hit = turn ? [r2(p[0] - h / 2), r2(p[1] - w / 2), h, w] : [r2(p[0] - w / 2), r2(p[1] - h / 2), w, h];
+    if (!free) backDeviceToWall(m, d, p, 80, flush);
     placeDevice(m, d, p);
     return { list: "devices", item: d };
   }
@@ -151,7 +222,8 @@ export function makeDevice(m, type, p, q = null) {
     return { list: "devices", item: d };
   }
   if (type === "climate") {
-    return { list: "climate", item: { id: uniqueId(m, "climate").replace(/^climate-/, "sensor-"), at: p, temperature: "", humidity: "" } };
+    // a new one is drawn as a sensor; its readings on the plan instead is a choice in its panel
+    return { list: "climate", item: { id: uniqueId(m, "climate").replace(/^climate-/, "sensor-"), at: p, temperature: "", humidity: "", display: "icon" } };
   }
   if (type === "camera") {
     return { list: "cameras", item: { id: uniqueId(m, "camera"), name: "", entity: "", entity_hq: "", at: p,
@@ -170,6 +242,12 @@ export function makeDevice(m, type, p, q = null) {
   }
   if (ICON_KINDS.includes(type)) {
     const d = { id: uniqueId(m, type), type: "icon", kind: type, entity: "", at: p };
+    // a recuperator, a boiler, a speaker: drawn as the thing, of its size (cm), front down the plan
+    if (SHAPED_KINDS[type]) {
+      const [w, h] = SHAPED_KINDS[type];
+      Object.assign(d, { hit: [r2(p[0] - w / 2), r2(p[1] - h / 2), w, h], beam_dir: 180 });
+      if (!free) backDeviceToWall(m, d, p, 80, flush);
+    }
     placeDevice(m, d, p);
     return { list: "devices", item: d };
   }
@@ -246,6 +324,54 @@ export function moveTo(m, list, x, p, bulb = 0) {
 }
 
 // Resize an axis-aligned hit area around its middle (TV, A/C, appliance).
+// A washer or a dryer (without one on it already) under p: what a new washer / dryer placed at p stands on
+export function stackTarget(m, p, kind) {
+  if (!STACKABLE.includes(kind)) return null;
+  return (m.devices || []).find((d) => d.type === "appliance" && STACKABLE.includes(d.kind) && !d.top && d.hit &&
+    p[0] >= d.hit[0] && p[0] <= d.hit[0] + d.hit[2] && p[1] >= d.hit[1] && p[1] <= d.hit[1] + d.hit[3]) || null;
+}
+
+// A rack under p that a piece of equipment of this kind goes into (a router, a switch, a UPS...)
+export function rackTarget(m, p, kind) {
+  if (!RACK_KINDS.includes(kind)) return null;
+  return (m.devices || []).find((d) => d.kind === "rack" && d.hit &&
+    p[0] >= d.hit[0] && p[0] <= d.hit[0] + d.hit[2] && p[1] >= d.hit[1] && p[1] <= d.hit[1] + d.hit[3]) || null;
+}
+
+// Size along its wall (W) and out from it (D) of a device facing beam_dir (its hit is in plan axes)
+export function wallSize(x) {
+  const side = x.beam_dir === undefined || (((Math.round(x.beam_dir / 90) * 90) % 180) + 180) % 180 === 0;
+  return side ? [x.hit[2], x.hit[3]] : [x.hit[3], x.hit[2]];
+}
+export function setWallSize(x, W, D) {
+  const side = x.beam_dir === undefined || (((Math.round(x.beam_dir / 90) * 90) % 180) + 180) % 180 === 0;
+  if (side) resizeHit(x, W, D); else resizeHit(x, D, W);
+}
+// A TV's screen width (cm) from its diagonal (inches), 16:9 - and back
+export const tvWidth = (inch) => inch * 2.54 * 16 / Math.hypot(16, 9);
+export const tvInches = (w) => w / (2.54 * 16 / Math.hypot(16, 9));
+
+// The hit's handles: corners and sides (sx, sy in -1 / 0 / 1)
+export function hitHandles(h) {
+  const out = [];
+  for (const sx of [-1, 0, 1]) for (const sy of [-1, 0, 1]) {
+    if (!sx && !sy) continue;
+    out.push({ sx, sy, p: [h[0] + h[2] * (sx + 1) / 2, h[1] + h[3] * (sy + 1) / 2] });
+  }
+  return out;
+}
+// Drag handle (sx, sy) of `base` (the hit when the drag started) to p: the opposite side stays
+export function dragHit(x, base, sx, sy, p, round = (v) => v, min = 5) {
+  let [x0, y0, x1, y1] = [base[0], base[1], base[0] + base[2], base[1] + base[3]];
+  if (sx < 0) x0 = Math.min(x1 - min, x1 - round(x1 - p[0]));
+  if (sx > 0) x1 = Math.max(x0 + min, x0 + round(p[0] - x0));
+  if (sy < 0) y0 = Math.min(y1 - min, y1 - round(y1 - p[1]));
+  if (sy > 0) y1 = Math.max(y0 + min, y0 + round(p[1] - y0));
+  x.hit = [r2(x0), r2(y0), r2(x1 - x0), r2(y1 - y0)];
+  if (x.glow && x.glow.at) x.glow = { ...x.glow, at: [r2((x0 + x1) / 2), r2((y0 + y1) / 2)] };
+  if (x.at) x.at = [r2((x0 + x1) / 2), r2((y0 + y1) / 2)];
+}
+
 export function resizeHit(x, w, h) {
   const c = [x.hit[0] + x.hit[2] / 2, x.hit[1] + x.hit[3] / 2];
   x.hit = [r2(c[0] - w / 2), r2(c[1] - h / 2), r2(w), r2(h)];

@@ -18,7 +18,8 @@ button:disabled { opacity: 0.4; cursor: default; }
 button.on { background: #2c4a5a; border-color: var(--accent); color: #fff; }
 input[type=number] { width: 70px; }
 label { display: flex; gap: 5px; align-items: center; color: var(--muted); }
-main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-height: 0; }
+main { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: 0; overflow: hidden; } /* the panel sliding in: no scroll bar for a moment */
+main.has-sel { grid-template-columns: 256px minmax(0, 1fr) 280px; }
 #tools, #panel { scrollbar-color: #2a3547 #1b2433; scrollbar-width: thin; }
 /* tools on the left: a click opens a tool and its options below it */
 #tools { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 8px; }
@@ -45,6 +46,9 @@ main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-hei
 #plan svg { width: 100%; height: 100%; display: block; }
 #plan { pointer-events: none; }
 #plan #sheet { display: none; }
+/* a temperature sensor with its readings on the plan: in the editor still its symbol (the readings are empty here) */
+#plan .climate-icon.alt { display: inline; }
+#plan #room-climate text { display: none; }
 /* the readings of a temperature / humidity sensor: "—" until live values come, coloured as on the card */
 #plan #room-climate text { fill: var(--text); paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 #plan #room-climate .climate-hum, #plan #room-climate .climate-name { fill: var(--muted); }
@@ -55,7 +59,10 @@ main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-hei
   background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 12px; }
 #len-box b { color: #fff; font-size: 16px; min-width: 3ch; display: inline-block; text-align: right; }
 #len-box small { color: var(--muted); margin-left: 8px; }
-#panel { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 4px 12px 12px; }
+/* the right panel: a column only while something is selected, sliding in (the plan stays where it was) */
+#panel { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 4px 12px 12px; display: none; }
+main.has-sel #panel { display: block; animation: panel-in 0.18s ease; }
+@keyframes panel-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 #panel h3 { font-size: 13px; margin: 14px 0 6px; color: #fff; }
 #panel h3 small { color: var(--muted); font-weight: normal; }
 #panel ul { padding-left: 16px; margin: 0; color: var(--muted); }
@@ -76,13 +83,25 @@ main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-hei
 .ov-hover { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .ov-node { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .ov-node.sel { stroke: var(--sel); }
+/* the round turn handle of the selected item */
+.ov-rot-line { stroke: var(--sel); stroke-width: 1; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.ov-rot { cursor: grab; }
+.ov-rot-bg { fill: var(--panel); stroke: var(--sel); stroke-width: 1.5; }
+.ov-rot-arrow { fill: none; stroke: var(--sel); stroke-width: 1.6; stroke-linecap: round; }
+.ov-rot-head { fill: var(--sel); }
 /* a circuit's bulbs, one row each: number (select), direction, beam angle, out of the circuit, remove */
 .bulb-list { display: flex; flex-direction: column; gap: 4px; }
 .bulb-row { display: flex; align-items: center; gap: 4px; }
 .bulb-row.on > button[data-bsel] { border-color: var(--sel); color: var(--sel); }
 .bulb-row label { display: flex; align-items: center; gap: 2px; color: var(--muted); }
-.bulb-row input { width: 52px; }
+.bulb-row input { width: 4.2em; min-width: 0; padding-left: 4px; padding-right: 2px; }
 .bulb-row button { min-width: 26px; padding: 2px 6px; }
+.pane-list { display: flex; flex-direction: column; gap: 6px; }
+.pane-row { display: flex; flex-direction: column; gap: 3px; }
+.pane-row > input { margin-left: 1.8em; width: calc(100% - 1.8em); }
+.bulb-row .pane-n { width: 1.4em; text-align: center; }
+.bulb-row .pane-rest { width: 4.2em; padding-left: 4px; }
+.bulb-row select { min-width: 0; flex: 1; }
 .ov-snap { fill: none; stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .ov-preview { fill: rgba(95, 214, 232, 0.35); stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .ov-preview.walls { stroke: none; fill: rgba(95, 214, 232, 0.45); } /* no seams at the joints */
@@ -127,6 +146,7 @@ main { display: grid; grid-template-columns: 256px minmax(0, 1fr) 270px; min-hei
   .tool-body { grid-row: 2; grid-column: 1 / span 12; position: sticky; left: 0; width: calc(100vw - 12px); min-width: 0;
     max-height: 32vh; overflow-y: auto; border-top: 1px solid var(--line); }
   #panel { order: 3; max-height: 30vh; border: 0; border-top: 1px solid var(--line); }
+  main.has-sel { grid-template-columns: minmax(0, 1fr); }
   .versions { min-width: 0; }
   dialog { max-width: calc(100vw - 24px); }
   dialog label { grid-template-columns: 90px 1fr; }
@@ -236,3 +256,10 @@ polyline.ov-sketch.live { fill: none; }
 .ov-guide { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.8; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ov-ghost { fill: rgba(95, 214, 232, 0.18); stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ov-ghost * { vector-effect: non-scaling-stroke; }
+
+/* the device in hand (Devices tool): drawn where a click puts it, see-through */
+#plan .ghost { opacity: 0.55; }
+
+/* a rack's contents in its panel: the kind's icon, its entity, take out, remove */
+.rack-row input { flex: 1; width: auto; }
+.rack-row .ico { width: 18px; height: 18px; }

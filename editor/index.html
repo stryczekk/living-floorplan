@@ -63,6 +63,9 @@
         <div id="wall-types"></div>
         <div class="row"><span data-i18n="thickness"></span><label><input id="i-thick" type="number" min="1" max="200" step="1"> cm</label></div>
         <div class="empty" data-i18n="wall_hint"></div>
+        <!-- the default thickness of each wall type (all walls of that type without their own) -->
+        <div class="sub-h"><span data-i18n="types_h"></span> · <span data-i18n="types_sub"></span></div>
+        <div id="types"></div>
       </div>
     </section>
     <section class="tool" data-section="shape">
@@ -79,7 +82,7 @@
     </section>
     <section class="tool" data-section="rooms">
       <button class="tool-h" data-tool="rooms" data-i18n-title="rooms_t"><span data-i18n="rooms_h"></span><kbd>P</kbd></button>
-      <div class="tool-body"><div class="empty" data-i18n="rooms_hint"></div></div>
+      <div class="tool-body"><div class="empty" data-i18n="rooms_hint"></div><div id="rooms-list"></div></div>
     </section>
     <section class="tool" data-section="divide">
       <button class="tool-h" data-tool="divide" data-i18n-title="divide_t"><span data-i18n="divide_h"></span><kbd>L</kbd></button>
@@ -101,6 +104,15 @@
       <button class="tool-h" data-tool="calibrate" data-i18n-title="underlay_t"><span data-i18n="underlay"></span></button>
       <div class="tool-body" id="tb-calibrate"></div>
     </section>
+    <!-- not tools: the plan's own settings and the help, opened and closed without changing the tool -->
+    <section class="tool" data-panel="plan">
+      <button class="tool-h" data-open="plan"><span data-i18n="plan"></span></button>
+      <div class="tool-body" id="tb-plan"></div>
+    </section>
+    <section class="tool" data-panel="help">
+      <button class="tool-h" data-open="help"><span data-i18n="help_tab"></span></button>
+      <div class="tool-body"><ul id="help-list"></ul></div>
+    </section>
   </nav>
   <div id="stage">
     <svg id="grid" aria-hidden="true"></svg>
@@ -111,14 +123,6 @@
   </div>
   <aside id="panel">
     <section id="p-sel"></section>
-    <section id="p-types">
-      <h3><span data-i18n="types_h"></span> <small data-i18n="types_sub"></small></h3>
-      <div id="types"></div>
-    </section>
-    <section id="p-help">
-      <h3 data-i18n="help_h"></h3>
-      <ul id="help-list"></ul>
-    </section>
   </aside>
 </main>
 <dialog id="wizard">

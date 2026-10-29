@@ -48,7 +48,7 @@ export const STRINGS = {
     loading: "Loading the plan…",
     load_error: "Could not load {url}: {msg}",
     onb_title: "Draw your house",
-    onb_text: "Open the floor plan editor that came with this card: draw the walls (or trace a photo of your plan), place lights, covers and sensors and pick their entities. Save house.json into /config/www and set it as this card's model, e.g. /local/house.json.",
+    onb_text: "Open the floor plan editor (Floor plan in the sidebar): draw the walls or trace a photo or PDF of your plan, place lights, covers and sensors and pick their entities. Save - this card shows the plan at once.",
     onb_button: "Open the editor",
     ground_floor: "Ground floor",
     zoom_in: "Zoom in",
@@ -65,6 +65,8 @@ export const STRINGS = {
     alert_smoke: "Smoke",
     alert_co: "Carbon monoxide",
     alert_leak: "Leak",
+    alert_gas: "Gas",
+    alert_siren: "Alarm",
     alert_cold: "Window open, {t}° outside",
     time_travel: "Go back in time",
     live: "Live",
@@ -142,7 +144,7 @@ export const STRINGS = {
     loading: "Wczytuję rzut…",
     load_error: "Nie udało się wczytać {url}: {msg}",
     onb_title: "Narysuj swój dom",
-    onb_text: "Otwórz edytor rzutu, który przyszedł z tą kartą: narysuj ściany (albo odrysuj zdjęcie planu), postaw lampy, rolety i czujniki i wybierz ich encje. Zapisz house.json w /config/www i ustaw go jako model karty, np. /local/house.json.",
+    onb_text: "Otwórz edytor rzutu (Floor plan w menu bocznym): narysuj ściany albo odrysuj zdjęcie lub PDF planu, postaw lampy, rolety i czujniki i wybierz ich encje. Zapisz — karta od razu pokaże plan.",
     onb_button: "Otwórz edytor",
     ground_floor: "Parter",
     zoom_in: "Przybliż",
@@ -159,6 +161,8 @@ export const STRINGS = {
     alert_smoke: "Dym",
     alert_co: "Czad",
     alert_leak: "Zalanie",
+    alert_gas: "Gaz",
+    alert_siren: "Alarm",
     alert_cold: "Okno otwarte, na dworze {t}°",
     time_travel: "Cofnij się w czasie",
     live: "Na żywo",
@@ -581,7 +585,7 @@ export class LivingFloorplanCard extends HTMLElement {
   #fc-sun { mix-blend-mode: var(--fc-blend); }
   #fc-map-text text { fill: var(--fc-text); paint-order: stroke; stroke: var(--fc-halo); stroke-width: 3px; stroke-linejoin: round; }
   /* a camera that saw someone: its fan red */
-  .camera.detected .camera-fan { fill: #e53935; fill-opacity: 0.3; stroke: #e53935; stroke-opacity: 0.9; animation: fc-cam 1.2s ease-in-out infinite; }
+  .camera.detected .camera-fan { fill: #e53935 !important; fill-opacity: 0.3; stroke: #e53935; stroke-opacity: 0.9; animation: fc-cam 1.2s ease-in-out infinite; }
   .camera.detected .camera-mark { fill: #e53935; }
   @keyframes fc-cam { 50% { fill-opacity: 0.12; } }
   /* a lamp on in an empty room */
@@ -1654,7 +1658,7 @@ export class LivingFloorplanCard extends HTMLElement {
     // (a lamp 20 px away must not take a click meant for the camera, 26.10)
     if (best && best.d === 0) return best.el.getAttribute("data-entity");
     // a finger right on a room's reading: the reading (a device next to it is only near)
-    for (const el of this._svg.querySelectorAll("#room-climate text[data-temp]")) {
+    for (const el of this._svg.querySelectorAll("#room-climate [data-temp]")) {
       const r = el.getBoundingClientRect();
       if (r.width && clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return el.getAttribute("data-temp");
     }
@@ -1667,7 +1671,7 @@ export class LivingFloorplanCard extends HTMLElement {
     }
     if (best) return best.el.getAttribute("data-entity");
     // a room's reading: its temperature sensor (the dialog, or an action of your own)
-    for (const el of this._svg.querySelectorAll("#room-climate text[data-temp]")) {
+    for (const el of this._svg.querySelectorAll("#room-climate [data-temp]")) {
       const r = el.getBoundingClientRect();
       if (!r.width) continue;
       const dx = Math.max(r.left - clientX, 0, clientX - r.right), dy = Math.max(r.top - clientY, 0, clientY - r.bottom);
