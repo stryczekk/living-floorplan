@@ -599,6 +599,14 @@ if (shot) {
     for (const t of ["pointerdown", "pointerup"]) wf.dispatchEvent(new PointerEvent(t, { clientX: rr.left + rr.width / 2, clientY: rr.top + rr.height / 2, pointerId: 51, bubbles: true }));
     const c1 = calls[n1];
     check("chandelier: off -> the small circuit", c1 && c1[1] === "turn_on" && c1[2].entity_id === small, JSON.stringify(c1) + " n=" + (calls.length - n1));
+    // lit: the next tap turns it off (fixture_tap: toggle, the default), not on to both
+    hf.states[small] = { entity_id: small, state: "on", attributes: {}, last_updated: "1" };
+    ef.hass = { ...hf, states: { ...hf.states } };
+    await tick(450);
+    const n1b = calls.length;
+    for (const t of ["pointerdown", "pointerup"]) wf.dispatchEvent(new PointerEvent(t, { clientX: rr.left + rr.width / 2, clientY: rr.top + rr.height / 2, pointerId: 54, bubbles: true }));
+    const c2 = calls[n1b];
+    check("chandelier: lit -> off (toggle)", c2 && c2[1] === "turn_off" && [].concat(c2[2].entity_id).includes(small) && [].concat(c2[2].entity_id).includes(large), JSON.stringify(c2));
     const lockEl = sf.querySelector(".lock[data-entity]");
     if (lockEl) {
       const lr = lockEl.getBoundingClientRect();

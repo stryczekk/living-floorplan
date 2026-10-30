@@ -133,3 +133,26 @@ test("widgets: a state widget can show an attribute", async () => {
   assert.deepEqual(widgetText(w, states, "pl"), ["pt. 6.11: segregowane", "Śmieci"]);
   assert.deepEqual(widgetText(w, {}, "pl"), ["—", "Śmieci"]);
 });
+
+// `entities:` keys for a whole domain ("light.*") and for everything ("*"): an entity's own key wins
+test("actions: an entity's own, then its domain's, then everyone's", async () => {
+  globalThis.HTMLElement ??= class {};
+  globalThis.window ??= globalThis;
+  globalThis.customElements ??= { _d: new Map(), get(n) { return this._d.get(n); }, define(n, c) { this._d.set(n, c); } };
+  globalThis.navigator ??= { language: "en" };
+  const { LivingFloorplanCard, normalizeEntityActions } = await import("../../card/card.js");
+  const P = LivingFloorplanCard.prototype;
+  const acts = normalizeEntityActions({
+    "light.a": { hold_action: { action: "own" } },
+    "light.*": { hold_action: { action: "lamp" } },
+    "*": { tap_action: { action: "any" } },
+  });
+  const me = { _config: { actions: acts }, _svg: null, _fixtureOf: () => null, _ownActionFor: P._ownActionFor };
+  const pick = (id, k) => (P._actionFor.call(me, id, k) || {}).action;
+  assert.equal(pick("light.a", "hold"), "own");
+  assert.equal(pick("light.b", "hold"), "lamp");
+  assert.equal(pick("cover.x", "hold"), undefined);
+  assert.equal(pick("cover.x", "tap"), "any");
+  me._isLock = (id) => id === "cover.door";
+  assert.equal(pick("cover.door", "tap"), undefined);
+});

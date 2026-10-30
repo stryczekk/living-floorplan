@@ -109,6 +109,7 @@ model: /local/house.json          # the editor's model, in /config/www
 | `time_travel` | `true` | the ⏱ button |
 | `price` | — | electricity price per kWh: the light energy map shows money (currency from Home Assistant) |
 | `lock_action` | `more-info` | `hold` - a lock or door strike on the plan opens after holding it 0.8 s (a tap never opens it) |
+| `fixture_tap` | `toggle` | a chandelier of two circuits: `toggle` - a tap lights the smaller circuit, the next one turns it off; `cycle` - smaller, both, off |
 | `influx` | `true` | use InfluxDB Proxy for history beyond the recorder when it is installed; `false` - never |
 | `alerts` | — | `[{ entity, state?, above?, below?, room?, color?, name? }]` - extra alerts; the room comes from where the entity is on the plan, or `room` |
 | `cold` | — | `{ outside: sensor.outdoor_temperature, below: 12 }` - a window with an open contact pulses blue when it is colder outside |

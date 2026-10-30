@@ -3947,6 +3947,9 @@ var LivingFloorplanCard = class extends HTMLElement {
       price: Number(config.price) > 0 ? Number(config.price) : null,
       // a lock / door strike: "more-info" (default) or "hold" - opened by holding it 0.8 s
       lockAction: config.lock_action === "hold" ? "hold" : "more-info",
+      // a tap on a chandelier of two circuits: "toggle" (off -> the smaller one, on -> off) or "cycle"
+      // (off -> the smaller -> both -> off)
+      fixtureTap: config.fixture_tap === "cycle" ? "cycle" : "toggle",
       // doors without a contact sensor: "closed" (default) - they stop the light, "open" - light goes through
       doors: config.doors === "open" ? "open" : "closed",
       labels: config.show_room_names === true,
@@ -5324,17 +5327,29 @@ var LivingFloorplanCard = class extends HTMLElement {
       const on = (e) => this._hass.states[e] && this._hass.states[e].state === "on";
       const [small, large] = fx;
       if (!on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: small });
-      else if (on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
+      else if (this._config.fixtureTap === "cycle" && on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
       else this._hass.callService("light", "turn_off", { entity_id: [small, large] });
       return true;
     }
     if (hold) {
       if (this._config.hold === "insights" && window.entityInsights && typeof window.entityInsights.open === "function") {
-        window.entityInsights.open({ entity: id }, this._hass);
+        const fx2 = this._fixtureOf(id), ids = fx2 || [id];
+        const watts2 = ids.map((e) => {
+          const w = this._svg && this._svg.querySelector(`.light[data-entity="${CSS.escape(e)}"]`);
+          return w && w.getAttribute("data-watts") !== null ? Number(w.getAttribute("data-watts")) : NaN;
+        });
+        const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)].map((e) => e.getAttribute("data-entity")))] : [];
+        window.entityInsights.open({
+          entities: ids,
+          rank_with: onPlan.length > 1 ? onPlan : void 0,
+          watts: watts2.every(Number.isFinite) ? watts2 : void 0,
+          price: this._config.price || void 0
+        }, this._hass);
       } else this._moreInfo(id);
       return true;
     }
-    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id]) {
+    const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
+    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id] && !inRack) {
       const now = Date.now();
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id, t: now };
@@ -5377,7 +5392,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     const out = /* @__PURE__ */ new Map();
     for (const el of this._svg.querySelectorAll("[data-entity]")) {
       const id = el.getAttribute("data-entity");
-      if (!id || out.has(id) || el.closest("#rooms, #controls, #notes")) continue;
+      if (!id || out.has(id) || el.closest("#rooms, #controls, #notes") || el.classList.contains("rack-item")) continue;
       const domain = id.split(".")[0];
       const kind = el.classList.contains("light") || ["light", "switch"].includes(domain) ? "light" : domain === "cover" ? "cover" : null;
       if (!kind) continue;
@@ -5623,6 +5638,14 @@ var LivingFloorplanCard = class extends HTMLElement {
   _actionFor(id, kind) {
     const acts = this._config.actions;
     if (!acts || !Object.keys(acts).length) return null;
+    const own = this._ownActionFor(acts, id, kind);
+    if (own) return own;
+    if (this._isLock && this._isLock(id)) return null;
+    const dom = id.split(".")[0] + ".*";
+    for (const x of [dom, "*"]) if (acts[x] && acts[x][kind]) return acts[x][kind];
+    return null;
+  }
+  _ownActionFor(acts, id, kind) {
     const ids = [id];
     const cam = this._svg && [...this._svg.querySelectorAll("[data-entity-camera]")].find((g) => [g.getAttribute("data-entity-camera"), g.getAttribute("data-entity-camera-hq")].includes(id));
     if (cam) ids.push(cam.getAttribute("data-entity-camera"), cam.getAttribute("data-entity-camera-hq"));

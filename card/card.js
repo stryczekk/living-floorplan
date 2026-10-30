@@ -352,6 +352,7 @@ export function coreRect(el) {
 
 // `entities:` - Home Assistant actions of your own for a device on the plan, by entity:
 //   { light.x: { tap_action: {...}, hold_action: {...} } }  or  [{ entity, tap_action, hold_action }]
+// A key may also be a whole domain ("light.*") or "*" - an entity's own key wins over them.
 export function normalizeEntityActions(e) {
   const out = {};
   const put = (id, v) => { if (typeof id === "string" && v && typeof v === "object") out[id] = { tap: v.tap_action || null, hold: v.hold_action || null }; };
@@ -404,6 +405,9 @@ export class LivingFloorplanCard extends HTMLElement {
       price: Number(config.price) > 0 ? Number(config.price) : null,
       // a lock / door strike: "more-info" (default) or "hold" - opened by holding it 0.8 s
       lockAction: config.lock_action === "hold" ? "hold" : "more-info",
+      // a tap on a chandelier of two circuits: "toggle" (off -> the smaller one, on -> off) or "cycle"
+      // (off -> the smaller -> both -> off)
+      fixtureTap: config.fixture_tap === "cycle" ? "cycle" : "toggle",
       // doors without a contact sensor: "closed" (default) - they stop the light, "open" - light goes through
       doors: config.doors === "open" ? "open" : "closed",
       labels: config.show_room_names === true,
@@ -1741,24 +1745,37 @@ export class LivingFloorplanCard extends HTMLElement {
     }
     const fx = !hold && this._fixtureOf(id);
     if (fx) {
-      // a chandelier on two circuits: off -> one bulb -> all -> off
+      // a chandelier on two circuits: off -> the smaller circuit -> off (or, as a cycle, -> both -> off)
       const now = Date.now();
       if (this._lastToggle && this._lastToggle.id === fx.join() && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id: fx.join(), t: now };
       const on = (e) => this._hass.states[e] && this._hass.states[e].state === "on";
       const [small, large] = fx;
       if (!on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: small });
-      else if (on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
+      else if (this._config.fixtureTap === "cycle" && on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
       else this._hass.callService("light", "turn_off", { entity_id: [small, large] });
       return true;
     }
     if (hold) {
       if (this._config.hold === "insights" && window.entityInsights && typeof window.entityInsights.open === "function") {
-        window.entityInsights.open({ entity: id }, this._hass);
+        // a chandelier: both its circuits in one dialog; the power of each from the plan and the price of a kWh -
+        // the dialog shows their energy and what it cost
+        const fx = this._fixtureOf(id), ids = fx || [id];
+        const watts = ids.map((e) => {
+          const w = this._svg && this._svg.querySelector(`.light[data-entity="${CSS.escape(e)}"]`);
+          return w && w.getAttribute("data-watts") !== null ? Number(w.getAttribute("data-watts")) : NaN;
+        });
+        // "place in the house" among what is on the plan (not every entity of the domain: spare channels...)
+        const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)]
+          .map((e) => e.getAttribute("data-entity")))] : [];
+        window.entityInsights.open({ entities: ids, rank_with: onPlan.length > 1 ? onPlan : undefined,
+          watts: watts.every(Number.isFinite) ? watts : undefined, price: this._config.price || undefined }, this._hass);
       } else this._moreInfo(id);
       return true;
     }
-    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id]) {
+    // equipment in a rack: its window only, a tap never switches it (a recorder's "recording" is a switch)
+    const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
+    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id] && !inRack) {
       // a quick second tap on the same device (a double tap) does not switch it back
       const now = Date.now();
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
@@ -1807,7 +1824,8 @@ export class LivingFloorplanCard extends HTMLElement {
     const out = new Map();
     for (const el of this._svg.querySelectorAll("[data-entity]")) {
       const id = el.getAttribute("data-entity");
-      if (!id || out.has(id) || el.closest("#rooms, #controls, #notes")) continue;
+      // (equipment in a rack is never switched from the plan: a recorder's "recording" is a switch too)
+      if (!id || out.has(id) || el.closest("#rooms, #controls, #notes") || el.classList.contains("rack-item")) continue;
       const domain = id.split(".")[0];
       const kind = el.classList.contains("light") || ["light", "switch"].includes(domain) ? "light" : domain === "cover" ? "cover" : null;
       if (!kind) continue;
@@ -2023,6 +2041,16 @@ export class LivingFloorplanCard extends HTMLElement {
   _actionFor(id, kind) {
     const acts = this._config.actions;
     if (!acts || !Object.keys(acts).length) return null;
+    const own = this._ownActionFor(acts, id, kind);
+    if (own) return own;
+    // a whole domain ("light.*"), then everything ("*") - never for a lock: a door opens only as set for it
+    if (this._isLock && this._isLock(id)) return null;
+    const dom = id.split(".")[0] + ".*";
+    for (const x of [dom, "*"]) if (acts[x] && acts[x][kind]) return acts[x][kind];
+    return null;
+  }
+
+  _ownActionFor(acts, id, kind) {
     const ids = [id];
     const cam = this._svg && [...this._svg.querySelectorAll("[data-entity-camera]")].find((g) =>
       [g.getAttribute("data-entity-camera"), g.getAttribute("data-entity-camera-hq")].includes(id));
