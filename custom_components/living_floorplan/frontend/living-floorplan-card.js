@@ -395,7 +395,13 @@ function style(N3) {
     .light.on .glow { opacity: 1; }
     .light.on .glow-dim { opacity: 0.55; }
     .light.on .bulb { filter: url(#bulb-glow); }
-    .light.on ~ .bulb-shared { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    .light.on ~ .bulb-shared:not(.chandelier) { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    /* a chandelier: its arms light with either circuit, each bulb with its own circuit (the hub stays dark) */
+    .chandelier .ch-arm { fill: none; stroke-width: 0.7; stroke-linecap: round; }
+    .chandelier .ch-hub { stroke: none; }
+    .chandelier .ch-b { stroke: none; }
+    .light.on ~ .chandelier { stroke: #ffc300; }
+    .light.circuit-small.on ~ .chandelier .ch-1, .light.circuit-large.on ~ .chandelier .ch-3 { fill: #ffc300; filter: url(#bulb-glow); }
     .light[data-kind="night"].on { fill: #ffab40; stroke: #ffab40; }
     /* room names are hidden; a class on the layer shows them */
     #room-labels.${N3.isShown} { display: inline; }
@@ -492,6 +498,13 @@ function style(N3) {
     .cover.${N3.isUnknown} .${N3.coverIcon} { opacity: 0.3; }
     /* amber while held: the hold gesture was recognised */
     .cover.${N3.isArmed} .${N3.coverIcon} { fill: #ffab40; stroke: #ffab40; }
+    /* a moving cover: a blinking arrow (up / down) instead of its icon */
+    .cover-move { display: none; pointer-events: none; }
+    .cover-move path { fill: #8fa3bd; stroke: none; display: none; }
+    .cover.moving-up .cover-move, .cover.moving-down .cover-move { display: inline; animation: cover-blink 1s steps(2, start) infinite; }
+    .cover.moving-up .cover-move-up, .cover.moving-down .cover-move-down { display: inline; }
+    .cover.moving-up .${N3.coverIcon}, .cover.moving-down .${N3.coverIcon} { display: none; }
+    @keyframes cover-blink { to { visibility: hidden; } }
 
     /* A roof window: glass seen from above; its cover darkens it as it closes (the card sets --sky). */
     .skylight .sky-glass { fill: none; stroke: #6fc9ef; stroke-width: 1.2; cursor: pointer; }
@@ -1695,14 +1708,12 @@ ${spans.join("\n")}
     if (win.type === "hst") {
       w(`    <g id="${win.id}" data-facade="${win.facade}" data-type="hst" data-width="${n4(win.width)}"${contactAttr((win.contacts || [])[0])}>`);
       if (win.line) {
-        const H = win.tick || 4, S2 = H * 0.15, [a, b] = win.line, L0 = len2(win.line);
+        const H = win.tick || 4, [a, b] = win.line, L0 = len2(win.line);
         const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
         const dist = (q) => Math.abs((q[0] - a[0]) * mx + (q[1] - a[1]) * my);
         const t = Math.max(...Object.values(win.sashes).map((l) => dist(l[0]))), ds = t * 0.55, F = t + ds;
         const B = Math.min(0.8 * F, L0 / 6);
         const ln = (p2, q, cls, sw, extra = "") => `      <line class="${cls}"${extra} x1="${n4(p2[0])}" y1="${n4(p2[1])}" x2="${n4(q[0])}" y2="${n4(q[1])}" stroke="#6fc9ef" stroke-width="${sw}"/>`;
-        for (const o of [H, -H, H + S2, -H - S2])
-          w(ln([a[0] + mx * o, a[1] + my * o], [b[0] + mx * o, b[1] + my * o], "sill", 0.5).replace('stroke="#6fc9ef"', 'stroke="#8ea1ba"'));
         const box = (p2, q, d, cls) => {
           const c2 = [[p2[0] + mx * d, p2[1] + my * d], [q[0] + mx * d, q[1] + my * d], [q[0] - mx * d, q[1] - my * d], [p2[0] - mx * d, p2[1] - my * d]];
           return `      <polygon class="${cls}" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`;
@@ -1731,7 +1742,7 @@ ${spans.join("\n")}
     } else {
       const panes = win.panes || 1, cts = win.contacts || [];
       const one = cts.length === 1 ? cts[0] : null;
-      const H = win.tick || 4, F = H * 0.18, S2 = H * 0.15;
+      const H = win.tick || 4, F = H * 0.18;
       const [a, b] = win.line, L0 = len2(win.line), k2 = Math.max(panes, cts.length);
       const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
       const at0 = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
@@ -1741,8 +1752,6 @@ ${spans.join("\n")}
       const B = Math.min(0.8 * F, L0 / (3 * k2));
       const across = (q, cls = "frame-cross") => `      <line class="${cls}" x1="${n4(q[0] + mx * F)}" y1="${n4(q[1] + my * F)}" x2="${n4(q[0] - mx * F)}" y2="${n4(q[1] - my * F)}" stroke="#6fc9ef" stroke-width="0.6"/>`;
       const parts = [];
-      for (const o of [H, -H, H + S2, -H - S2])
-        parts.push(`      <line class="sill" x1="${n4(a[0] + mx * o)}" y1="${n4(a[1] + my * o)}" x2="${n4(b[0] + mx * o)}" y2="${n4(b[1] + my * o)}" stroke="#8ea1ba" stroke-width="0.5"/>`);
       const c2 = [[a[0] + mx * F, a[1] + my * F], [b[0] + mx * F, b[1] + my * F], [b[0] - mx * F, b[1] - my * F], [a[0] - mx * F, a[1] - my * F]];
       parts.push(`      <polygon class="frame" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`);
       parts.push(across(off(a, B)), across(off(b, -B)));
@@ -1768,7 +1777,7 @@ ${parts.join("\n")}
   }
   w(`  </g>`);
   w(`  <g id="covers">`);
-  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window)));
+  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window), textRot));
   w(`  </g>`);
   w(`  <g id="cameras">`);
   for (const cam of model.cameras || []) w(camera(cam));
@@ -1844,15 +1853,32 @@ var clipAttr2 = (id) => id ? ` clip-path="url(#${id})"` : "";
 function fixture(f, clipOf, upright) {
   const clip = clipOf(f.room);
   const lines = [`    <g id="${f.id}">`];
-  for (const c of f.circuits) {
-    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: "light", "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
+  const two = f.circuits.length === 2;
+  const smallAt = two ? (f.circuits.findIndex((c) => c.dim) + 1 || 2) - 1 : -1;
+  f.circuits.forEach((c, i) => {
+    const cls = two ? `light circuit-${i === smallAt ? "small" : "large"}` : "light";
+    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: cls, "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
     lines.push(`        <g class="glows"${clipAttr2(clip)}>`);
     lines.push(`        ` + glowCircle(f.at, c.r, (GLOW[f.kind] || GLOW.main).fill, c.dim ? "glow glow-dim" : "glow"));
     lines.push(`        </g>`, `      </g>`);
-  }
-  lines.push("      " + bulbUse(f.at, f.kind, upright, "bulb-shared"));
+  });
+  const rot = f.at.length > 2 ? f.at[2] : upright;
+  lines.push("      " + (two ? chandelier(f, smallAt, rot) : bulbUse(f.at, f.kind, upright, "bulb-shared")));
   lines.push(`    </g>`);
   return lines.join("\n");
+}
+function chandelier(f, smallAt, rot) {
+  const count = (i) => Math.max(1, Math.min(12, Math.round(Number(f.circuits[i].bulbs) || (i === smallAt ? 1 : 3))));
+  const S = count(smallAt), N3 = S + count(1 - smallAt);
+  const R = N3 <= 6 ? 7.6 : 7.6 + (N3 - 6) * 0.6, rb = Math.min(2, R * Math.sin(Math.PI / N3) * 0.75);
+  let arms = "", bulbs = "";
+  for (let i = 0; i < N3; i++) {
+    const a = -Math.PI * 3 / 4 + 2 * Math.PI * i / N3, c = Math.cos(a), s = Math.sin(a);
+    const small = Math.floor((i + 1) * S / N3) > Math.floor(i * S / N3);
+    arms += `M${n4(c * 1.8)} ${n4(s * 1.8)}L${n4(c * (R - rb))} ${n4(s * (R - rb))}`;
+    bulbs += `<circle class="ch-b ch-${small ? 1 : 3}" cx="${n4(c * R)}" cy="${n4(s * R)}" r="${n4(rb)}"/>`;
+  }
+  return `<g class="bulb-shared chandelier" transform="translate(${n4(f.at[0])} ${n4(f.at[1])}) rotate(${n4(rot)})"><circle class="ch-hub" r="1.6"/><path class="ch-arm" d="${arms}"/>${bulbs}</g>`;
 }
 function hitRect([x, y, w, h]) {
   return `<rect class="${N.hitArea}" x="${n4(x)}" y="${n4(y)}" width="${n4(w)}" height="${n4(h)}"/>`;
@@ -2077,7 +2103,7 @@ function snowflake(cx, cy) {
   }
   return d.join(" ");
 }
-function cover(cv, win) {
+function cover(cv, win, upright = 0) {
   if (!win) throw new Error("cover " + cv.entity + ": unknown window " + cv.window);
   const glass = cv.sash ? win.sashes[cv.sash] : win.line;
   const inward = win.inward || INWARD[win.facade];
@@ -2114,6 +2140,8 @@ function cover(cv, win) {
     `      </g>`,
     `      <use class="${N.coverIcon} ${N.coverIconClosed}" href="#${N.coverClosedIcon}" transform="translate(${n4(icon[0])} ${n4(icon[1])}) rotate(${n4(ang)})"/>`,
     `      <use class="${N.coverIcon} ${N.coverIconOpen}" href="#${N.coverOpenIcon}" transform="translate(${n4(icon[0])} ${n4(icon[1])}) rotate(${n4(ang)})"/>`,
+    // while it moves: an arrow instead of the icon, up (opening) or down (closing), upright on the screen
+    `      <g class="cover-move" transform="translate(${n4(icon[0])} ${n4(icon[1])}) rotate(${n4(upright)})"><path class="cover-move-up" d="M0 -4.2 L4 2.4 H-4 Z"/><path class="cover-move-down" d="M0 4.2 L4 -2.4 H-4 Z"/></g>`,
     `    </g>`
   ].join("\n");
 }
@@ -2548,6 +2576,15 @@ function applyStates(svg, states, locale = "en", paint = (c) => c) {
     set(el, N2.isUnknown, !s || s.state === "unavailable");
     const band = el.querySelector("." + N2.coverBandScale);
     if (band) band.setAttribute("transform", `scale(1 ${typeof pos === "number" ? (100 - pos) / 100 : covered ? 1 : 0})`);
+    const op = s && s.state === "opening" ? "up" : s && s.state === "closing" ? "down" : null;
+    const tapped = el.dataset.move && Date.now() - Number(el.dataset.moveAt || 0) < 6e3 ? el.dataset.move : null;
+    if (op || s && el.dataset.moveFrom && s.state !== el.dataset.moveFrom) {
+      delete el.dataset.move;
+      delete el.dataset.moveFrom;
+    }
+    const mv = op || (el.dataset.move ? tapped : null);
+    set(el, "moving-up", mv === "up");
+    set(el, "moving-down", mv === "down");
   });
   each(".skylight[data-entity]", (el) => {
     const s = st(el.dataset.entity);
@@ -5266,6 +5303,39 @@ var LivingFloorplanCard = class extends HTMLElement {
     }
     return null;
   }
+  // A chandelier's dialog title: its name from the editor, else the common start of its circuits' names
+  // ("Salon lampa x1" + "Salon lampa x3" -> "Salon lampa", circuits "x1" / "x3"), else both names
+  _fixtureTitle(id, ids) {
+    const l = (this._lowered && this._lowered.lights || []).find((f) => f.type === "fixture" && (f.circuits || []).some((c) => c.entity === id));
+    const names = ids.map((e) => {
+      const st = this._hass.states[e];
+      return st && st.attributes.friendly_name || e;
+    });
+    const words = names.map((n5) => n5.split(/\s+/));
+    let k = 0;
+    while (k < words[0].length && words.every((w) => k < w.length - 1 && w[k] === words[0][k])) k++;
+    const labels = k ? words.map((w) => w.slice(k).join(" ")) : void 0;
+    const name = l && l.name || (k ? words[0].slice(0, k).join(" ") : names.join(" / "));
+    return { name, ...labels ? { labels } : {} };
+  }
+  // A cover just tapped: its arrow at once (a toggle opens a closed one, closes an open one, stops a moving one),
+  // until the controller reports it moving or a few seconds pass
+  _coverTapped(id) {
+    const s = this._hass.states[id];
+    if (!s || !this._svg) return;
+    const moving = s.state === "opening" || s.state === "closing";
+    const pos = s.attributes && s.attributes.current_position;
+    const dir = moving ? null : (typeof pos === "number" ? pos > 0 : s.state === "open") ? "down" : "up";
+    for (const el of this._svg.querySelectorAll(`.cover[data-entity="${CSS.escape(id)}"]`)) {
+      if (dir) Object.assign(el.dataset, { move: dir, moveAt: String(Date.now()), moveFrom: s.state });
+      else {
+        delete el.dataset.move;
+        delete el.dataset.moveFrom;
+      }
+      el.classList.toggle("moving-up", dir === "up");
+      el.classList.toggle("moving-down", dir === "down");
+    }
+  }
   // A lock drawn on the plan (its element carries the lock class).
   _isLock(id) {
     return !!(this._svg && this._svg.querySelector(`.${NAMES.lock}[data-entity="${CSS.escape(id)}"]`));
@@ -5341,6 +5411,7 @@ var LivingFloorplanCard = class extends HTMLElement {
         const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)].map((e) => e.getAttribute("data-entity")))] : [];
         window.entityInsights.open({
           entities: ids,
+          ...fx2 ? this._fixtureTitle(id, fx2) : {},
           rank_with: onPlan.length > 1 ? onPlan : void 0,
           watts: watts2.every(Number.isFinite) ? watts2 : void 0,
           price: this._config.price || void 0
@@ -5354,6 +5425,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id, t: now };
       this._hass.callService(domain === "cover" ? "cover" : "homeassistant", "toggle", { entity_id: id });
+      if (domain === "cover") this._coverTapped(id);
     } else this._moreInfo(id);
     return true;
   }

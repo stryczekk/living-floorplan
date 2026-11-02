@@ -243,14 +243,13 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
       if (win.line) {
         // like a window (29.10): the frame from jamb to jamb round both tracks, a block at each end, the reveals;
         // each sash a slim profile on its own track round its glass, overlapping the other in the middle
-        const H = win.tick || 4, S2 = H * 0.15, [a, b] = win.line, L0 = len(win.line);
+        const H = win.tick || 4, [a, b] = win.line, L0 = len(win.line);
         const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
         const dist = (q) => Math.abs((q[0] - a[0]) * mx + (q[1] - a[1]) * my);
         const t = Math.max(...Object.values(win.sashes).map((l) => dist(l[0]))), ds = t * 0.55, F = t + ds;
         const B = Math.min(0.8 * F, L0 / 6);
         const ln = (p, q, cls, sw, extra = "") => `      <line class="${cls}"${extra} x1="${n(p[0])}" y1="${n(p[1])}" x2="${n(q[0])}" y2="${n(q[1])}" stroke="#6fc9ef" stroke-width="${sw}"/>`;
-        for (const o of [H, -H, H + S2, -H - S2])
-          w(ln([a[0] + mx * o, a[1] + my * o], [b[0] + mx * o, b[1] + my * o], "sill", 0.5).replace('stroke="#6fc9ef"', 'stroke="#8ea1ba"'));
+        // (no reveal or sill lines along the wall faces: removed 31.10, owner)
         const box = (p, q, d, cls) => {
           const c = [[p[0] + mx * d, p[1] + my * d], [q[0] + mx * d, q[1] + my * d], [q[0] - mx * d, q[1] - my * d], [p[0] - mx * d, p[1] - my * d]];
           return `      <polygon class="${cls}" points="${c.map((v) => `${n(v[0])},${n(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`;
@@ -276,7 +275,7 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
       const one = cts.length === 1 ? cts[0] : null; // one contact for the whole window
       // as drawn by the owner (29.10): one frame from jamb to jamb, a square block at each end and one between
       // the sashes, the glass a single line along the middle of each sash
-      const H = win.tick || 4, F = H * 0.18, S2 = H * 0.15;
+      const H = win.tick || 4, F = H * 0.18;
       const [a, b] = win.line, L0 = len(win.line), k2 = Math.max(panes, cts.length);
       const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
       const at0 = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
@@ -288,9 +287,7 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
       const across = (q, cls = "frame-cross") =>
         `      <line class="${cls}" x1="${n(q[0] + mx * F)}" y1="${n(q[1] + my * F)}" x2="${n(q[0] - mx * F)}" y2="${n(q[1] - my * F)}" stroke="#6fc9ef" stroke-width="0.6"/>`;
       const parts = [];
-      // the reveals: a line along each wall face across the opening, and the sills a little out from them
-      for (const o of [H, -H, H + S2, -H - S2])
-        parts.push(`      <line class="sill" x1="${n(a[0] + mx * o)}" y1="${n(a[1] + my * o)}" x2="${n(b[0] + mx * o)}" y2="${n(b[1] + my * o)}" stroke="#8ea1ba" stroke-width="0.5"/>`);
+      // (no reveal or sill lines along the wall faces across the opening: removed 31.10, owner)
       const c = [[a[0] + mx * F, a[1] + my * F], [b[0] + mx * F, b[1] + my * F], [b[0] - mx * F, b[1] - my * F], [a[0] - mx * F, a[1] - my * F]];
       parts.push(`      <polygon class="frame" points="${c.map((v) => `${n(v[0])},${n(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`);
       parts.push(across(off(a, B)), across(off(b, -B)));
@@ -316,7 +313,7 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
 
   // --- covers -------------------------------------------------------------------------------
   w(`  <g id="covers">`);
-  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window)));
+  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window), textRot));
   w(`  </g>`);
 
   // --- cameras ----------------------------------------------------------------------------------
@@ -414,18 +411,42 @@ const clipAttr2 = (id) => (id ? ` clip-path="url(#${id})"` : "");
 // A fixture with several circuits sharing one bulb icon (e.g. 1 + 3 bulbs):
 // each circuit is its own .light group with a glow; the shared icon lights up
 // through `.light.on ~ .bulb-shared`, so it must come AFTER the circuits.
+// Two circuits (e.g. 2 + 3 bulbs): a chandelier, each circuit lighting its own bulbs (.circuit-small / .circuit-large).
 function fixture(f, clipOf, upright) {
   const clip = clipOf(f.room);
   const lines = [`    <g id="${f.id}">`];
-  for (const c of f.circuits) {
-    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: "light", "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
+  const two = f.circuits.length === 2;
+  const smallAt = two ? (f.circuits.findIndex((c) => c.dim) + 1 || 2) - 1 : -1;
+  f.circuits.forEach((c, i) => {
+    const cls = two ? `light circuit-${i === smallAt ? "small" : "large"}` : "light";
+    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: cls, "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
     lines.push(`        <g class="glows"${clipAttr2(clip)}>`);
     lines.push(`        ` + glowCircle(f.at, c.r, (GLOW[f.kind] || GLOW.main).fill, c.dim ? "glow glow-dim" : "glow"));
     lines.push(`        </g>`, `      </g>`);
-  }
-  lines.push("      " + bulbUse(f.at, f.kind, upright, "bulb-shared"));
+  });
+  const rot = f.at.length > 2 ? f.at[2] : upright;
+  lines.push("      " + (two ? chandelier(f, smallAt, rot)
+    : bulbUse(f.at, f.kind, upright, "bulb-shared")));
   lines.push(`    </g>`);
   return lines.join("\n");
+}
+
+// A chandelier seen from above: a hub, an arm per bulb, as many bulbs as its circuits have (`bulbs` of each circuit,
+// 1 + 3 when not given); the small circuit's bulbs spread evenly among the large one's
+function chandelier(f, smallAt, rot) {
+  const count = (i) => Math.max(1, Math.min(12, Math.round(Number(f.circuits[i].bulbs) || (i === smallAt ? 1 : 3))));
+  const S = count(smallAt), N = S + count(1 - smallAt);
+  const R = N <= 6 ? 7.6 : 7.6 + (N - 6) * 0.6, rb = Math.min(2, R * Math.sin(Math.PI / N) * 0.75);
+  let arms = "", bulbs = "";
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI * 3 / 4 + (2 * Math.PI * i) / N, c = Math.cos(a), s = Math.sin(a);
+    const small = Math.floor(((i + 1) * S) / N) > Math.floor((i * S) / N);
+    arms += `M${n(c * 1.8)} ${n(s * 1.8)}L${n(c * (R - rb))} ${n(s * (R - rb))}`;
+    bulbs += `<circle class="ch-b ch-${small ? 1 : 3}" cx="${n(c * R)}" cy="${n(s * R)}" r="${n(rb)}"/>`;
+  }
+  // (drawn inline, not as a <use>: the circuits' styles reach its single bulbs only so)
+  return `<g class="bulb-shared chandelier" transform="translate(${n(f.at[0])} ${n(f.at[1])}) rotate(${n(rot)})">` +
+    `<circle class="ch-hub" r="1.6"/><path class="ch-arm" d="${arms}"/>${bulbs}</g>`;
 }
 
 function hitRect([x, y, w, h]) {
@@ -693,7 +714,7 @@ function snowflake(cx, cy) {
 // A cover on a window (or on one sash of a sliding window). Covers of both
 // sashes run in one guide - the OUTER sash line - so the band and the hit line
 // sit there; data-x1..y2 keep the window's own glass line.
-function cover(cv, win) {
+function cover(cv, win, upright = 0) {
   if (!win) throw new Error("cover " + cv.entity + ": unknown window " + cv.window);
   const glass = cv.sash ? win.sashes[cv.sash] : win.line;
   const inward = win.inward || INWARD[win.facade];
@@ -731,6 +752,9 @@ function cover(cv, win) {
     `      </g>`,
     `      <use class="${N.coverIcon} ${N.coverIconClosed}" href="#${N.coverClosedIcon}" transform="translate(${n(icon[0])} ${n(icon[1])}) rotate(${n(ang)})"/>`,
     `      <use class="${N.coverIcon} ${N.coverIconOpen}" href="#${N.coverOpenIcon}" transform="translate(${n(icon[0])} ${n(icon[1])}) rotate(${n(ang)})"/>`,
+    // while it moves: an arrow instead of the icon, up (opening) or down (closing), upright on the screen
+    `      <g class="cover-move" transform="translate(${n(icon[0])} ${n(icon[1])}) rotate(${n(upright)})">` +
+      `<path class="cover-move-up" d="M0 -4.2 L4 2.4 H-4 Z"/><path class="cover-move-down" d="M0 4.2 L4 -2.4 H-4 Z"/></g>`,
     `    </g>`,
   ].join("\n");
 }

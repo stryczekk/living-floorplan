@@ -1694,6 +1694,36 @@ export class LivingFloorplanCard extends HTMLElement {
     return null;
   }
 
+  // A chandelier's dialog title: its name from the editor, else the common start of its circuits' names
+  // ("Salon lampa x1" + "Salon lampa x3" -> "Salon lampa", circuits "x1" / "x3"), else both names
+  _fixtureTitle(id, ids) {
+    const l = ((this._lowered && this._lowered.lights) || []).find((f) => f.type === "fixture" &&
+      (f.circuits || []).some((c) => c.entity === id));
+    const names = ids.map((e) => { const st = this._hass.states[e]; return (st && st.attributes.friendly_name) || e; });
+    const words = names.map((n) => n.split(/\s+/));
+    let k = 0;
+    while (k < words[0].length && words.every((w) => k < w.length - 1 && w[k] === words[0][k])) k++;
+    const labels = k ? words.map((w) => w.slice(k).join(" ")) : undefined;
+    const name = (l && l.name) || (k ? words[0].slice(0, k).join(" ") : names.join(" / "));
+    return { name, ...(labels ? { labels } : {}) };
+  }
+
+  // A cover just tapped: its arrow at once (a toggle opens a closed one, closes an open one, stops a moving one),
+  // until the controller reports it moving or a few seconds pass
+  _coverTapped(id) {
+    const s = this._hass.states[id];
+    if (!s || !this._svg) return;
+    const moving = s.state === "opening" || s.state === "closing";
+    const pos = s.attributes && s.attributes.current_position;
+    const dir = moving ? null : (typeof pos === "number" ? pos > 0 : s.state === "open") ? "down" : "up";
+    for (const el of this._svg.querySelectorAll(`.cover[data-entity="${CSS.escape(id)}"]`)) {
+      if (dir) Object.assign(el.dataset, { move: dir, moveAt: String(Date.now()), moveFrom: s.state });
+      else { delete el.dataset.move; delete el.dataset.moveFrom; }
+      el.classList.toggle("moving-up", dir === "up");
+      el.classList.toggle("moving-down", dir === "down");
+    }
+  }
+
   // A lock drawn on the plan (its element carries the lock class).
   _isLock(id) {
     return !!(this._svg && this._svg.querySelector(`.${NAMES.lock}[data-entity="${CSS.escape(id)}"]`));
@@ -1768,7 +1798,8 @@ export class LivingFloorplanCard extends HTMLElement {
         // "place in the house" among what is on the plan (not every entity of the domain: spare channels...)
         const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)]
           .map((e) => e.getAttribute("data-entity")))] : [];
-        window.entityInsights.open({ entities: ids, rank_with: onPlan.length > 1 ? onPlan : undefined,
+        window.entityInsights.open({ entities: ids, ...(fx ? this._fixtureTitle(id, fx) : {}),
+          rank_with: onPlan.length > 1 ? onPlan : undefined,
           watts: watts.every(Number.isFinite) ? watts : undefined, price: this._config.price || undefined }, this._hass);
       } else this._moreInfo(id);
       return true;
@@ -1781,6 +1812,7 @@ export class LivingFloorplanCard extends HTMLElement {
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id, t: now };
       this._hass.callService(domain === "cover" ? "cover" : "homeassistant", "toggle", { entity_id: id });
+      if (domain === "cover") this._coverTapped(id);
     } else this._moreInfo(id);
     return true;
   }

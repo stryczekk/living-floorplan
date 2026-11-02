@@ -153,6 +153,9 @@ function renderFloors() {
   const n = (S.house && S.house.floors || []).length;
   sel.innerHTML = [-1, ...Array.from({ length: n }, (_, i) => i)].map((i) =>
     `<option value="${i}"${i === S.floor ? " selected" : ""}>${esc(floorName(i))}</option>`).join("");
+  // the floor below, faint under an upper floor: on / off (only on an upper floor)
+  const b = $("b-floor-below");
+  if (b) { b.hidden = S.floor < 0; b.classList.toggle("on", !!S.showBelow); }
 }
 // Edit another floor: the current one goes back into the house, each floor keeps its own undo history.
 function switchFloor(i) {
@@ -571,7 +574,7 @@ function renderOverlay() {
   overlay.replaceChildren();
   const px = 1 / S.view.s;
   // an upper floor: the walls of the floor below, faint (walls above walls)
-  if (S.floor >= 0) {
+  if (S.floor >= 0 && S.showBelow) {
     const below = floorModel(S.house, S.floor - 1);
     for (const w of below.walls || []) for (const pg of wallPolygons(below, w)) {
       overlay.append(el("polygon", { class: "ov-below", points: pg.map((q) => q.join(",")).join(" ") }));
@@ -2489,10 +2492,18 @@ function devicePanel(box) {
       // power of each circuit (all its bulbs), for energy and cost in a card
       const watt = (k) => (y, v) => { if (v === "") delete y.circuits[k].watts; else y.circuits[k].watts = Number(v); };
       sets.w1 = watt(0); sets.w2 = watt(1);
-      form = `<h3>${t("d_fixture")}</h3>${id()}${field(t("circuit_large"), "e1", x.circuits[0].entity)}` +
-        `${field(t("watts"), "w1", x.circuits[0].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}` +
+      // how many bulbs each circuit has: the chandelier is drawn with that many (empty: 3 large, 1 small)
+      const nb = (k) => (y, v) => { if (v === "") { delete y.circuits[k].bulbs; return; } const b = Math.round(Number(v));
+        if (!(b >= 1 && b <= 12)) return t("bulbs_1_12"); y.circuits[k].bulbs = b; };
+      sets.n1 = nb(0); sets.n2 = nb(1);
+      const nbf = (k, dflt) => field(t("bulbs"), "n" + (k + 1), x.circuits[k].bulbs ?? "", "number", `min="1" max="12" step="1" placeholder="${dflt}"`);
+      // its title in a card's dialog (empty: the common part of the circuits' names)
+      sets.name = (y, v) => { if (v) y.name = v; else delete y.name; };
+      form = `<h3>${t("d_fixture")}</h3>${id()}${field(t("name"), "name", x.name ?? "", "text", `placeholder="${t("fixture_name_auto")}"`)}` +
+        `${field(t("circuit_large"), "e1", x.circuits[0].entity)}` +
+        `${nbf(0, 3)}${field(t("watts"), "w1", x.circuits[0].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}` +
         `${field(t("circuit_small"), "e2", x.circuits[1].entity)}` +
-        `${field(t("watts"), "w2", x.circuits[1].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${where()}`;
+        `${nbf(1, 1)}${field(t("watts"), "w2", x.circuits[1].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${where()}`;
     } else if (L === "lights") {
       sets.kind = (y, v) => { y.kind = v; };
       sets.glow_r = (y, v) => { if (v === "") delete y.glow_r; else y.glow_r = Number(v); };
@@ -2683,6 +2694,7 @@ function renameDevice(list, x, v) {
 
 // --- underlay (an image to draw over) ---------------------------------------------------------------------------
 const UNDER_STORE = "floorplan-editor.underlay";
+const BELOW_STORE = "floorplan-editor.show-below";
 function placeUnderlay() {
   const img = $("underlay"), u = S.underlay;
   stage.classList.toggle("has-underlay", !!u);
@@ -3661,6 +3673,11 @@ $("b-publish").onclick = async () => {
 $("floor").onchange = (e) => switchFloor(Number(e.target.value));
 $("b-floor-add").onclick = addFloor;
 $("b-floor-edit").onclick = editFloor;
+$("b-floor-below").onclick = () => {
+  S.showBelow = !S.showBelow;
+  try { localStorage.setItem(BELOW_STORE, S.showBelow ? "1" : "0"); } catch { /* private mode */ }
+  renderFloors(); renderOverlay();
+};
 // the SVG as the card gets it: the plan's own rotation and frame, the server's name table
 $("b-preview").onclick = () => {
   try {
@@ -3943,6 +3960,8 @@ renderFloors();
 requestAnimationFrame(fit);
 // the underlay and Home Assistant from the last session
 try { S.underlay = JSON.parse(localStorage.getItem(UNDER_STORE) || "null"); } catch { /* ignore */ }
+S.showBelow = true;
+try { S.showBelow = localStorage.getItem(BELOW_STORE) !== "0"; } catch { /* ignore */ }
 const haReady = (async () => {
   // in a Home Assistant panel: its login, and the plan kept by the floor plan integration
   const cfg = IN_HA ? (await HaConnection.parentToken()) || (await HaConnection.frontendToken())

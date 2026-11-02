@@ -26,7 +26,13 @@ export function style(N) {
     .light.on .glow { opacity: 1; }
     .light.on .glow-dim { opacity: 0.55; }
     .light.on .bulb { filter: url(#bulb-glow); }
-    .light.on ~ .bulb-shared { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    .light.on ~ .bulb-shared:not(.chandelier) { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    /* a chandelier: its arms light with either circuit, each bulb with its own circuit (the hub stays dark) */
+    .chandelier .ch-arm { fill: none; stroke-width: 0.7; stroke-linecap: round; }
+    .chandelier .ch-hub { stroke: none; }
+    .chandelier .ch-b { stroke: none; }
+    .light.on ~ .chandelier { stroke: #ffc300; }
+    .light.circuit-small.on ~ .chandelier .ch-1, .light.circuit-large.on ~ .chandelier .ch-3 { fill: #ffc300; filter: url(#bulb-glow); }
     .light[data-kind="night"].on { fill: #ffab40; stroke: #ffab40; }
     /* room names are hidden; a class on the layer shows them */
     #room-labels.${N.isShown} { display: inline; }
@@ -123,6 +129,13 @@ export function style(N) {
     .cover.${N.isUnknown} .${N.coverIcon} { opacity: 0.3; }
     /* amber while held: the hold gesture was recognised */
     .cover.${N.isArmed} .${N.coverIcon} { fill: #ffab40; stroke: #ffab40; }
+    /* a moving cover: a blinking arrow (up / down) instead of its icon */
+    .cover-move { display: none; pointer-events: none; }
+    .cover-move path { fill: #8fa3bd; stroke: none; display: none; }
+    .cover.moving-up .cover-move, .cover.moving-down .cover-move { display: inline; animation: cover-blink 1s steps(2, start) infinite; }
+    .cover.moving-up .cover-move-up, .cover.moving-down .cover-move-down { display: inline; }
+    .cover.moving-up .${N.coverIcon}, .cover.moving-down .${N.coverIcon} { display: none; }
+    @keyframes cover-blink { to { visibility: hidden; } }
 
     /* A roof window: glass seen from above; its cover darkens it as it closes (the card sets --sky). */
     .skylight .sky-glass { fill: none; stroke: #6fc9ef; stroke-width: 1.2; cursor: pointer; }

@@ -231,6 +231,17 @@ if (shot) {
   check("room readings filled", temps.length && temps.every((t) => /°$/.test(t)), temps.join(" "));
   const covered = svg.querySelectorAll(".cover." + "covered");
   check("closed covers drawn as closed", covered.length >= 1, covered.length);
+  // a moving cover: a blinking arrow instead of its icon (from the state "opening")
+  {
+    const cv = svg.querySelector(".cover[data-entity]"), cid = cv.dataset.entity;
+    el.hass = { ...hass, states: { ...hass.states, [cid]: { ...(hass.states[cid] || { entity_id: cid, attributes: {} }), state: "opening", last_updated: "2" } } };
+    await tick(150);
+    check("an opening cover shows the up arrow, not its icon", cv.classList.contains("moving-up") &&
+      getComputedStyle(cv.querySelector(".cover-move-up")).display !== "none" && getComputedStyle(cv.querySelector(".cover-icon-open")).display === "none");
+    el.hass = hass;
+    await tick(150);
+    check("stopped: the arrow goes", !cv.classList.contains("moving-up") && !cv.classList.contains("moving-down"));
+  }
   const floors = [...sr.querySelectorAll("#floors button")].map((b) => b.textContent);
   check("floor switcher lists both floors", floors.length === 2, floors.join("|"));
 
@@ -607,6 +618,29 @@ if (shot) {
     for (const t of ["pointerdown", "pointerup"]) wf.dispatchEvent(new PointerEvent(t, { clientX: rr.left + rr.width / 2, clientY: rr.top + rr.height / 2, pointerId: 54, bubbles: true }));
     const c2 = calls[n1b];
     check("chandelier: lit -> off (toggle)", c2 && c2[1] === "turn_off" && [].concat(c2[2].entity_id).includes(small) && [].concat(c2[2].entity_id).includes(large), JSON.stringify(c2));
+    // hold -> the insights dialog titled after the chandelier: the common start of its circuits' names, else both
+    {
+      const opened = [], prevEI = window.entityInsights;
+      window.entityInsights = { open: (req) => { opened.push(req); return true; } };
+      const holdTitle = async (nSmall, nLarge, pid) => {
+        hf.states[small] = { entity_id: small, state: "off", attributes: { friendly_name: nSmall }, last_updated: "2" };
+        hf.states[large] = { entity_id: large, state: "off", attributes: { friendly_name: nLarge }, last_updated: "2" };
+        const eh = await mount({ hold: "insights" }, { ...hf, states: { ...hf.states } }, 900);
+        const wh = eh.shadowRoot.getElementById("wrap"), rh = eh.shadowRoot.querySelector(".bulb-shared").getBoundingClientRect();
+        const at = { clientX: rh.left + rh.width / 2, clientY: rh.top + rh.height / 2, pointerId: pid, bubbles: true };
+        const n = opened.length;
+        wh.dispatchEvent(new PointerEvent("pointerdown", at));
+        await tick(900);
+        wh.dispatchEvent(new PointerEvent("pointerup", at));
+        return opened[n];
+      };
+      const r1 = await holdTitle("Salon lampa x1", "Salon lampa x3", 61);
+      check("chandelier hold: title from the common part, circuits labelled", r1 && r1.name === "Salon lampa" &&
+        JSON.stringify(r1.labels) === '["x1","x3"]' && r1.entities.length === 2, JSON.stringify(r1 && { name: r1.name, labels: r1.labels }));
+      const r2 = await holdTitle("Kinkiet", "Plafon", 62);
+      check("chandelier hold: no common part -> both names", r2 && r2.name === "Kinkiet / Plafon" && !r2.labels, JSON.stringify(r2 && r2.name));
+      window.entityInsights = prevEI;
+    }
     const lockEl = sf.querySelector(".lock[data-entity]");
     if (lockEl) {
       const lr = lockEl.getBoundingClientRect();

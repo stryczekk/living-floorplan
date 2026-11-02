@@ -365,7 +365,7 @@ try:
     check("a window made two-pane from its panel", ops(0)[0].get("panes") == 2 and ops(0)[0]["type"] == "window"
           and ev("document.querySelectorAll('#plan .pane-tick').length") >= 1, ops(0)[0])
     sym = json.loads(ev("JSON.stringify((() => { const g = document.querySelector('#plan #window-1'); return g ? [g.querySelectorAll('polygon.frame').length, g.querySelectorAll('.frame-cross').length, g.querySelectorAll('.sill').length] : null; })())"))
-    check("a window drawn as on the owner's drawing: one frame, blocks at both ends and between the sashes, the sills", sym == [1, 4, 4], sym)
+    check("a window drawn as on the owner's drawing: one frame, blocks at both ends and between the sashes, no sills", sym == [1, 4, 0], sym)
     ev("document.querySelector('#p-sel [data-pick=op-type][data-value=window]').click(); 1"); time.sleep(0.2)
     drag([400, 120], [500, 120])
     check("window dragged along its wall", ops(0)[0]["from"] == 320 and ops(0)[0]["to"] == 440, ops(0))
@@ -1502,6 +1502,11 @@ try:
           and ev("floorplanEditor.house.floors[0].name") == "Piętro")
     check("floors: the stairs from below are a void on it", ev("!!document.querySelector('#plan [id$=\"-void\"]')"))
     check("floors: the floor below shows faint", ev("document.querySelectorAll('#overlay .ov-below').length") >= 4)
+    ev("document.getElementById('b-floor-below').click(); 1"); time.sleep(0.2)
+    check("floors: ▤ hides the floor below", ev("document.querySelectorAll('#overlay .ov-below').length") == 0
+          and not ev("document.getElementById('b-floor-below').classList.contains('on')"))
+    ev("document.getElementById('b-floor-below').click(); 1"); time.sleep(0.2)
+    check("floors: ▤ shows it again", ev("document.querySelectorAll('#overlay .ov-below').length") >= 4)
     key("w"); click([300, 300]); click([300, 700]); key("Escape"); key("Escape")
     up_walls = ev("floorplanEditor.model.walls.length")
     ev("(() => { const s = document.getElementById('floor'); s.value = '-1'; s.dispatchEvent(new Event('change')); })()"); time.sleep(0.3)

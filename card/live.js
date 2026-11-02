@@ -177,6 +177,13 @@ export function applyStates(svg, states, locale = "en", paint = (c) => c) {
     set(el, N.isUnknown, !s || s.state === "unavailable");
     const band = el.querySelector("." + N.coverBandScale);
     if (band) band.setAttribute("transform", `scale(1 ${typeof pos === "number" ? (100 - pos) / 100 : covered ? 1 : 0})`);
+    // moving: from its state, or for a few seconds after a tap (set by the card) until the controller reports it
+    const op = s && s.state === "opening" ? "up" : s && s.state === "closing" ? "down" : null;
+    const tapped = el.dataset.move && Date.now() - Number(el.dataset.moveAt || 0) < 6000 ? el.dataset.move : null;
+    if (op || (s && el.dataset.moveFrom && s.state !== el.dataset.moveFrom)) { delete el.dataset.move; delete el.dataset.moveFrom; }
+    const mv = op || (el.dataset.move ? tapped : null);
+    set(el, "moving-up", mv === "up");
+    set(el, "moving-down", mv === "down");
   });
   // a roof window: its cover over the glass (--sky = how much it hides)
   each(".skylight[data-entity]", (el) => {

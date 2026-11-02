@@ -299,6 +299,7 @@ polyline.ov-sketch.live { fill: none; }
     <select id="floor" data-i18n-title="floor_t"></select>
     <button id="b-floor-add" data-i18n-title="floor_add_t">＋</button>
     <button id="b-floor-edit" data-i18n-title="floor_edit_t">✎</button>
+    <button id="b-floor-below" data-i18n-title="floor_below_t">▤</button>
   </div>
   <div class="grp">
     <button id="b-undo" data-i18n-title="undo_t">↶</button>
@@ -3488,7 +3489,7 @@ polyline.ov-sketch.live { fill: none; }
     }
   ]
 };
-window.FLOORPLAN_BUILD = "0.2.2 · 30.10, 22:57";</script>
+window.FLOORPLAN_BUILD = "0.2.2 · 02.11, 20:22";</script>
 <script type="module">
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -4126,7 +4127,13 @@ function style(N3) {
     .light.on .glow { opacity: 1; }
     .light.on .glow-dim { opacity: 0.55; }
     .light.on .bulb { filter: url(#bulb-glow); }
-    .light.on ~ .bulb-shared { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    .light.on ~ .bulb-shared:not(.chandelier) { fill: #ffc300; stroke: #ffc300; filter: url(#bulb-glow); }
+    /* a chandelier: its arms light with either circuit, each bulb with its own circuit (the hub stays dark) */
+    .chandelier .ch-arm { fill: none; stroke-width: 0.7; stroke-linecap: round; }
+    .chandelier .ch-hub { stroke: none; }
+    .chandelier .ch-b { stroke: none; }
+    .light.on ~ .chandelier { stroke: #ffc300; }
+    .light.circuit-small.on ~ .chandelier .ch-1, .light.circuit-large.on ~ .chandelier .ch-3 { fill: #ffc300; filter: url(#bulb-glow); }
     .light[data-kind="night"].on { fill: #ffab40; stroke: #ffab40; }
     /* room names are hidden; a class on the layer shows them */
     #room-labels.${N3.isShown} { display: inline; }
@@ -4223,6 +4230,13 @@ function style(N3) {
     .cover.${N3.isUnknown} .${N3.coverIcon} { opacity: 0.3; }
     /* amber while held: the hold gesture was recognised */
     .cover.${N3.isArmed} .${N3.coverIcon} { fill: #ffab40; stroke: #ffab40; }
+    /* a moving cover: a blinking arrow (up / down) instead of its icon */
+    .cover-move { display: none; pointer-events: none; }
+    .cover-move path { fill: #8fa3bd; stroke: none; display: none; }
+    .cover.moving-up .cover-move, .cover.moving-down .cover-move { display: inline; animation: cover-blink 1s steps(2, start) infinite; }
+    .cover.moving-up .cover-move-up, .cover.moving-down .cover-move-down { display: inline; }
+    .cover.moving-up .${N3.coverIcon}, .cover.moving-down .${N3.coverIcon} { display: none; }
+    @keyframes cover-blink { to { visibility: hidden; } }
 
     /* A roof window: glass seen from above; its cover darkens it as it closes (the card sets --sky). */
     .skylight .sky-glass { fill: none; stroke: #6fc9ef; stroke-width: 1.2; cursor: pointer; }
@@ -5372,14 +5386,12 @@ ${spans.join("\n")}
     if (win.type === "hst") {
       w(`    <g id="${win.id}" data-facade="${win.facade}" data-type="hst" data-width="${n4(win.width)}"${contactAttr((win.contacts || [])[0])}>`);
       if (win.line) {
-        const H = win.tick || 4, S2 = H * 0.15, [a, b] = win.line, L0 = len2(win.line);
+        const H = win.tick || 4, [a, b] = win.line, L0 = len2(win.line);
         const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
         const dist = (q) => Math.abs((q[0] - a[0]) * mx + (q[1] - a[1]) * my);
         const t2 = Math.max(...Object.values(win.sashes).map((l) => dist(l[0]))), ds = t2 * 0.55, F = t2 + ds;
         const B = Math.min(0.8 * F, L0 / 6);
         const ln = (p2, q, cls, sw, extra = "") => `      <line class="${cls}"${extra} x1="${n4(p2[0])}" y1="${n4(p2[1])}" x2="${n4(q[0])}" y2="${n4(q[1])}" stroke="#6fc9ef" stroke-width="${sw}"/>`;
-        for (const o of [H, -H, H + S2, -H - S2])
-          w(ln([a[0] + mx * o, a[1] + my * o], [b[0] + mx * o, b[1] + my * o], "sill", 0.5).replace('stroke="#6fc9ef"', 'stroke="#8ea1ba"'));
         const box = (p2, q, d, cls) => {
           const c2 = [[p2[0] + mx * d, p2[1] + my * d], [q[0] + mx * d, q[1] + my * d], [q[0] - mx * d, q[1] - my * d], [p2[0] - mx * d, p2[1] - my * d]];
           return `      <polygon class="${cls}" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`;
@@ -5408,7 +5420,7 @@ ${spans.join("\n")}
     } else {
       const panes = win.panes || 1, cts = win.contacts || [];
       const one = cts.length === 1 ? cts[0] : null;
-      const H = win.tick || 4, F = H * 0.18, S2 = H * 0.15;
+      const H = win.tick || 4, F = H * 0.18;
       const [a, b] = win.line, L0 = len2(win.line), k2 = Math.max(panes, cts.length);
       const ux = (b[0] - a[0]) / (L0 || 1), uy = (b[1] - a[1]) / (L0 || 1), mx = -uy, my = ux;
       const at0 = (f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
@@ -5418,8 +5430,6 @@ ${spans.join("\n")}
       const B = Math.min(0.8 * F, L0 / (3 * k2));
       const across = (q, cls = "frame-cross") => `      <line class="${cls}" x1="${n4(q[0] + mx * F)}" y1="${n4(q[1] + my * F)}" x2="${n4(q[0] - mx * F)}" y2="${n4(q[1] - my * F)}" stroke="#6fc9ef" stroke-width="0.6"/>`;
       const parts = [];
-      for (const o of [H, -H, H + S2, -H - S2])
-        parts.push(`      <line class="sill" x1="${n4(a[0] + mx * o)}" y1="${n4(a[1] + my * o)}" x2="${n4(b[0] + mx * o)}" y2="${n4(b[1] + my * o)}" stroke="#8ea1ba" stroke-width="0.5"/>`);
       const c2 = [[a[0] + mx * F, a[1] + my * F], [b[0] + mx * F, b[1] + my * F], [b[0] - mx * F, b[1] - my * F], [a[0] - mx * F, a[1] - my * F]];
       parts.push(`      <polygon class="frame" points="${c2.map((v) => `${n4(v[0])},${n4(v[1])}`).join(" ")}" fill="none" stroke="#6fc9ef" stroke-width="0.6"/>`);
       parts.push(across(off(a, B)), across(off(b, -B)));
@@ -5445,7 +5455,7 @@ ${parts.join("\n")}
   }
   w(`  </g>`);
   w(`  <g id="covers">`);
-  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window)));
+  for (const cv of model.covers || []) w(cover(cv, windows.get(cv.window), textRot));
   w(`  </g>`);
   w(`  <g id="cameras">`);
   for (const cam of model.cameras || []) w(camera(cam));
@@ -5521,15 +5531,32 @@ var clipAttr2 = (id) => id ? ` clip-path="url(#${id})"` : "";
 function fixture(f, clipOf, upright) {
   const clip = clipOf(f.room);
   const lines = [`    <g id="${f.id}">`];
-  for (const c of f.circuits) {
-    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: "light", "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
+  const two = f.circuits.length === 2;
+  const smallAt = two ? (f.circuits.findIndex((c) => c.dim) + 1 || 2) - 1 : -1;
+  f.circuits.forEach((c, i) => {
+    const cls = two ? `light circuit-${i === smallAt ? "small" : "large"}` : "light";
+    lines.push(`      <g${attrs({ id: c.id, "data-entity": c.entity, class: cls, "data-kind": f.kind || "main", "data-watts": watts(c.watts) })}>`);
     lines.push(`        <g class="glows"${clipAttr2(clip)}>`);
     lines.push(`        ` + glowCircle(f.at, c.r, (GLOW[f.kind] || GLOW.main).fill, c.dim ? "glow glow-dim" : "glow"));
     lines.push(`        </g>`, `      </g>`);
-  }
-  lines.push("      " + bulbUse(f.at, f.kind, upright, "bulb-shared"));
+  });
+  const rot = f.at.length > 2 ? f.at[2] : upright;
+  lines.push("      " + (two ? chandelier(f, smallAt, rot) : bulbUse(f.at, f.kind, upright, "bulb-shared")));
   lines.push(`    </g>`);
   return lines.join("\n");
+}
+function chandelier(f, smallAt, rot) {
+  const count = (i) => Math.max(1, Math.min(12, Math.round(Number(f.circuits[i].bulbs) || (i === smallAt ? 1 : 3))));
+  const S2 = count(smallAt), N3 = S2 + count(1 - smallAt);
+  const R = N3 <= 6 ? 7.6 : 7.6 + (N3 - 6) * 0.6, rb = Math.min(2, R * Math.sin(Math.PI / N3) * 0.75);
+  let arms = "", bulbs = "";
+  for (let i = 0; i < N3; i++) {
+    const a = -Math.PI * 3 / 4 + 2 * Math.PI * i / N3, c = Math.cos(a), s = Math.sin(a);
+    const small = Math.floor((i + 1) * S2 / N3) > Math.floor(i * S2 / N3);
+    arms += `M${n4(c * 1.8)} ${n4(s * 1.8)}L${n4(c * (R - rb))} ${n4(s * (R - rb))}`;
+    bulbs += `<circle class="ch-b ch-${small ? 1 : 3}" cx="${n4(c * R)}" cy="${n4(s * R)}" r="${n4(rb)}"/>`;
+  }
+  return `<g class="bulb-shared chandelier" transform="translate(${n4(f.at[0])} ${n4(f.at[1])}) rotate(${n4(rot)})"><circle class="ch-hub" r="1.6"/><path class="ch-arm" d="${arms}"/>${bulbs}</g>`;
 }
 function hitRect([x, y, w, h]) {
   return `<rect class="${N.hitArea}" x="${n4(x)}" y="${n4(y)}" width="${n4(w)}" height="${n4(h)}"/>`;
@@ -5754,7 +5781,7 @@ function snowflake(cx, cy) {
   }
   return d.join(" ");
 }
-function cover(cv, win) {
+function cover(cv, win, upright = 0) {
   if (!win) throw new Error("cover " + cv.entity + ": unknown window " + cv.window);
   const glass = cv.sash ? win.sashes[cv.sash] : win.line;
   const inward = win.inward || INWARD[win.facade];
@@ -5791,6 +5818,8 @@ function cover(cv, win) {
     `      </g>`,
     `      <use class="${N.coverIcon} ${N.coverIconClosed}" href="#${N.coverClosedIcon}" transform="translate(${n4(icon2[0])} ${n4(icon2[1])}) rotate(${n4(ang)})"/>`,
     `      <use class="${N.coverIcon} ${N.coverIconOpen}" href="#${N.coverOpenIcon}" transform="translate(${n4(icon2[0])} ${n4(icon2[1])}) rotate(${n4(ang)})"/>`,
+    // while it moves: an arrow instead of the icon, up (opening) or down (closing), upright on the screen
+    `      <g class="cover-move" transform="translate(${n4(icon2[0])} ${n4(icon2[1])}) rotate(${n4(upright)})"><path class="cover-move-up" d="M0 -4.2 L4 2.4 H-4 Z"/><path class="cover-move-down" d="M0 4.2 L4 -2.4 H-4 Z"/></g>`,
     `    </g>`
   ].join("\n");
 }
@@ -5934,6 +5963,7 @@ var STRINGS = {
     ground_floor: "Ground floor",
     floor_t: "The floor being edited",
     floor_add_t: "Add a floor above the top one",
+    floor_below_t: "Show the floor below (faint)",
     floor_edit_t: "Rename this floor (empty: remove it)",
     floor_name_q: "Name of the new floor:",
     floor_default: "Floor {n}",
@@ -6238,6 +6268,8 @@ var STRINGS = {
     merge_lights: "Merge into one circuit",
     merged: "{n} lights are one circuit now",
     outdoor: "outdoor",
+    fixture_name_auto: "from the circuits' names",
+    bulbs_1_12: "1 to 12 bulbs",
     circuit_large: "Large circuit",
     circuit_small: "Small circuit",
     swap: "Turn 90\xB0",
@@ -6598,6 +6630,7 @@ var STRINGS = {
     ground_floor: "Parter",
     floor_t: "Edytowane pi\u0119tro",
     floor_add_t: "Dodaj pi\u0119tro nad najwy\u017Cszym",
+    floor_below_t: "Poka\u017C pi\u0119tro ni\u017Cej (przygaszone)",
     floor_edit_t: "Zmie\u0144 nazw\u0119 pi\u0119tra (pusta: usu\u0144 je)",
     floor_name_q: "Nazwa nowego pi\u0119tra:",
     floor_default: "Pi\u0119tro {n}",
@@ -6902,6 +6935,8 @@ var STRINGS = {
     merge_lights: "Po\u0142\u0105cz w jeden obw\xF3d",
     merged: "{n} lamp to teraz jeden obw\xF3d",
     outdoor: "na zewn\u0105trz",
+    fixture_name_auto: "z nazw obwod\xF3w",
+    bulbs_1_12: "Od 1 do 12 \u017Car\xF3wek",
     circuit_large: "Du\u017Cy obw\xF3d",
     circuit_small: "Ma\u0142y obw\xF3d",
     swap: "Obr\xF3\u0107 o 90\xB0",
@@ -7693,7 +7728,7 @@ function makeDevice(m, type, p2, q = null, { free = false, flush = Infinity } = 
       type: "fixture",
       kind: "main",
       at: p2,
-      circuits: [{ id: id + "-large", entity: "", r: 194 }, { id: id + "-small", entity: "", r: 124, dim: true }]
+      circuits: [{ id: id + "-large", entity: "", r: 194, bulbs: 3 }, { id: id + "-small", entity: "", r: 124, dim: true, bulbs: 2 }]
     };
     placeLight(m, f);
     return { list: "lights", item: f };
@@ -8994,6 +9029,11 @@ function renderFloors() {
   if (!sel) return;
   const n5 = (S.house && S.house.floors || []).length;
   sel.innerHTML = [-1, ...Array.from({ length: n5 }, (_, i) => i)].map((i) => `<option value="${i}"${i === S.floor ? " selected" : ""}>${esc4(floorName(i))}</option>`).join("");
+  const b = $("b-floor-below");
+  if (b) {
+    b.hidden = S.floor < 0;
+    b.classList.toggle("on", !!S.showBelow);
+  }
 }
 function switchFloor(i) {
   if (i === S.floor) return;
@@ -9434,7 +9474,7 @@ function dimLabel(a, b, offset, cls, text) {
 function renderOverlay() {
   overlay.replaceChildren();
   const px = 1 / S.view.s;
-  if (S.floor >= 0) {
+  if (S.floor >= 0 && S.showBelow) {
     const below = floorModel(S.house, S.floor - 1);
     for (const w of below.walls || []) for (const pg of wallPolygons(below, w)) {
       overlay.append(el("polygon", { class: "ov-below", points: pg.map((q) => q.join(",")).join(" ") }));
@@ -11511,7 +11551,23 @@ function devicePanel(box) {
       };
       sets.w1 = watt(0);
       sets.w2 = watt(1);
-      form = `<h3>${t("d_fixture")}</h3>${id()}${field(t("circuit_large"), "e1", x.circuits[0].entity)}${field(t("watts"), "w1", x.circuits[0].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${field(t("circuit_small"), "e2", x.circuits[1].entity)}${field(t("watts"), "w2", x.circuits[1].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${where()}`;
+      const nb = (k) => (y, v) => {
+        if (v === "") {
+          delete y.circuits[k].bulbs;
+          return;
+        }
+        const b = Math.round(Number(v));
+        if (!(b >= 1 && b <= 12)) return t("bulbs_1_12");
+        y.circuits[k].bulbs = b;
+      };
+      sets.n1 = nb(0);
+      sets.n2 = nb(1);
+      const nbf = (k, dflt) => field(t("bulbs"), "n" + (k + 1), x.circuits[k].bulbs ?? "", "number", `min="1" max="12" step="1" placeholder="${dflt}"`);
+      sets.name = (y, v) => {
+        if (v) y.name = v;
+        else delete y.name;
+      };
+      form = `<h3>${t("d_fixture")}</h3>${id()}${field(t("name"), "name", x.name ?? "", "text", `placeholder="${t("fixture_name_auto")}"`)}${field(t("circuit_large"), "e1", x.circuits[0].entity)}${nbf(0, 3)}${field(t("watts"), "w1", x.circuits[0].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${field(t("circuit_small"), "e2", x.circuits[1].entity)}${nbf(1, 1)}${field(t("watts"), "w2", x.circuits[1].watts ?? "", "number", 'min="0" step="0.5" placeholder="W"')}${where()}`;
     } else if (L === "lights") {
       sets.kind = (y, v) => {
         y.kind = v;
@@ -11800,6 +11856,7 @@ function renameDevice(list, x, v) {
   x.id = id;
 }
 var UNDER_STORE = "floorplan-editor.underlay";
+var BELOW_STORE = "floorplan-editor.show-below";
 function placeUnderlay() {
   const img = $("underlay"), u = S.underlay;
   stage.classList.toggle("has-underlay", !!u);
@@ -13139,6 +13196,15 @@ $("b-publish").onclick = async () => {
 $("floor").onchange = (e) => switchFloor(Number(e.target.value));
 $("b-floor-add").onclick = addFloor;
 $("b-floor-edit").onclick = editFloor;
+$("b-floor-below").onclick = () => {
+  S.showBelow = !S.showBelow;
+  try {
+    localStorage.setItem(BELOW_STORE, S.showBelow ? "1" : "0");
+  } catch {
+  }
+  renderFloors();
+  renderOverlay();
+};
 $("b-preview").onclick = () => {
   try {
     const h = house(), id = S.floor < 0 ? null : h.floors[S.floor].id;
@@ -13501,6 +13567,11 @@ renderFloors();
 requestAnimationFrame(fit);
 try {
   S.underlay = JSON.parse(localStorage.getItem(UNDER_STORE) || "null");
+} catch {
+}
+S.showBelow = true;
+try {
+  S.showBelow = localStorage.getItem(BELOW_STORE) !== "0";
 } catch {
 }
 var haReady = (async () => {

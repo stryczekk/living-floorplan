@@ -181,7 +181,7 @@ export function makeDevice(m, type, p, q = null, { free = false, flush = Infinit
   if (type === "fixture") {
     const id = uniqueId(m, "fixture");
     const f = { id, type: "fixture", kind: "main", at: p,
-      circuits: [{ id: id + "-large", entity: "", r: 194 }, { id: id + "-small", entity: "", r: 124, dim: true }] };
+      circuits: [{ id: id + "-large", entity: "", r: 194, bulbs: 3 }, { id: id + "-small", entity: "", r: 124, dim: true, bulbs: 2 }] };
     placeLight(m, f);
     return { list: "lights", item: f };
   }
