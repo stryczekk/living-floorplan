@@ -1155,7 +1155,7 @@ if (shot) {
   {
     const ev3 = await mount({ show_version: true }, fakeHass("night"), 600);
     const lab = ev3.shadowRoot.getElementById("fc-version");
-    check("show_version: the version label in the corner", lab && !lab.hidden && /^0\.\d+\.\d+/.test(lab.textContent), lab && lab.textContent);
+    check("show_version: the version label in the corner", lab && !lab.hidden && /^\d+\.\d+\.\d+/.test(lab.textContent), lab && lab.textContent);
     const ev4 = await mount({}, fakeHass("night"), 600);
     check("show_version: hidden by default", ev4.shadowRoot.getElementById("fc-version").hidden);
   }

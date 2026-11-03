@@ -33,7 +33,9 @@ English and Polish.
 
 ## Install
 
-1. **HACS** → ⋮ → *Custom repositories* → this repository, type **Integration** → download → restart Home Assistant.
+1. **HACS** → search for **Living Floor Plan** → download → restart Home Assistant.
+   (Not in the HACS store yet? HACS → ⋮ → *Custom repositories* → `https://github.com/stryczekk/living-floorplan`,
+   type **Integration**.)
 2. *Settings → Devices & services → Add integration → **Living Floor Plan***.
 3. Open **Floor plan** in the sidebar and draw your house (or start from the example, or the Wizard).
 4. Add the card to a dashboard:
