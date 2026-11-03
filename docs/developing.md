@@ -43,4 +43,4 @@ model the integration keeps. The light field is computed once per floor (a visib
 the walls, windows and closed doors, filled with a radial gradient) and only its opacity follows the states; a door
 contact rebuilds it.
 
-`examples/house.json` is a made-up house (two floors, a garage and a garden).
+`examples/house.json` is a made-up house (two floors, a double garage, a garden with a pool behind the house), full of devices: it is also the demo.

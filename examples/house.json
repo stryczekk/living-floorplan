@@ -5,34 +5,21 @@
     "rotate": 0,
     "margin": 120,
     "contract": 2,
-    "description": "Example house: two storeys and a double garage. Entities are placeholders."
+    "description": "Example house: two storeys and a double garage. Entities are placeholders.",
+    "start": [-80, -120, 1880, 1420]
   },
   "wall_types": {
-    "exterior": {
-      "thickness": 45
-    },
-    "load_bearing": {
-      "thickness": 25
-    },
-    "partition": {
-      "thickness": 12
-    },
-    "chimney": {
-      "thickness": 12
-    }
+    "exterior": { "thickness": 45 },
+    "load_bearing": { "thickness": 25 },
+    "partition": { "thickness": 12 },
+    "chimney": { "thickness": 12 }
   },
   "floor_name": "Ground floor",
   "walls": [
     {
       "type": "exterior",
-      "a": [
-        1715,
-        0
-      ],
-      "b": [
-        665,
-        0
-      ],
+      "a": [1715, 0],
+      "b": [665, 0],
       "openings": [
         {
           "id": "win-living-1",
@@ -41,27 +28,19 @@
           "to": 135,
           "outside": "left",
           "facade": "S",
-          "contacts": [
-            "binary_sensor.living_room_window"
-          ]
+          "contacts": ["binary_sensor.living_room_window"]
         },
         {
-          "id": "win-living-2",
-          "type": "window",
-          "from": 190,
-          "to": 310,
-          "outside": "left",
-          "facade": "S"
-        },
-        {
+          "type": "hst",
           "id": "door-terrace",
-          "type": "balcony_door",
-          "from": 310,
-          "to": 510,
-          "hinge": "from",
-          "swing": "right",
+          "from": 207.5,
+          "to": 507.5,
           "outside": "left",
-          "facade": "S"
+          "facade": "north",
+          "sashes": {
+            "fixed": { "from": 207.5, "to": 372.5, "offset": 5.3 },
+            "sliding": { "from": 342.5, "to": 507.5, "offset": -5.3 }
+          }
         },
         {
           "id": "door-office-garden",
@@ -71,20 +50,17 @@
           "hinge": "to",
           "swing": "right",
           "outside": "left",
-          "facade": "S"
+          "facade": "S",
+          "panes": 2,
+          "pane_open": ["from", "to"],
+          "contacts": ["binary_sensor.office_garden_window"]
         }
       ]
     },
     {
       "type": "exterior",
-      "a": [
-        665,
-        0
-      ],
-      "b": [
-        665,
-        1115
-      ],
+      "a": [665, 0],
+      "b": [665, 1115],
       "openings": [
         {
           "id": "door-garage-hall",
@@ -98,14 +74,8 @@
     },
     {
       "type": "exterior",
-      "a": [
-        665,
-        220
-      ],
-      "b": [
-        0,
-        220
-      ],
+      "a": [665, 220],
+      "b": [0, 220],
       "openings": [
         {
           "id": "door-utility-out",
@@ -123,20 +93,15 @@
           "from": 310,
           "to": 550,
           "outside": "left",
-          "facade": "S"
+          "facade": "S",
+          "contacts": ["binary_sensor.utility_window"]
         }
       ]
     },
     {
       "type": "exterior",
-      "a": [
-        0,
-        220
-      ],
-      "b": [
-        0,
-        1115
-      ],
+      "a": [0, 220],
+      "b": [0, 1115],
       "openings": [
         {
           "id": "win-garage",
@@ -144,20 +109,15 @@
           "from": 240,
           "to": 380,
           "outside": "left",
-          "facade": "E"
+          "facade": "E",
+          "contacts": ["binary_sensor.garage_window"]
         }
       ]
     },
     {
       "type": "exterior",
-      "a": [
-        665,
-        1115
-      ],
-      "b": [
-        0,
-        1115
-      ],
+      "a": [665, 1115],
+      "b": [0, 1115],
       "openings": [
         {
           "id": "door-garage",
@@ -171,20 +131,14 @@
     },
     {
       "type": "exterior",
-      "a": [
-        1020,
-        1030
-      ],
-      "b": [
-        665,
-        1030
-      ],
+      "a": [1027.5, 1030],
+      "b": [665, 1030],
       "openings": [
         {
           "id": "door-front",
           "type": "door",
-          "from": 105,
-          "to": 210,
+          "from": 112.5,
+          "to": 217.5,
           "hinge": "from",
           "swing": "left",
           "outside": "right",
@@ -193,34 +147,19 @@
         {
           "id": "win-front-side",
           "type": "window",
-          "from": 210,
-          "to": 280,
+          "from": 217.5,
+          "to": 287.5,
           "outside": "right",
-          "facade": "N"
+          "facade": "N",
+          "contacts": ["binary_sensor.front_side_window"]
         }
       ]
     },
+    { "type": "exterior", "a": [1005, 1030], "b": [1005, 1215] },
     {
       "type": "exterior",
-      "a": [
-        1005,
-        1030
-      ],
-      "b": [
-        1005,
-        1215
-      ]
-    },
-    {
-      "type": "exterior",
-      "a": [
-        1715,
-        1215
-      ],
-      "b": [
-        1005,
-        1215
-      ],
+      "a": [1715, 1215],
+      "b": [1005, 1215],
       "openings": [
         {
           "id": "win-kitchen",
@@ -228,7 +167,8 @@
           "from": 95,
           "to": 360,
           "outside": "right",
-          "facade": "N"
+          "facade": "N",
+          "contacts": ["binary_sensor.kitchen_window"]
         },
         {
           "id": "win-bath",
@@ -236,20 +176,15 @@
           "from": 565,
           "to": 695,
           "outside": "right",
-          "facade": "N"
+          "facade": "N",
+          "contacts": ["binary_sensor.bath_window"]
         }
       ]
     },
     {
       "type": "exterior",
-      "a": [
-        1715,
-        0
-      ],
-      "b": [
-        1715,
-        1215
-      ],
+      "a": [1715, 0],
+      "b": [1715, 1215],
       "openings": [
         {
           "id": "win-living-w",
@@ -257,7 +192,8 @@
           "from": 25,
           "to": 220,
           "outside": "right",
-          "facade": "W"
+          "facade": "W",
+          "contacts": ["binary_sensor.living_w_window"]
         },
         {
           "id": "win-dining-bay",
@@ -265,20 +201,15 @@
           "from": 530,
           "to": 790,
           "outside": "right",
-          "facade": "W"
+          "facade": "W",
+          "contacts": ["binary_sensor.dining_bay_window"]
         }
       ]
     },
     {
       "type": "partition",
-      "a": [
-        1005,
-        0
-      ],
-      "b": [
-        1005,
-        515
-      ],
+      "a": [1005, 0],
+      "b": [1005, 515],
       "openings": [
         {
           "id": "door-office",
@@ -287,65 +218,22 @@
           "to": 465,
           "hinge": "from",
           "swing": "left",
-          "contacts": [
-            "binary_sensor.office_door"
-          ]
+          "contacts": ["binary_sensor.office_door"]
         }
       ]
     },
+    { "type": "partition", "a": [1005, 515], "b": [665, 515] },
+    { "type": "partition", "a": [1005, 645], "b": [665, 645] },
     {
       "type": "partition",
-      "a": [
-        1005,
-        515
-      ],
-      "b": [
-        665,
-        515
-      ]
+      "a": [1005, 645],
+      "b": [1005, 1030],
+      "openings": [{ "id": "door-cloakroom", "type": "door", "from": 115, "to": 220, "hinge": "to", "swing": "left" }]
     },
     {
       "type": "partition",
-      "a": [
-        1005,
-        645
-      ],
-      "b": [
-        665,
-        645
-      ]
-    },
-    {
-      "type": "partition",
-      "a": [
-        1005,
-        645
-      ],
-      "b": [
-        1005,
-        1030
-      ],
-      "openings": [
-        {
-          "id": "door-cloakroom",
-          "type": "door",
-          "from": 115,
-          "to": 220,
-          "hinge": "to",
-          "swing": "left"
-        }
-      ]
-    },
-    {
-      "type": "partition",
-      "a": [
-        1280,
-        890
-      ],
-      "b": [
-        1005,
-        890
-      ],
+      "a": [1280, 890],
+      "b": [1005, 890],
       "openings": [
         {
           "id": "door-bath",
@@ -354,394 +242,91 @@
           "to": 225,
           "hinge": "from",
           "swing": "left",
-          "contacts": [
-            "binary_sensor.bathroom_door"
-          ]
+          "contacts": ["binary_sensor.bathroom_door"]
         }
       ]
     },
     {
       "type": "partition",
-      "a": [
-        1280,
-        890
-      ],
-      "b": [
-        1280,
-        1215
-      ],
-      "openings": [
-        {
-          "id": "door-pantry",
-          "type": "door",
-          "from": 125,
-          "to": 215,
-          "hinge": "from",
-          "swing": "right"
-        }
-      ]
+      "a": [1280, 890],
+      "b": [1280, 1215],
+      "openings": [{ "id": "door-pantry", "type": "door", "from": 125, "to": 215, "hinge": "from", "swing": "right" }]
     },
+    { "type": "partition", "a": [1280, 1005], "b": [1145, 1005] },
+    { "type": "partition", "a": [1145, 1005], "b": [1145, 1215] },
     {
       "type": "partition",
-      "a": [
-        1280,
-        1005
-      ],
-      "b": [
-        1145,
-        1005
-      ]
-    },
-    {
-      "type": "partition",
-      "a": [
-        1145,
-        1005
-      ],
-      "b": [
-        1145,
-        1215
-      ]
-    },
-    {
-      "type": "partition",
-      "a": [
-        665,
-        445
-      ],
-      "b": [
-        0,
-        445
-      ],
-      "openings": [
-        {
-          "id": "door-utility",
-          "type": "door",
-          "from": 160,
-          "to": 250,
-          "hinge": "from",
-          "swing": "left"
-        }
-      ]
+      "a": [665, 445],
+      "b": [0, 445],
+      "openings": [{ "id": "door-utility", "type": "door", "from": 160, "to": 250, "hinge": "from", "swing": "left" }]
     }
   ],
   "dividers": [
-    {
-      "a": [
-        1715,
-        795
-      ],
-      "b": [
-        1280,
-        795
-      ]
-    },
-    {
-      "a": [
-        1280,
-        795
-      ],
-      "b": [
-        1280,
-        890
-      ]
-    },
-    {
-      "a": [
-        1190,
-        515
-      ],
-      "b": [
-        1005,
-        515
-      ]
-    },
-    {
-      "a": [
-        1190,
-        515
-      ],
-      "b": [
-        1190,
-        890
-      ]
-    },
-    {
-      "a": [
-        1005,
-        880
-      ],
-      "b": [
-        665,
-        880
-      ]
-    }
+    { "a": [1715, 795], "b": [1280, 795] },
+    { "a": [1280, 738], "b": [1280, 889] },
+    { "a": [1255, 517], "b": [1005, 517] },
+    { "a": [1255, 515], "b": [1255, 738] },
+    { "a": [1005, 880], "b": [665, 880] },
+    { "a": [1255, 738], "b": [1280, 738] }
   ],
   "rooms": [
     {
       "id": "living",
       "name": "Living room",
-      "at": [
-        1440,
-        215
-      ],
-      "tint": {
-        "kind": "temperature",
-        "entity": "sensor.living_temperature"
-      }
+      "at": [1440, 215],
+      "tint": { "kind": "temperature", "entity": "sensor.living_temperature" }
     },
-    {
-      "id": "kitchen",
-      "name": "Kitchen",
-      "at": [
-        1505,
-        1010
-      ]
-    },
-    {
-      "id": "hall",
-      "name": "Hall",
-      "at": [
-        1100,
-        730
-      ]
-    },
-    {
-      "id": "bathroom",
-      "name": "Bathroom",
-      "at": [
-        1075,
-        1135
-      ]
-    },
-    {
-      "id": "pantry",
-      "name": "Pantry",
-      "at": [
-        1210,
-        1115
-      ]
-    },
-    {
-      "id": "office",
-      "name": "Office",
-      "at": [
-        840,
-        150
-      ]
-    },
-    {
-      "id": "cloakroom",
-      "name": "Cloakroom",
-      "at": [
-        840,
-        775
-      ]
-    },
-    {
-      "id": "vestibule",
-      "name": "Vestibule",
-      "at": [
-        840,
-        965
-      ]
-    },
-    {
-      "id": "utility",
-      "name": "Utility room",
-      "at": [
-        285,
-        345
-      ]
-    },
-    {
-      "id": "garage",
-      "name": "Garage",
-      "at": [
-        330,
-        795
-      ]
-    }
+    { "id": "kitchen", "name": "Kitchen", "at": [1505, 1010] },
+    { "id": "hall", "name": "Hall", "at": [1100, 730] },
+    { "id": "bathroom", "name": "Bathroom", "at": [1075, 1135] },
+    { "id": "pantry", "name": "Pantry", "at": [1210, 1115] },
+    { "id": "office", "name": "Office", "at": [840, 150] },
+    { "id": "cloakroom", "name": "Cloakroom", "at": [840, 775] },
+    { "id": "vestibule", "name": "Vestibule", "at": [840, 965] },
+    { "id": "utility", "name": "Utility room", "at": [285, 345] },
+    { "id": "garage", "name": "Garage", "at": [330, 795] }
   ],
   "covers": [
-    {
-      "entity": "cover.living_room",
-      "window": "win-living-1"
-    },
-    {
-      "entity": "cover.living_room_2",
-      "window": "win-living-2"
-    },
-    {
-      "entity": "cover.terrace_door",
-      "window": "door-terrace"
-    },
-    {
-      "entity": "cover.living_room_side",
-      "window": "win-living-w"
-    },
-    {
-      "entity": "cover.dining",
-      "window": "win-dining-bay"
-    },
-    {
-      "entity": "cover.kitchen",
-      "window": "win-kitchen"
-    },
-    {
-      "entity": "cover.office",
-      "window": "door-office-garden"
-    }
+    { "entity": "cover.living_room", "window": "win-living-1" },
+    { "entity": "cover.living_room_side", "window": "win-living-w" },
+    { "entity": "cover.dining", "window": "win-dining-bay" },
+    { "entity": "cover.kitchen", "window": "win-kitchen" },
+    { "entity": "cover.office", "window": "door-office-garden" },
+    { "entity": "cover.utility", "window": "win-utility" },
+    { "entity": "cover.garage", "window": "win-garage" },
+    { "entity": "cover.front_side", "window": "win-front-side" },
+    { "entity": "cover.bath", "window": "win-bath" }
   ],
   "lights": [
-    {
-      "id": "light-living",
-      "entity": "light.living_room",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          1440,
-          215
-        ]
-      ],
-      "room": "living",
-      "watts": 12
-    },
-    {
-      "id": "light-kitchen",
-      "entity": "light.kitchen",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          1505,
-          1010
-        ]
-      ],
-      "room": "kitchen",
-      "watts": 12
-    },
     {
       "id": "light-kitchen-counter",
       "entity": "light.kitchen_counter",
       "kind": "strip",
-      "strip": [
-        1405,
-        1180,
-        280,
-        3
-      ],
+      "strip": [1405, 1180, 280, 3],
       "room": "kitchen",
       "watts": 14
-    },
-    {
-      "id": "light-hall",
-      "entity": "light.hall",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          1100,
-          625
-        ],
-        [
-          840,
-          580
-        ]
-      ],
-      "room": "hall",
-      "watts": 24
-    },
-    {
-      "id": "light-bath",
-      "entity": "light.bathroom",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          1075,
-          1050
-        ]
-      ],
-      "room": "bathroom",
-      "watts": 12
     },
     {
       "id": "light-pantry",
       "entity": "light.pantry",
       "kind": "ceiling",
-      "bulbs": [
-        [
-          1210,
-          1105
-        ]
-      ],
+      "bulbs": [[1210, 1105]],
       "room": "pantry",
-      "watts": 12
-    },
-    {
-      "id": "light-office",
-      "entity": "light.office",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          865,
-          215
-        ]
-      ],
-      "room": "office",
-      "watts": 12
-    },
-    {
-      "id": "light-cloakroom",
-      "entity": "light.cloakroom",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          840,
-          750
-        ]
-      ],
-      "room": "cloakroom",
       "watts": 12
     },
     {
       "id": "light-vestibule",
       "entity": "light.vestibule",
       "kind": "ceiling",
-      "bulbs": [
-        [
-          840,
-          965
-        ]
-      ],
+      "bulbs": [[840, 965]],
       "room": "vestibule",
-      "watts": 12
-    },
-    {
-      "id": "light-utility",
-      "entity": "light.utility",
-      "kind": "ceiling",
-      "bulbs": [
-        [
-          285,
-          345
-        ]
-      ],
-      "room": "utility",
       "watts": 12
     },
     {
       "id": "light-garage",
       "entity": "light.garage",
       "kind": "ceiling",
-      "bulbs": [
-        [
-          330,
-          625
-        ],
-        [
-          330,
-          965
-        ]
-      ],
+      "bulbs": [[330, 625], [330, 965]],
       "room": "garage",
       "watts": 24
     },
@@ -749,13 +334,7 @@
       "id": "light-porch",
       "entity": "light.porch",
       "kind": "wall",
-      "bulbs": [
-        [
-          940,
-          1060,
-          180
-        ]
-      ],
+      "bulbs": [[940, 1060, 180]],
       "outdoor": true,
       "watts": 5
     },
@@ -763,13 +342,7 @@
       "id": "light-terrace",
       "entity": "light.terrace",
       "kind": "wall",
-      "bulbs": [
-        [
-          1140,
-          -30,
-          0
-        ]
-      ],
+      "bulbs": [[1140, -30, 0]],
       "outdoor": true,
       "watts": 5
     },
@@ -777,26 +350,171 @@
       "id": "fixture-dining",
       "type": "fixture",
       "kind": "main",
-      "at": [
-        1560,
-        660
-      ],
+      "at": [1560, 660],
       "circuits": [
-        {
-          "id": "light-dining-3",
-          "entity": "light.dining_table",
-          "r": 194,
-          "watts": 45
-        },
+        { "id": "light-dining-3", "entity": "light.dining_table", "r": 194, "watts": 45, "bulbs": 3 },
         {
           "id": "light-dining-1",
           "entity": "light.dining_table_small",
           "r": 124,
           "dim": true,
-          "watts": 15
+          "watts": 15,
+          "bulbs": 2
         }
       ],
       "room": "living"
+    },
+    {
+      "id": "light-tv-backlight",
+      "entity": "light.tv_backlight",
+      "kind": "strip",
+      "strip": [1013, 160, 1, 110],
+      "room": "living",
+      "watts": 8
+    },
+    {
+      "id": "light-floor-lamp",
+      "entity": "light.reading_lamp",
+      "kind": "floor_lamp",
+      "bulbs": [[1660, 450]],
+      "room": "living",
+      "watts": 10
+    },
+    {
+      "id": "light-island",
+      "entity": "light.kitchen_island",
+      "kind": "pendant",
+      "bulbs": [[1440, 880], [1645, 880]],
+      "room": "kitchen",
+      "watts": 14
+    },
+    {
+      "id": "light-hall",
+      "entity": "light.hall",
+      "kind": "ceiling",
+      "bulbs": [[1145, 560], [1145, 690], [1145, 820]],
+      "room": "hall",
+      "watts": 18,
+      "glow_r": 110
+    },
+    {
+      "id": "light-stairs",
+      "entity": "light.stairs_steps",
+      "kind": "night",
+      "bulbs": [[720, 535, 180], [800, 535, 180], [880, 535, 180], [960, 535, 180]],
+      "room": "hall",
+      "watts": 4
+    },
+    {
+      "id": "light-bath",
+      "entity": "light.bathroom",
+      "kind": "ceiling",
+      "bulbs": [[1075, 950], [1075, 1100], [1215, 945]],
+      "room": "bathroom",
+      "watts": 15,
+      "glow_r": 100
+    },
+    {
+      "id": "light-bath-mirror",
+      "entity": "light.bathroom_mirror",
+      "kind": "wall",
+      "bulbs": [[1016, 965, 90]],
+      "room": "bathroom",
+      "watts": 6
+    },
+    {
+      "id": "light-desk",
+      "entity": "light.desk_lamp",
+      "kind": "table_lamp",
+      "bulbs": [[975, 150]],
+      "room": "office",
+      "watts": 6
+    },
+    {
+      "id": "light-garden-path",
+      "entity": "light.garden_path",
+      "kind": "garden_lamp",
+      "bulbs": [[930, 1300], [930, 1500], [930, 1700]],
+      "outdoor": true,
+      "watts": 9
+    },
+    {
+      "id": "light-driveway",
+      "entity": "light.driveway",
+      "kind": "garden_lamp",
+      "bulbs": [[-30, 1300], [-30, 1560], [-30, 1820]],
+      "outdoor": true,
+      "watts": 9
+    },
+    {
+      "id": "light-garage-front",
+      "entity": "light.garage_front",
+      "kind": "wall",
+      "bulbs": [[60, 1142, 180], [610, 1142, 180]],
+      "outdoor": true,
+      "watts": 10
+    },
+    {
+      "id": "fixture-living",
+      "type": "fixture",
+      "kind": "main",
+      "at": [1400, 270, 180],
+      "circuits": [
+        { "id": "fixture-living-large", "entity": "light.living_room", "r": 194, "watts": 45, "bulbs": 3 },
+        {
+          "id": "fixture-living-small",
+          "entity": "light.living_room_small",
+          "r": 124,
+          "dim": true,
+          "watts": 15,
+          "bulbs": 2
+        }
+      ],
+      "room": "living"
+    },
+    {
+      "id": "light-fireplace-rail",
+      "entity": "light.fireplace_spots",
+      "kind": "rail",
+      "bulbs": [[1200, 420, 180], [1260, 420, 180], [1320, 420, 180]],
+      "rail": [[1180, 420], [1340, 420]],
+      "room": "living",
+      "watts": 18,
+      "beam": 45
+    },
+    {
+      "id": "light-kitchen-rail",
+      "entity": "light.kitchen",
+      "kind": "rail",
+      "bulbs": [[1380, 1075, 180], [1495, 1075, 180], [1610, 1075, 180]],
+      "rail": [[1330, 1075], [1660, 1075]],
+      "room": "kitchen",
+      "watts": 18,
+      "beam": 45
+    },
+    {
+      "id": "light-office",
+      "entity": "light.office",
+      "kind": "ceiling",
+      "bulbs": [[845, 215]],
+      "room": "office",
+      "watts": 18
+    },
+    {
+      "id": "light-cloakroom",
+      "entity": "light.cloakroom",
+      "kind": "ceiling",
+      "bulbs": [[845, 775]],
+      "room": "cloakroom",
+      "watts": 12
+    },
+    {
+      "id": "light-utility",
+      "entity": "light.utility",
+      "kind": "ceiling",
+      "bulbs": [[330, 345]],
+      "room": "utility",
+      "watts": 18
     }
   ],
   "devices": [
@@ -804,20 +522,8 @@
       "id": "tv-living",
       "type": "tv",
       "entity": "media_player.living_room_tv",
-      "hit": [
-        1018,
-        150,
-        12,
-        130
-      ],
-      "glow": {
-        "at": [
-          1075,
-          215
-        ],
-        "rx": 80,
-        "ry": 110
-      },
+      "hit": [1018, 150, 12, 130],
+      "glow": { "at": [1075, 215], "rx": 80, "ry": 110 },
       "beam": 180,
       "beam_dir": 90,
       "room": "living"
@@ -826,29 +532,18 @@
       "id": "motion-hall",
       "type": "motion",
       "entity": "binary_sensor.hall_motion",
-      "at": [
-        1025,
-        880
-      ],
-      "direction": 315,
+      "at": [1018, 650],
+      "direction": 45,
       "fov": 90,
-      "range": 250,
+      "range": 332,
       "room": "hall"
     },
     {
       "id": "presence-living",
       "type": "presence",
       "entity": "binary_sensor.living_room_presence",
-      "at": [
-        1685,
-        35
-      ],
-      "hit": [
-        1665,
-        20,
-        35,
-        35
-      ],
+      "at": [1685, 35],
+      "hit": [1665, 20, 35, 35],
       "room": "living"
     },
     {
@@ -856,10 +551,7 @@
       "type": "icon",
       "kind": "smoke",
       "entity": "binary_sensor.hall_smoke",
-      "at": [
-        1165,
-        535
-      ],
+      "at": [1100, 720],
       "room": "hall"
     },
     {
@@ -867,37 +559,20 @@
       "type": "icon",
       "kind": "leak",
       "entity": "binary_sensor.bathroom_leak",
-      "at": [
-        1110,
-        1180
-      ],
+      "at": [1110, 1180],
       "room": "bathroom"
     },
     {
       "id": "washer",
       "type": "appliance",
       "entity": "binary_sensor.washer_running",
-      "hit": [
-        85,
-        245,
-        60,
-        60
-      ],
-      "glow": {
-        "at": [
-          130,
-          275
-        ],
-        "r": 70
-      },
+      "hit": [85, 245, 60, 60],
+      "glow": { "at": [130, 275], "r": 70 },
       "alert": false,
       "room": "utility",
       "labels": {
         "id": "washer-labels",
-        "at": [
-          115,
-          266
-        ],
+        "at": [115, 266],
         "machines": [
           {
             "name": "Washer",
@@ -916,65 +591,29 @@
         ]
       }
     },
-    {
-      "id": "ex-bin",
-      "type": "icon",
-      "kind": "bin",
-      "entity": "sensor.waste_collection",
-      "at": [
-        700,
-        1290
-      ]
-    },
+    { "id": "ex-bin", "type": "icon", "kind": "bin", "entity": "sensor.waste_collection", "at": [700, 1290] },
     {
       "id": "ex-mailbox",
       "type": "icon",
       "kind": "mailbox",
       "entity": "binary_sensor.mailbox",
-      "at": [
-        980,
-        1290
-      ]
+      "at": [980, 1290]
     },
-    {
-      "id": "ex-weather",
-      "type": "icon",
-      "kind": "weather",
-      "entity": "weather.home",
-      "at": [
-        1560,
-        -70
-      ]
-    },
+    { "id": "ex-weather", "type": "icon", "kind": "weather", "entity": "weather.home", "at": [1560, -70] },
     {
       "id": "ex-terrace",
       "type": "icon",
       "kind": "info",
       "entity": "sensor.terrace_temperature",
-      "at": [
-        1120,
-        -70
-      ]
+      "at": [1120, -70]
     },
-    {
-      "id": "ex-solar",
-      "type": "icon",
-      "kind": "solar",
-      "entity": "sensor.solar_power",
-      "at": [
-        160,
-        -70
-      ]
-    },
+    { "id": "ex-solar", "type": "icon", "kind": "solar", "entity": "sensor.solar_power", "at": [160, -70] },
     {
       "id": "ex-battery",
       "type": "icon",
       "kind": "battery",
       "entity": "sensor.home_battery",
-      "at": [
-        200,
-        300
-      ],
+      "at": [200, 300],
       "room": "utility"
     },
     {
@@ -982,29 +621,14 @@
       "type": "icon",
       "kind": "irrigation",
       "entity": "switch.garden_irrigation",
-      "at": [
-        1700,
-        -70
-      ]
+      "at": [1700, -70]
     },
     {
       "id": "ac-living",
       "type": "climate_unit",
       "entity": "climate.living_room_ac",
-      "hit": [
-        1680,
-        300,
-        12,
-        120
-      ],
-      "glow": {
-        "at": [
-          1610,
-          360
-        ],
-        "rx": 70,
-        "ry": 100
-      },
+      "hit": [1680, 300, 12, 120],
+      "glow": { "at": [1610, 360], "rx": 70, "ry": 100 },
       "beam": 180,
       "beam_dir": 270,
       "room": "living"
@@ -1014,82 +638,533 @@
       "type": "icon",
       "kind": "fan",
       "entity": "fan.office_fan",
-      "at": [
-        760,
-        120
-      ],
+      "at": [760, 120],
       "room": "office"
-    },
-    {
-      "id": "trv-bathroom",
-      "type": "icon",
-      "kind": "trv",
-      "entity": "climate.bathroom",
-      "at": [
-        1240,
-        1000
-      ],
-      "room": "bathroom"
     },
     {
       "id": "plug-utility",
       "type": "icon",
       "kind": "plug",
       "entity": "switch.dehumidifier",
-      "value_entity": "sensor.dehumidifier_energy",
-      "at": [
-        400,
-        330
-      ],
+      "value_entity": "sensor.dehumidifier_power",
+      "at": [400, 247],
       "room": "utility"
+    },
+    {
+      "id": "thermostat-living",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.living",
+      "at": [1030, 110],
+      "room": "living",
+      "value_entity": "sensor.living_temperature"
+    },
+    {
+      "id": "thermostat-kitchen",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.kitchen",
+      "at": [1293, 975],
+      "room": "kitchen",
+      "value_entity": "sensor.kitchen_temperature"
+    },
+    {
+      "id": "thermostat-hall",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.hall",
+      "at": [1265, 880],
+      "room": "hall",
+      "value_entity": "sensor.hall_temperature"
+    },
+    {
+      "id": "thermostat-office",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.office",
+      "at": [992, 492],
+      "room": "office",
+      "value_entity": "sensor.office_temperature"
+    },
+    {
+      "id": "thermostat-cloakroom",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.cloakroom",
+      "at": [992, 742],
+      "room": "cloakroom",
+      "value_entity": "sensor.cloakroom_temperature"
+    },
+    {
+      "id": "thermostat-vestibule",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.vestibule",
+      "at": [720, 975],
+      "room": "vestibule",
+      "value_entity": "sensor.vestibule_temperature"
+    },
+    {
+      "id": "thermostat-bathroom",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.bathroom",
+      "at": [1030, 900],
+      "room": "bathroom",
+      "value_entity": "sensor.bathroom_temperature"
+    },
+    {
+      "id": "thermostat-pantry",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.pantry",
+      "at": [1267, 1128],
+      "room": "pantry",
+      "value_entity": "sensor.pantry_temperature"
+    },
+    {
+      "id": "thermostat-utility",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.utility",
+      "at": [395, 432],
+      "room": "utility",
+      "value_entity": "sensor.utility_temperature"
+    },
+    {
+      "id": "thermostat-garage",
+      "type": "icon",
+      "kind": "thermostat",
+      "entity": "climate.garage",
+      "at": [620, 870],
+      "room": "garage",
+      "value_entity": "sensor.garage_temperature"
+    },
+    {
+      "id": "presence-kitchen",
+      "type": "presence",
+      "entity": "binary_sensor.kitchen_presence",
+      "at": [1400, 960],
+      "hit": [1482.4, 1042.4, 35.3, 35.3],
+      "room": "kitchen"
+    },
+    {
+      "id": "presence-office",
+      "type": "presence",
+      "entity": "binary_sensor.office_presence",
+      "at": [860, 320],
+      "hit": [842.4, 302.4, 35.3, 35.3],
+      "room": "office"
+    },
+    {
+      "id": "presence-bathroom",
+      "type": "presence",
+      "entity": "binary_sensor.bathroom_presence",
+      "at": [1140, 1180],
+      "hit": [1122.4, 1162.4, 35.3, 35.3]
+    },
+    {
+      "id": "motion-vestibule",
+      "type": "motion",
+      "entity": "binary_sensor.vestibule_motion",
+      "at": [992, 714],
+      "direction": 135,
+      "fov": 90,
+      "range": 362,
+      "room": "cloakroom"
+    },
+    {
+      "id": "motion-garage",
+      "type": "motion",
+      "entity": "binary_sensor.garage_motion",
+      "at": [30, 460],
+      "direction": 45,
+      "fov": 90,
+      "range": 700,
+      "room": "garage"
+    },
+    {
+      "id": "smoke-kitchen",
+      "type": "icon",
+      "kind": "smoke",
+      "entity": "binary_sensor.kitchen_smoke",
+      "at": [1460, 1100],
+      "room": "kitchen"
+    },
+    {
+      "id": "smoke-office",
+      "type": "icon",
+      "kind": "smoke",
+      "entity": "binary_sensor.office_smoke",
+      "at": [840, 250],
+      "room": "office"
+    },
+    {
+      "id": "smoke-garage",
+      "type": "icon",
+      "kind": "smoke",
+      "entity": "binary_sensor.garage_smoke",
+      "at": [330, 680],
+      "room": "garage"
+    },
+    {
+      "id": "co-utility",
+      "type": "icon",
+      "kind": "co",
+      "entity": "binary_sensor.boiler_room_co",
+      "at": [560, 330],
+      "room": "utility"
+    },
+    {
+      "id": "gas-kitchen",
+      "type": "icon",
+      "kind": "gas",
+      "entity": "binary_sensor.kitchen_gas",
+      "at": [1680, 1110],
+      "room": "kitchen"
+    },
+    {
+      "id": "leak-kitchen",
+      "type": "icon",
+      "kind": "leak",
+      "entity": "binary_sensor.kitchen_sink_leak",
+      "at": [1485, 1120],
+      "room": "kitchen"
+    },
+    {
+      "id": "leak-utility",
+      "type": "icon",
+      "kind": "leak",
+      "entity": "binary_sensor.utility_leak",
+      "at": [180, 320],
+      "room": "utility"
+    },
+    {
+      "id": "air-living",
+      "type": "icon",
+      "kind": "air",
+      "entity": "sensor.living_room_co2",
+      "at": [1460, 480],
+      "room": "living"
+    },
+    {
+      "id": "lux-living",
+      "type": "icon",
+      "kind": "lux",
+      "entity": "sensor.living_room_illuminance",
+      "at": [1688, 150],
+      "room": "living"
+    },
+    {
+      "id": "keypad-vestibule",
+      "type": "icon",
+      "kind": "keypad",
+      "entity": "alarm_control_panel.house",
+      "at": [935, 1000],
+      "room": "vestibule"
+    },
+    {
+      "id": "siren-outside",
+      "type": "icon",
+      "kind": "siren",
+      "entity": "siren.outdoor",
+      "at": [30, 1080],
+      "room": "garage"
+    },
+    {
+      "id": "doorbell-front",
+      "type": "icon",
+      "kind": "doorbell",
+      "entity": "binary_sensor.doorbell",
+      "at": [798, 1062]
+    },
+    {
+      "id": "ap-ground",
+      "type": "icon",
+      "kind": "ap",
+      "entity": "sensor.ap_ground_clients",
+      "at": [1145, 750],
+      "room": "hall"
+    },
+    {
+      "id": "button-vestibule",
+      "type": "icon",
+      "kind": "button",
+      "entity": "event.vestibule_button",
+      "at": [995, 900]
+    },
+    {
+      "id": "fridge-kitchen",
+      "type": "appliance",
+      "entity": "binary_sensor.fridge_door",
+      "hit": [1280, 1132.5, 60, 60],
+      "glow": { "at": [1310, 1162.5], "r": 75 },
+      "alert": true,
+      "kind": "fridge",
+      "beam_dir": 0,
+      "room": "kitchen"
+    },
+    {
+      "id": "dishwasher-kitchen",
+      "type": "appliance",
+      "entity": "binary_sensor.dishwasher_running",
+      "hit": [1530, 1132.5, 60, 60],
+      "glow": { "at": [1560, 1162.5], "r": 75 },
+      "alert": false,
+      "kind": "dishwasher",
+      "beam_dir": 0,
+      "room": "kitchen"
+    },
+    {
+      "id": "oven-kitchen",
+      "type": "appliance",
+      "entity": "binary_sensor.oven_on",
+      "hit": [1600, 1135.5, 60, 57],
+      "glow": { "at": [1630, 1164], "r": 75 },
+      "alert": false,
+      "kind": "oven",
+      "beam_dir": 0,
+      "room": "kitchen"
+    },
+    {
+      "id": "coffee-kitchen",
+      "type": "appliance",
+      "entity": "switch.coffee_machine",
+      "hit": [1387.5, 1152.5, 25, 40],
+      "glow": { "at": [1400, 1172.5], "r": 75 },
+      "alert": false,
+      "kind": "coffee",
+      "beam_dir": 0,
+      "room": "kitchen"
+    },
+    {
+      "id": "cooktop-island",
+      "type": "appliance",
+      "entity": "binary_sensor.cooktop_on",
+      "hit": [1520, 854, 60, 52],
+      "glow": { "at": [1550, 880], "r": 75 },
+      "alert": false,
+      "kind": "cooktop",
+      "beam_dir": 180,
+      "room": "kitchen"
+    },
+    {
+      "id": "speaker-kitchen",
+      "type": "icon",
+      "kind": "media",
+      "entity": "media_player.kitchen_speaker",
+      "at": [1682.5, 1000],
+      "hit": [1672.5, 989, 20, 22],
+      "beam_dir": 270,
+      "room": "kitchen"
+    },
+    {
+      "id": "soundbar-living",
+      "type": "appliance",
+      "entity": "media_player.soundbar",
+      "hit": [1043, 165, 10, 100],
+      "glow": { "at": [1048, 215], "r": 75 },
+      "alert": false,
+      "kind": "soundbar",
+      "beam_dir": 90,
+      "room": "living"
+    },
+    {
+      "id": "purifier-living",
+      "type": "icon",
+      "kind": "purifier",
+      "entity": "fan.air_purifier",
+      "at": [1680, 540],
+      "room": "living"
+    },
+    {
+      "id": "vacuum-dock",
+      "type": "icon",
+      "kind": "vacuum",
+      "entity": "vacuum.robot",
+      "at": [960, 840],
+      "room": "cloakroom"
+    },
+    {
+      "id": "plug-desk",
+      "type": "icon",
+      "kind": "plug",
+      "entity": "switch.desk_pc",
+      "at": [995, 300],
+      "room": "office",
+      "value_entity": "sensor.desk_pc_power"
+    },
+    {
+      "id": "boiler",
+      "type": "icon",
+      "kind": "boiler",
+      "entity": "water_heater.boiler",
+      "at": [624.5, 270],
+      "hit": [606.5, 248, 36, 44],
+      "beam_dir": 270,
+      "room": "utility"
+    },
+    {
+      "id": "hot-water-tank",
+      "type": "icon",
+      "kind": "water_tank",
+      "entity": "sensor.hot_water_temperature",
+      "at": [600, 411.5],
+      "hit": [572.5, 384, 55, 55],
+      "beam_dir": 0,
+      "room": "utility"
+    },
+    {
+      "id": "recuperator",
+      "type": "icon",
+      "kind": "recuperator",
+      "entity": "fan.ventilation",
+      "at": [470, 411],
+      "hit": [432.5, 383, 75, 56],
+      "beam_dir": 0,
+      "room": "utility"
+    },
+    {
+      "id": "rack-utility",
+      "type": "icon",
+      "kind": "rack",
+      "entity": "",
+      "at": [470, 272.5],
+      "hit": [440, 242.5, 60, 60],
+      "beam_dir": 180,
+      "room": "utility",
+      "items": [
+        { "id": "rack-router", "kind": "router", "entity": "binary_sensor.internet" },
+        { "id": "rack-switch", "kind": "net_switch", "entity": "sensor.switch_poe_power" },
+        { "id": "rack-nas", "kind": "nas", "entity": "sensor.nas_volume_used" },
+        { "id": "rack-zigbee", "kind": "zigbee", "entity": "binary_sensor.zigbee_coordinator" },
+        { "id": "rack-ups", "kind": "ups", "entity": "sensor.ups_battery" },
+        { "id": "rack-alarm", "kind": "alarm_panel", "entity": "alarm_control_panel.house" }
+      ]
+    },
+    {
+      "id": "fuse-box",
+      "type": "icon",
+      "kind": "fuse_box",
+      "entity": "sensor.house_power",
+      "at": [30, 300],
+      "room": "utility"
+    },
+    {
+      "id": "valve-main",
+      "type": "icon",
+      "kind": "valve",
+      "entity": "valve.main_water",
+      "at": [100, 420],
+      "room": "utility"
+    },
+    {
+      "id": "ev-charger",
+      "type": "icon",
+      "kind": "ev",
+      "entity": "sensor.ev_charger_power",
+      "at": [30, 640],
+      "room": "garage"
+    },
+    {
+      "id": "mower",
+      "type": "appliance",
+      "entity": "lawn_mower.robot",
+      "hit": [602.5, 1032.5, 40, 55],
+      "glow": { "at": [622.5, 1060], "r": 75 },
+      "alert": false,
+      "kind": "mower",
+      "beam_dir": 270,
+      "room": "garage"
+    },
+    {
+      "id": "rain-sensor",
+      "type": "icon",
+      "kind": "rain",
+      "entity": "binary_sensor.rain",
+      "at": [1820, -70]
+    },
+    {
+      "id": "pool-pump",
+      "type": "icon",
+      "kind": "pool_pump",
+      "entity": "switch.pool_pump",
+      "at": [1360, -660]
     }
   ],
   "climate": [
     {
       "id": "living",
-      "at": [
-        1240,
-        345
-      ],
+      "at": [1240, 345],
       "temperature": "sensor.living_temperature",
       "humidity": "sensor.living_humidity"
     },
     {
       "id": "kitchen",
-      "at": [
-        1655,
-        965
-      ],
+      "at": [1600, 960],
       "temperature": "sensor.kitchen_temperature",
       "humidity": "sensor.kitchen_humidity"
     },
     {
       "id": "office",
-      "at": [
-        885,
-        450
-      ],
+      "at": [885, 450],
       "temperature": "sensor.office_temperature",
       "humidity": "sensor.office_humidity"
     },
     {
       "id": "garage",
-      "at": [
-        50,
-        1010
-      ],
+      "at": [110, 1000],
       "temperature": "sensor.garage_temperature",
       "humidity": "sensor.garage_humidity"
     },
     {
       "id": "outside",
-      "at": [
-        1785,
-        110
-      ],
+      "at": [1785, 110],
       "temperature": "sensor.outside_temperature",
       "humidity": "sensor.outside_humidity",
       "name": "Outside"
+    },
+    {
+      "id": "sensor-hall",
+      "at": [1018, 600],
+      "temperature": "sensor.hall_temperature",
+      "humidity": "sensor.hall_humidity",
+      "display": "icon"
+    },
+    {
+      "id": "sensor-bathroom",
+      "at": [1048, 1065],
+      "temperature": "sensor.bathroom_temperature",
+      "humidity": "sensor.bathroom_humidity",
+      "display": "icon"
+    },
+    {
+      "id": "sensor-pantry",
+      "at": [1240, 1180],
+      "temperature": "sensor.pantry_temperature",
+      "humidity": "sensor.pantry_humidity",
+      "display": "icon"
+    },
+    {
+      "id": "sensor-cloakroom",
+      "at": [700, 860],
+      "temperature": "sensor.cloakroom_temperature",
+      "humidity": "sensor.cloakroom_humidity",
+      "display": "icon"
+    },
+    {
+      "id": "sensor-vestibule",
+      "at": [900, 886],
+      "temperature": "sensor.vestibule_temperature",
+      "humidity": "sensor.vestibule_humidity",
+      "display": "icon"
+    },
+    {
+      "id": "sensor-utility",
+      "at": [30, 400],
+      "temperature": "sensor.utility_temperature",
+      "humidity": "sensor.utility_humidity",
+      "display": "icon"
     }
   ],
   "cameras": [
@@ -1098,10 +1173,7 @@
       "name": "Front door",
       "entity": "camera.front_door",
       "entity_hq": "camera.front_door_hq",
-      "at": [
-        735,
-        1055
-      ],
+      "at": [735, 1055],
       "direction": 45,
       "fov": 100,
       "range": 200,
@@ -1112,134 +1184,70 @@
       "name": "Driveway",
       "entity": "camera.driveway",
       "entity_hq": "camera.driveway_hq",
-      "at": [
-        -25,
-        1140
-      ],
-      "direction": 45,
+      "at": [-25, 1140],
+      "direction": 44,
       "fov": 90,
-      "range": 600
+      "range": 100
     },
     {
       "id": "camera-garden",
       "name": "Garden",
       "entity": "camera.garden",
       "entity_hq": "camera.garden_hq",
-      "at": [
-        1740,
-        -25
-      ],
+      "at": [1740, -25],
       "direction": 225,
       "fov": 90,
-      "range": 600
+      "range": 100
     }
   ],
-  "locks": [
-    {
-      "id": "lock-front",
-      "entity": "lock.front_door",
-      "at": [
-        865,
-        1030
-      ]
-    }
-  ],
+  "locks": [{ "id": "lock-front", "entity": "lock.front_door", "at": [865, 1030] }],
   "furniture": [
     {
       "id": "f-sofa",
       "kind": "corner_sofa",
-      "at": [
-        1535,
-        240
-      ],
-      "size": [
-        330,
-        180
-      ],
+      "at": [1535, 240],
+      "size": [330, 180],
       "rot": 90,
       "room": "living"
     },
     {
       "id": "f-coffee",
       "kind": "coffee_table",
-      "at": [
-        1415,
-        215
-      ],
-      "size": [
-        165,
-        90
-      ],
-      "rot": 0,
-      "room": "living"
+      "at": [1400, 270],
+      "size": [165, 90],
+      "room": "living",
+      "rot": 270
     },
-    {
-      "id": "f-tv",
-      "kind": "tv_unit",
-      "at": [
-        1035,
-        215
-      ],
-      "size": [
-        140,
-        35
-      ],
-      "rot": 270,
-      "room": "living"
-    },
+    { "id": "f-tv", "kind": "tv_unit", "at": [1035, 215], "size": [140, 35], "rot": 270, "room": "living" },
     {
       "id": "f-fireplace",
       "kind": "fireplace",
-      "at": [
-        1260,
-        495
-      ],
-      "size": [
-        140,
-        45
-      ],
+      "at": [1260, 495],
+      "size": [140, 45],
       "rot": 180,
       "room": "living"
     },
     {
       "id": "f-hall-wardrobe-1",
       "kind": "wardrobe",
-      "at": [
-        1285,
-        640
-      ],
-      "size": [
-        220,
-        60
-      ],
+      "at": [1287.5, 627.5],
+      "size": [220, 65],
       "rot": 90,
-      "room": "hall"
+      "room": "living"
     },
     {
       "id": "f-hall-wardrobe-2",
       "kind": "wardrobe",
-      "at": [
-        1225,
-        640
-      ],
-      "size": [
-        220,
-        60
-      ],
+      "at": [1222.5, 627.5],
+      "size": [220, 65],
       "rot": 270,
-      "room": "hall"
+      "room": "living"
     },
     {
       "id": "f-table",
       "kind": "table",
-      "at": [
-        1560,
-        660
-      ],
-      "size": [
-        220,
-        95
-      ],
+      "at": [1560, 660],
+      "size": [220, 95],
       "rot": 0,
       "room": "living",
       "group": "group-dining"
@@ -1247,14 +1255,8 @@
     {
       "id": "f-chair-n1",
       "kind": "chair",
-      "at": [
-        1630,
-        595
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1630, 595],
+      "size": [45, 45],
       "rot": 0,
       "room": "living",
       "group": "group-dining"
@@ -1262,14 +1264,8 @@
     {
       "id": "f-chair-n2",
       "kind": "chair",
-      "at": [
-        1560,
-        595
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1560, 595],
+      "size": [45, 45],
       "rot": 0,
       "room": "living",
       "group": "group-dining"
@@ -1277,14 +1273,8 @@
     {
       "id": "f-chair-n3",
       "kind": "chair",
-      "at": [
-        1485,
-        595
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1485, 595],
+      "size": [45, 45],
       "rot": 0,
       "room": "living",
       "group": "group-dining"
@@ -1292,14 +1282,8 @@
     {
       "id": "f-chair-s1",
       "kind": "chair",
-      "at": [
-        1630,
-        725
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1630, 725],
+      "size": [45, 45],
       "rot": 180,
       "room": "living",
       "group": "group-dining"
@@ -1307,14 +1291,8 @@
     {
       "id": "f-chair-s2",
       "kind": "chair",
-      "at": [
-        1560,
-        725
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1560, 725],
+      "size": [45, 45],
       "rot": 180,
       "room": "living",
       "group": "group-dining"
@@ -1322,410 +1300,238 @@
     {
       "id": "f-chair-s3",
       "kind": "chair",
-      "at": [
-        1485,
-        725
-      ],
-      "size": [
-        45,
-        45
-      ],
+      "at": [1485, 725],
+      "size": [45, 45],
       "rot": 180,
       "room": "living",
       "group": "group-dining"
     },
-    {
-      "id": "f-island",
-      "kind": "island",
-      "at": [
-        1545,
-        880
-      ],
-      "size": [
-        300,
-        70
-      ],
-      "rot": 0,
-      "room": "kitchen"
-    },
-    {
-      "id": "f-cooktop",
-      "kind": "cooktop",
-      "at": [
-        1550,
-        880
-      ],
-      "size": [
-        60,
-        52
-      ],
-      "rot": 0,
-      "room": "kitchen"
-    },
+    { "id": "f-island", "kind": "island", "at": [1545, 880], "size": [300, 70], "rot": 0, "room": "kitchen" },
     {
       "id": "f-stool-1",
       "kind": "bar_stool",
-      "at": [
-        1625,
-        820
-      ],
-      "size": [
-        40,
-        40
-      ],
+      "at": [1625, 820],
+      "size": [40, 40],
       "rot": 0,
       "room": "kitchen"
     },
     {
       "id": "f-stool-2",
       "kind": "bar_stool",
-      "at": [
-        1555,
-        820
-      ],
-      "size": [
-        40,
-        40
-      ],
+      "at": [1555, 820],
+      "size": [40, 40],
       "rot": 0,
       "room": "kitchen"
     },
     {
       "id": "f-stool-3",
       "kind": "bar_stool",
-      "at": [
-        1480,
-        820
-      ],
-      "size": [
-        40,
-        40
-      ],
+      "at": [1480, 820],
+      "size": [40, 40],
       "rot": 0,
       "room": "kitchen"
     },
     {
       "id": "f-stool-4",
       "kind": "bar_stool",
-      "at": [
-        1410,
-        820
-      ],
-      "size": [
-        40,
-        40
-      ],
+      "at": [1410, 820],
+      "size": [40, 40],
       "rot": 0,
       "room": "kitchen"
     },
     {
       "id": "f-counter",
       "kind": "counter",
-      "at": [
-        1495,
-        1160
-      ],
-      "size": [
-        400,
-        60
-      ],
+      "at": [1495, 1160],
+      "size": [400, 60],
       "rot": 180,
       "room": "kitchen"
     },
     {
       "id": "f-kitchen-sink",
       "kind": "kitchen_sink",
-      "at": [
-        1485,
-        1160
-      ],
-      "size": [
-        80,
-        60
-      ],
-      "rot": 180,
-      "room": "kitchen"
-    },
-    {
-      "id": "f-fridge",
-      "kind": "fridge",
-      "at": [
-        1310,
-        1160
-      ],
-      "size": [
-        60,
-        65
-      ],
+      "at": [1485, 1160],
+      "size": [80, 60],
       "rot": 180,
       "room": "kitchen"
     },
     {
       "id": "f-shower",
       "kind": "shower",
-      "at": [
-        1215,
-        945
-      ],
-      "size": [
-        110,
-        110
-      ],
+      "at": [1215, 945],
+      "size": [110, 110],
       "rot": 0,
       "room": "bathroom"
     },
     {
       "id": "f-bath-sink",
       "kind": "sink",
-      "at": [
-        1035,
-        965
-      ],
-      "size": [
-        60,
-        45
-      ],
+      "at": [1035, 965],
+      "size": [60, 45],
       "rot": 270,
       "room": "bathroom"
     },
-    {
-      "id": "f-wc",
-      "kind": "wc",
-      "at": [
-        1035,
-        1145
-      ],
-      "size": [
-        38,
-        54
-      ],
-      "rot": 270,
-      "room": "bathroom"
-    },
+    { "id": "f-wc", "kind": "wc", "at": [1035, 1145], "size": [38, 54], "rot": 270, "room": "bathroom" },
     {
       "id": "f-pantry-shelf",
       "kind": "shelf",
-      "at": [
-        1165,
-        1100
-      ],
-      "size": [
-        180,
-        35
-      ],
+      "at": [1165, 1100],
+      "size": [180, 35],
       "rot": 270,
       "room": "pantry"
     },
     {
       "id": "f-office-desk",
       "kind": "desk",
-      "at": [
-        975,
-        195
-      ],
-      "size": [
-        170,
-        65
-      ],
+      "at": [972.5, 215],
+      "size": [170, 65],
       "rot": 90,
       "room": "office"
     },
     {
       "id": "f-office-chair",
       "kind": "office_chair",
-      "at": [
-        910,
-        195
-      ],
-      "size": [
-        60,
-        60
-      ],
+      "at": [910, 205],
+      "size": [60, 60],
       "rot": 270,
       "room": "office"
     },
     {
       "id": "f-office-bed",
       "kind": "bed_single",
-      "at": [
-        735,
-        400
-      ],
-      "size": [
-        90,
-        200
-      ],
+      "at": [735, 400],
+      "size": [90, 200],
       "rot": 0,
       "room": "office"
     },
     {
       "id": "f-office-wardrobe",
       "kind": "wardrobe",
-      "at": [
-        720,
-        155
-      ],
-      "size": [
-        260,
-        55
-      ],
+      "at": [720, 155],
+      "size": [260, 55],
       "rot": 270,
       "room": "office"
     },
     {
       "id": "f-cloak-wardrobe",
       "kind": "wardrobe",
-      "at": [
-        840,
-        675
-      ],
-      "size": [
-        320,
-        60
-      ],
+      "at": [840, 675],
+      "size": [320, 60],
       "rot": 0,
       "room": "cloakroom"
     },
     {
       "id": "f-cloak-wardrobe-2",
       "kind": "wardrobe",
-      "at": [
-        720,
-        785
-      ],
-      "size": [
-        150,
-        55
-      ],
+      "at": [720, 785],
+      "size": [150, 55],
       "rot": 270,
       "room": "cloakroom"
     },
     {
       "id": "f-shoes",
       "kind": "shoe_cabinet",
-      "at": [
-        980,
-        965
-      ],
-      "size": [
-        120,
-        35
-      ],
+      "at": [980, 965],
+      "size": [120, 35],
       "rot": 90,
       "room": "vestibule"
     },
     {
       "id": "f-utility-counter",
       "kind": "counter",
-      "at": [
-        200,
-        275
-      ],
-      "size": [
-        360,
-        60
-      ],
+      "at": [200, 275],
+      "size": [360, 60],
       "rot": 0,
       "room": "utility"
     },
     {
       "id": "f-utility-sink",
       "kind": "kitchen_sink",
-      "at": [
-        220,
-        275
-      ],
-      "size": [
-        60,
-        50
-      ],
+      "at": [220, 275],
+      "size": [60, 50],
       "rot": 0,
       "room": "utility"
     },
-    {
-      "id": "f-washer",
-      "kind": "washer",
-      "at": [
-        130,
-        275
-      ],
-      "size": [
-        60,
-        60
-      ],
-      "rot": 0,
-      "room": "utility"
-    },
-    {
-      "id": "f-boiler",
-      "kind": "boiler",
-      "at": [
-        615,
-        280
-      ],
-      "size": [
-        45,
-        40
-      ],
-      "rot": 0,
-      "room": "utility"
-    },
-    {
-      "id": "f-tank",
-      "kind": "tank",
-      "at": [
-        605,
-        405
-      ],
-      "size": [
-        60,
-        60
-      ],
-      "rot": 0,
-      "room": "utility"
-    },
-    {
-      "id": "f-car-1",
-      "kind": "car",
-      "at": [
-        485,
-        815
-      ],
-      "size": [
-        190,
-        480
-      ],
-      "rot": 0,
-      "room": "garage"
-    },
-    {
-      "id": "f-car-2",
-      "kind": "car",
-      "at": [
-        190,
-        815
-      ],
-      "size": [
-        180,
-        480
-      ],
-      "rot": 0,
-      "room": "garage"
-    },
+    { "id": "f-washer", "kind": "washer", "at": [130, 275], "size": [60, 60], "rot": 0, "room": "utility" },
+    { "id": "f-car-1", "kind": "car", "at": [485, 815], "size": [190, 480], "rot": 0, "room": "garage" },
+    { "id": "f-car-2", "kind": "car", "at": [190, 815], "size": [180, 480], "rot": 0, "room": "garage" },
     {
       "id": "f-stairs",
       "kind": "stairs_straight",
-      "at": [
-        865,
-        585
-      ],
-      "size": [
-        109,
-        350
-      ],
+      "at": [865, 585],
+      "size": [109, 350],
       "rot": 270,
       "room": "hall"
     }
+  ],
+  "notes": [
+    {
+      "id": "marker-valve",
+      "type": "marker",
+      "at": [285, 430],
+      "icon": "valve",
+      "text": "Water valve",
+      "note": "Main water valve, under the boiler.\nTurn clockwise to close."
+    },
+    {
+      "id": "marker-fuses",
+      "type": "marker",
+      "at": [200, 700],
+      "icon": "fuse",
+      "text": "Fuse box",
+      "note": "Circuits labelled inside the door."
+    },
+    {
+      "id": "text-pantry",
+      "type": "text",
+      "at": [1210, 1060],
+      "text": "Wine rack",
+      "size": 18,
+      "color": "#c9a273"
+    }
+  ],
+  "garden": [
+    { "id": "plot", "kind": "plot", "points": [[-600, -1010], [2500, -1010], [2500, 1900], [-600, 1900]] },
+    { "id": "lawn", "kind": "lawn", "points": [[-700, -1100], [2600, -1090], [2590, 1960], [-700, 1970]] },
+    {
+      "id": "driveway",
+      "kind": "driveway",
+      "points": [[0, 1115], [665, 1115], [665, 1215], [710, 1215], [710, 1900], [0, 1900]]
+    },
+    {
+      "id": "path",
+      "kind": "path",
+      "points": [
+        [665, 1030],
+        [1005, 1030],
+        [1005, 1215],
+        [900, 1215],
+        [900, 1900],
+        [710, 1900],
+        [710, 1780],
+        [770, 1780],
+        [770, 1215],
+        [665, 1215]
+      ]
+    },
+    { "id": "terrace", "kind": "terrace", "points": [[1715, 120], [2180, 120], [2180, 860], [1715, 860]] },
+    { "id": "pool", "kind": "pool", "points": [[700, -860], [1300, -860], [1300, -460], [700, -460]] },
+    {
+      "id": "flowerbed",
+      "kind": "flowerbed",
+      "points": [[300, -160], [1500, -160], [1500, -40], [300, -40]]
+    },
+    { "id": "gravel", "kind": "gravel", "points": [[1715, 860], [1860, 860], [1860, 1215], [1715, 1215]] },
+    { "id": "hedge", "kind": "hedge", "line": [[-580, -990], [2500, -990]] },
+    { "id": "fence", "kind": "fence", "line": [[2500, -1000], [2500, 1900], [1000, 1900]] },
+    { "id": "fence-west", "kind": "fence", "line": [[-600, -1000], [-600, 1900], [-100, 1900]] },
+    { "id": "tree-1", "kind": "tree", "at": [-330, 350], "r": 230 },
+    { "id": "tree-2", "kind": "tree", "at": [2230, -200], "r": 260 },
+    { "id": "tree-3", "kind": "tree", "at": [-330, 1640], "r": 190 },
+    { "id": "bush-1", "kind": "bush", "at": [1250, 1500], "r": 60 },
+    { "id": "bush-2", "kind": "bush", "at": [1420, 1520], "r": 70 },
+    { "id": "bush-3", "kind": "bush", "at": [1590, 1490], "r": 55 },
+    { "id": "tree-4", "kind": "tree", "at": [2150, -760], "r": 210 }
   ],
   "floors": [
     {
@@ -1734,14 +1540,8 @@
       "walls": [
         {
           "type": "exterior",
-          "a": [
-            1715,
-            -30
-          ],
-          "b": [
-            1340,
-            -30
-          ],
+          "a": [1715, -30],
+          "b": [1340, -30],
           "openings": [
             {
               "id": "win-room1-n",
@@ -1749,31 +1549,16 @@
               "from": 30,
               "to": 225,
               "outside": "left",
-              "facade": "S"
+              "facade": "S",
+              "contacts": ["binary_sensor.first_floor_room1_n_window"]
             }
           ]
         },
+        { "type": "exterior", "a": [1350, -140], "b": [1350, -30] },
         {
           "type": "exterior",
-          "a": [
-            1350,
-            -140
-          ],
-          "b": [
-            1350,
-            -30
-          ]
-        },
-        {
-          "type": "exterior",
-          "a": [
-            1350,
-            -140
-          ],
-          "b": [
-            665,
-            -140
-          ],
+          "a": [1350, -140],
+          "b": [665, -140],
           "openings": [
             {
               "id": "win-room2",
@@ -1781,7 +1566,8 @@
               "from": 105,
               "to": 300,
               "outside": "left",
-              "facade": "S"
+              "facade": "S",
+              "contacts": ["binary_sensor.first_floor_room2_window"]
             },
             {
               "id": "win-room3",
@@ -1789,20 +1575,15 @@
               "from": 395,
               "to": 585,
               "outside": "left",
-              "facade": "S"
+              "facade": "S",
+              "contacts": ["binary_sensor.first_floor_room3_window"]
             }
           ]
         },
         {
           "type": "exterior",
-          "a": [
-            665,
-            -140
-          ],
-          "b": [
-            665,
-            1025
-          ],
+          "a": [665, -140],
+          "b": [665, 1025],
           "openings": [
             {
               "id": "win-room3-side",
@@ -1810,52 +1591,32 @@
               "from": 490,
               "to": 585,
               "outside": "left",
-              "facade": "E"
+              "facade": "E",
+              "contacts": ["binary_sensor.first_floor_room3_side_window"]
             }
           ]
         },
         {
           "type": "exterior",
-          "a": [
-            990,
-            1025
-          ],
-          "b": [
-            665,
-            1025
-          ],
+          "a": [990, 1025],
+          "b": [665, 1025],
           "openings": [
             {
               "id": "win-bath",
               "type": "window",
-              "from": 90,
-              "to": 280,
+              "from": 78.5,
+              "to": 268.5,
               "outside": "right",
-              "facade": "N"
+              "facade": "N",
+              "contacts": ["binary_sensor.first_floor_bath_window"]
             }
           ]
         },
+        { "type": "exterior", "a": [990, 1010], "b": [990, 1205] },
         {
           "type": "exterior",
-          "a": [
-            990,
-            1000
-          ],
-          "b": [
-            990,
-            1205
-          ]
-        },
-        {
-          "type": "exterior",
-          "a": [
-            1715,
-            1205
-          ],
-          "b": [
-            990,
-            1205
-          ],
+          "a": [1715, 1205],
+          "b": [990, 1205],
           "openings": [
             {
               "id": "win-bedroom",
@@ -1863,7 +1624,8 @@
               "from": 95,
               "to": 190,
               "outside": "right",
-              "facade": "N"
+              "facade": "N",
+              "contacts": ["binary_sensor.first_floor_bedroom_window"]
             },
             {
               "id": "door-balcony",
@@ -1873,20 +1635,15 @@
               "hinge": "to",
               "swing": "left",
               "outside": "right",
-              "facade": "N"
+              "facade": "N",
+              "contacts": ["binary_sensor.first_floor_balcony_window"]
             }
           ]
         },
         {
           "type": "exterior",
-          "a": [
-            1715,
-            -30
-          ],
-          "b": [
-            1715,
-            1205
-          ],
+          "a": [1715, -30],
+          "b": [1715, 1205],
           "openings": [
             {
               "id": "win-room1-side",
@@ -1894,7 +1651,8 @@
               "from": 35,
               "to": 230,
               "outside": "right",
-              "facade": "W"
+              "facade": "W",
+              "contacts": ["binary_sensor.first_floor_room1_side_window"]
             },
             {
               "id": "win-void",
@@ -1902,112 +1660,37 @@
               "from": 530,
               "to": 810,
               "outside": "right",
-              "facade": "W"
+              "facade": "W",
+              "contacts": ["binary_sensor.first_floor_void_window"]
             }
           ]
         },
+        { "type": "partition", "a": [1350, -30], "b": [1350, 500] },
         {
           "type": "partition",
-          "a": [
-            1350,
-            -30
-          ],
-          "b": [
-            1350,
-            500
-          ]
+          "a": [1350, 365],
+          "b": [1025, 365],
+          "openings": [{ "id": "door-room2", "type": "door", "from": 75, "to": 170, "hinge": "from", "swing": "left" }]
         },
         {
           "type": "partition",
-          "a": [
-            1350,
-            365
-          ],
-          "b": [
-            1025,
-            365
-          ],
+          "a": [1025, -140],
+          "b": [1025, 500],
+          "openings": [{ "id": "door-room3", "type": "door", "from": 510, "to": 615, "hinge": "to", "swing": "left" }]
+        },
+        { "type": "partition", "a": [1025, 500], "b": [665, 500] },
+        {
+          "type": "partition",
+          "a": [1715, 500],
+          "b": [1260, 500],
+          "openings": [{ "id": "door-room1", "type": "door", "from": 260, "to": 355, "hinge": "to", "swing": "left" }]
+        },
+        {
+          "type": "partition",
+          "a": [1715, 780],
+          "b": [665, 780],
           "openings": [
-            {
-              "id": "door-room2",
-              "type": "door",
-              "from": 75,
-              "to": 170,
-              "hinge": "from",
-              "swing": "left"
-            }
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1025,
-            -140
-          ],
-          "b": [
-            1025,
-            500
-          ],
-          "openings": [
-            {
-              "id": "door-room3",
-              "type": "door",
-              "from": 510,
-              "to": 615,
-              "hinge": "to",
-              "swing": "left"
-            }
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1025,
-            500
-          ],
-          "b": [
-            665,
-            500
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1715,
-            500
-          ],
-          "b": [
-            1260,
-            500
-          ],
-          "openings": [
-            {
-              "id": "door-room1",
-              "type": "door",
-              "from": 260,
-              "to": 355,
-              "hinge": "to",
-              "swing": "left"
-            }
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1715,
-            780
-          ],
-          "b": [
-            665,
-            780
-          ],
-          "openings": [
-            {
-              "id": "pass-suite",
-              "type": "passage",
-              "from": 455,
-              "to": 550
-            },
+            { "id": "pass-suite", "type": "passage", "from": 455, "to": 550 },
             {
               "id": "door-bath",
               "type": "pocket_door",
@@ -2018,202 +1701,170 @@
             }
           ]
         },
+        { "type": "partition", "a": [1075, 780], "b": [1075, 1010] },
+        { "type": "partition", "a": [1325, 1010], "b": [990, 1010] },
         {
           "type": "partition",
-          "a": [
-            1075,
-            780
-          ],
-          "b": [
-            1075,
-            1010
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1325,
-            1010
-          ],
-          "b": [
-            990,
-            1010
-          ]
-        },
-        {
-          "type": "partition",
-          "a": [
-            1325,
-            890
-          ],
-          "b": [
-            1325,
-            1205
-          ],
-          "openings": [
-            {
-              "id": "door-ensuite",
-              "type": "door",
-              "from": 180,
-              "to": 275,
-              "hinge": "to",
-              "swing": "left"
-            }
-          ]
+          "a": [1325, 890],
+          "b": [1325, 1205],
+          "openings": [{ "id": "door-ensuite", "type": "door", "from": 180, "to": 275, "hinge": "to", "swing": "left" }]
         }
       ],
-      "dividers": [
-        {
-          "a": [
-            1260,
-            500
-          ],
-          "b": [
-            1260,
-            780
-          ],
-          "show": true
-        },
-        {
-          "a": [
-            1325,
-            780
-          ],
-          "b": [
-            1325,
-            890
-          ]
-        }
-      ],
+      "dividers": [{ "a": [1260, 500], "b": [1260, 780], "show": true }, { "a": [1325, 780], "b": [1325, 890] }],
       "rooms": [
-        {
-          "id": "room1",
-          "name": "Room",
-          "at": [
-            1545,
-            235
-          ]
-        },
-        {
-          "id": "room2",
-          "name": "Room",
-          "at": [
-            1180,
-            150
-          ]
-        },
-        {
-          "id": "room3",
-          "name": "Kids' room",
-          "at": [
-            850,
-            105
-          ]
-        },
-        {
-          "id": "landing",
-          "name": "Landing",
-          "at": [
-            900,
-            705
-          ]
-        },
-        {
-          "id": "void",
-          "name": "Void",
-          "at": [
-            1480,
-            640
-          ],
-          "unused": true
-        },
-        {
-          "id": "wardrobe",
-          "name": "Wardrobe",
-          "at": [
-            1200,
-            875
-          ]
-        },
-        {
-          "id": "bath1",
-          "name": "Bathroom",
-          "at": [
-            860,
-            920
-          ]
-        },
+        { "id": "room1", "name": "Room", "at": [1545, 235] },
+        { "id": "room2", "name": "Room", "at": [1180, 150] },
+        { "id": "room3", "name": "Kids' room", "at": [850, 105] },
+        { "id": "landing", "name": "Landing", "at": [900, 705] },
+        { "id": "void", "name": "Void", "at": [1480, 640], "unused": true },
+        { "id": "wardrobe", "name": "Wardrobe", "at": [1200, 875] },
+        { "id": "bath1", "name": "Bathroom", "at": [860, 920] },
         {
           "id": "bedroom",
           "name": "Bedroom",
-          "at": [
-            1520,
-            1045
-          ],
-          "tint": {
-            "kind": "heating",
-            "entity": "climate.bedroom"
-          }
+          "at": [1520, 1045],
+          "tint": { "kind": "heating", "entity": "climate.bedroom" }
         },
-        {
-          "id": "ensuite",
-          "name": "En-suite",
-          "at": [
-            1160,
-            1130
-          ]
-        }
+        { "id": "ensuite", "name": "En-suite", "at": [1160, 1130] }
       ],
       "covers": [
-        {
-          "entity": "cover.room_1",
-          "window": "win-room1-n"
-        },
-        {
-          "entity": "cover.room_1_side",
-          "window": "win-room1-side"
-        },
-        {
-          "entity": "cover.room_2",
-          "window": "win-room2"
-        },
-        {
-          "entity": "cover.kids_room",
-          "window": "win-room3"
-        },
-        {
-          "entity": "cover.bedroom",
-          "window": "win-bedroom"
-        },
-        {
-          "entity": "cover.bedroom_balcony",
-          "window": "door-balcony"
-        }
+        { "entity": "cover.room_1", "window": "win-room1-n" },
+        { "entity": "cover.room_1_side", "window": "win-room1-side" },
+        { "entity": "cover.room_2", "window": "win-room2" },
+        { "entity": "cover.kids_room", "window": "win-room3" },
+        { "entity": "cover.bedroom", "window": "win-bedroom" },
+        { "entity": "cover.bedroom_balcony", "window": "door-balcony" },
+        { "entity": "cover.first_floor_room3_side", "window": "win-room3-side" },
+        { "entity": "cover.first_floor_bath", "window": "win-bath" },
+        { "entity": "cover.first_floor_void", "window": "win-void" }
       ],
       "lights": [
+        {
+          "id": "light-room3-night",
+          "entity": "light.kids_night_light",
+          "kind": "night",
+          "bulbs": [[690, 210, 90]],
+          "room": "room3",
+          "watts": 2
+        },
+        {
+          "id": "light-bedside",
+          "entity": "light.bedside",
+          "kind": "wall",
+          "bulbs": [[1688, 880, 270], [1688, 1120, 270]],
+          "room": "bedroom",
+          "watts": 10
+        },
+        {
+          "id": "light-room1-bed",
+          "entity": "light.room_1_bedside",
+          "kind": "wall",
+          "bulbs": [[1362, 40, 90]],
+          "room": "room1",
+          "watts": 5
+        },
+        {
+          "id": "light-room2-desk",
+          "entity": "light.room_2_desk",
+          "kind": "table_lamp",
+          "bulbs": [[1315, 40]],
+          "room": "room2",
+          "watts": 6
+        },
+        {
+          "id": "light-room3-stars",
+          "entity": "light.kids_star_projector",
+          "kind": "table_lamp",
+          "bulbs": [[690, 30]],
+          "room": "room3",
+          "watts": 3
+        },
+        {
+          "id": "light-landing-steps",
+          "entity": "light.landing_night",
+          "kind": "night",
+          "bulbs": [[700, 580, 90], [700, 650, 90]],
+          "room": "landing",
+          "watts": 2
+        },
+        {
+          "id": "light-wardrobe",
+          "entity": "light.wardrobe",
+          "kind": "ceiling",
+          "bulbs": [[1200, 830], [1200, 960]],
+          "room": "wardrobe",
+          "watts": 12
+        },
+        {
+          "id": "light-wardrobe-strip",
+          "entity": "light.wardrobe_strip",
+          "kind": "strip",
+          "strip": [1139.5, 800, 1, 190],
+          "room": "wardrobe",
+          "watts": 6
+        },
+        {
+          "id": "light-bath1",
+          "entity": "light.bathroom_first_floor",
+          "kind": "ceiling",
+          "bulbs": [[760, 940], [900, 850], [1010, 850]],
+          "room": "bath1",
+          "watts": 15,
+          "glow_r": 100
+        },
+        {
+          "id": "light-bath1-mirror",
+          "entity": "light.bathroom_first_floor_mirror",
+          "kind": "wall",
+          "bulbs": [[944, 998, 0]],
+          "room": "bath1",
+          "watts": 6
+        },
+        {
+          "id": "light-headboard",
+          "entity": "light.bedroom_headboard",
+          "kind": "strip",
+          "strip": [1687.5, 930, 1, 140],
+          "room": "bedroom",
+          "watts": 8
+        },
+        {
+          "id": "light-ensuite",
+          "entity": "light.en_suite",
+          "kind": "ceiling",
+          "bulbs": [[1100, 1060], [1230, 1140]],
+          "room": "ensuite",
+          "watts": 10
+        },
+        {
+          "id": "light-ensuite-mirror",
+          "entity": "light.en_suite_mirror",
+          "kind": "wall",
+          "bulbs": [[1265, 1022, 180]],
+          "room": "ensuite",
+          "watts": 6
+        },
+        {
+          "id": "light-balcony",
+          "entity": "light.balcony",
+          "kind": "wall",
+          "bulbs": [[1560, 1230, 180]],
+          "outdoor": true,
+          "watts": 5
+        },
         {
           "id": "light-room1",
           "entity": "light.room_1",
           "kind": "ceiling",
-          "bulbs": [
-            [
-              1535,
-              235
-            ]
-          ],
+          "bulbs": [[1525, 245]],
           "room": "room1",
-          "watts": 12
+          "watts": 18
         },
         {
           "id": "light-room2",
           "entity": "light.room_2",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              1190,
-              150
-            ]
-          ],
+          "kind": "pendant",
+          "bulbs": [[1190, 170]],
           "room": "room2",
           "watts": 12
         },
@@ -2221,116 +1872,27 @@
           "id": "light-room3",
           "entity": "light.kids_room",
           "kind": "ceiling",
-          "bulbs": [
-            [
-              860,
-              170
-            ]
-          ],
+          "bulbs": [[855, 105]],
           "room": "room3",
-          "watts": 12
-        },
-        {
-          "id": "light-room3-night",
-          "entity": "light.kids_night_light",
-          "kind": "night",
-          "bulbs": [
-            [
-              690,
-              210,
-              90
-            ]
-          ],
-          "room": "room3",
-          "watts": 2
-        },
-        {
-          "id": "light-landing",
-          "entity": "light.landing",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              1135,
-              705
-            ],
-            [
-              900,
-              445
-            ]
-          ],
-          "room": "landing",
-          "watts": 24
-        },
-        {
-          "id": "light-wardrobe",
-          "entity": "light.wardrobe",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              1200,
-              895
-            ]
-          ],
-          "room": "wardrobe",
-          "watts": 12
-        },
-        {
-          "id": "light-bath1",
-          "entity": "light.bathroom_first_floor",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              880,
-              920
-            ]
-          ],
-          "room": "bath1",
-          "watts": 12
+          "watts": 18
         },
         {
           "id": "light-bedroom",
           "entity": "light.bedroom",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              1520,
-              1045
-            ]
-          ],
+          "kind": "pendant",
+          "bulbs": [[1450, 1000]],
           "room": "bedroom",
-          "watts": 12
+          "watts": 15
         },
         {
-          "id": "light-bedside",
-          "entity": "light.bedside",
-          "kind": "wall",
-          "bulbs": [
-            [
-              1700,
-              880,
-              270
-            ],
-            [
-              1700,
-              1120,
-              270
-            ]
-          ],
-          "room": "bedroom",
-          "watts": 10
-        },
-        {
-          "id": "light-ensuite",
-          "entity": "light.en_suite",
-          "kind": "ceiling",
-          "bulbs": [
-            [
-              1160,
-              1130
-            ]
-          ],
-          "room": "ensuite",
-          "watts": 12
+          "id": "light-landing",
+          "entity": "light.landing",
+          "kind": "rail",
+          "bulbs": [[760, 715, 180], [930, 715, 180], [1100, 715, 180], [1180, 600, 270], [1180, 450, 270]],
+          "rail": [[740, 715], [1180, 715], [1180, 420]],
+          "room": "landing",
+          "watts": 25,
+          "beam": 45
         }
       ],
       "devices": [
@@ -2339,10 +1901,7 @@
           "type": "icon",
           "kind": "smoke",
           "entity": "binary_sensor.landing_smoke",
-          "at": [
-            1225,
-            510
-          ],
+          "at": [1225, 510],
           "room": "landing"
         },
         {
@@ -2350,10 +1909,7 @@
           "type": "icon",
           "kind": "leak",
           "entity": "binary_sensor.bathroom_first_floor_leak",
-          "at": [
-            1030,
-            970
-          ],
+          "at": [1030, 970],
           "room": "bath1"
         },
         {
@@ -2362,10 +1918,7 @@
           "kind": "thermostat",
           "entity": "climate.bedroom",
           "value_entity": "sensor.bedroom_temperature",
-          "at": [
-            1360,
-            960
-          ],
+          "at": [1338, 900],
           "room": "bedroom"
         },
         {
@@ -2373,674 +1926,460 @@
           "type": "skylight",
           "entity": "cover.landing_skylight",
           "contact": "binary_sensor.landing_skylight",
-          "hit": [
-            870,
-            560,
-            78,
-            118
-          ]
+          "hit": [870, 560, 78, 118]
+        },
+        {
+          "id": "thermostat-room_1",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.room_1",
+          "at": [1475, 490],
+          "room": "room1",
+          "value_entity": "sensor.room_1_temperature"
+        },
+        {
+          "id": "thermostat-room_2",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.room_2",
+          "at": [1160, 355],
+          "room": "room2",
+          "value_entity": "sensor.room_2_temperature"
+        },
+        {
+          "id": "thermostat-kids_room",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.kids_room",
+          "at": [1015, 350],
+          "room": "room3",
+          "value_entity": "sensor.kids_room_temperature"
+        },
+        {
+          "id": "thermostat-landing",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.landing",
+          "at": [1030, 768],
+          "room": "void",
+          "value_entity": "sensor.landing_temperature"
+        },
+        {
+          "id": "thermostat-wardrobe",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.wardrobe",
+          "at": [1150, 790],
+          "room": "wardrobe",
+          "value_entity": "sensor.wardrobe_temperature"
+        },
+        {
+          "id": "thermostat-bathroom_first_floor",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.bathroom_first_floor",
+          "at": [870, 790],
+          "room": "bath1",
+          "value_entity": "sensor.bathroom_first_floor_temperature"
+        },
+        {
+          "id": "thermostat-en_suite",
+          "type": "icon",
+          "kind": "thermostat",
+          "entity": "climate.en_suite",
+          "at": [1300, 1035],
+          "room": "ensuite",
+          "value_entity": "sensor.en_suite_temperature"
+        },
+        {
+          "id": "presence-room_1",
+          "type": "presence",
+          "entity": "binary_sensor.room_1_presence",
+          "at": [1520, 470],
+          "hit": [1502.4, 452.4, 35.3, 35.3],
+          "room": "room1"
+        },
+        {
+          "id": "presence-room_2",
+          "type": "presence",
+          "entity": "binary_sensor.room_2_presence",
+          "at": [1200, 330],
+          "hit": [1182.4, 312.4, 35.3, 35.3],
+          "room": "room2"
+        },
+        {
+          "id": "presence-kids_room",
+          "type": "presence",
+          "entity": "binary_sensor.kids_room_presence",
+          "at": [700, 470],
+          "hit": [682.4, 452.4, 35.3, 35.3],
+          "room": "room3"
+        },
+        {
+          "id": "presence-bedroom",
+          "type": "presence",
+          "entity": "binary_sensor.bedroom_presence",
+          "at": [1600, 1150],
+          "hit": [1482.4, 1152.4, 35.3, 35.3],
+          "room": "bedroom"
+        },
+        {
+          "id": "motion-wardrobe",
+          "type": "motion",
+          "entity": "binary_sensor.wardrobe_motion",
+          "at": [1146, 996],
+          "direction": 315,
+          "fov": 90,
+          "range": 250,
+          "room": "wardrobe"
+        },
+        {
+          "id": "motion-landing",
+          "type": "motion",
+          "entity": "binary_sensor.landing_motion",
+          "at": [1036, 376],
+          "direction": 44,
+          "fov": 90,
+          "range": 382,
+          "room": "landing"
+        },
+        {
+          "id": "smoke-room_1",
+          "type": "icon",
+          "kind": "smoke",
+          "entity": "binary_sensor.room_1_smoke",
+          "at": [1520, 200],
+          "room": "room1"
+        },
+        {
+          "id": "smoke-room_2",
+          "type": "icon",
+          "kind": "smoke",
+          "entity": "binary_sensor.room_2_smoke",
+          "at": [1250, 210],
+          "room": "room2"
+        },
+        {
+          "id": "smoke-kids_room",
+          "type": "icon",
+          "kind": "smoke",
+          "entity": "binary_sensor.kids_room_smoke",
+          "at": [930, 130],
+          "room": "room3"
+        },
+        {
+          "id": "smoke-bedroom",
+          "type": "icon",
+          "kind": "smoke",
+          "entity": "binary_sensor.bedroom_smoke",
+          "at": [1500, 990],
+          "room": "bedroom"
+        },
+        {
+          "id": "air-bedroom",
+          "type": "icon",
+          "kind": "air",
+          "entity": "sensor.bedroom_co2",
+          "at": [1680, 800],
+          "room": "bedroom"
+        },
+        {
+          "id": "air-kids",
+          "type": "icon",
+          "kind": "air",
+          "entity": "sensor.kids_room_co2",
+          "at": [700, 400],
+          "room": "room3"
+        },
+        {
+          "id": "leak-ensuite",
+          "type": "icon",
+          "kind": "leak",
+          "entity": "binary_sensor.en_suite_leak",
+          "at": [1250, 1100],
+          "room": "ensuite"
+        },
+        {
+          "id": "floor-heating-bath1",
+          "type": "icon",
+          "kind": "floor_heating",
+          "entity": "climate.bathroom_first_floor_floor",
+          "at": [700, 990],
+          "room": "bath1"
+        },
+        {
+          "id": "ap-first",
+          "type": "icon",
+          "kind": "ap",
+          "entity": "sensor.ap_first_floor_clients",
+          "at": [1000, 600],
+          "room": "landing"
+        },
+        {
+          "id": "ac-bedroom",
+          "type": "climate_unit",
+          "entity": "climate.bedroom_ac",
+          "hit": [1331, 942, 32, 116],
+          "glow": { "at": [1347, 1000], "rx": 85, "ry": 130 },
+          "beam": 180,
+          "beam_dir": 90,
+          "room": "bedroom"
+        },
+        {
+          "id": "speaker-bedroom",
+          "type": "icon",
+          "kind": "media",
+          "entity": "media_player.bedroom_speaker",
+          "at": [1680, 1172.5],
+          "hit": [1669, 1162.5, 22, 20],
+          "beam_dir": 0,
+          "room": "bedroom"
+        },
+        {
+          "id": "speaker-kids",
+          "type": "icon",
+          "kind": "media",
+          "entity": "media_player.kids_speaker",
+          "at": [697.5, -100],
+          "hit": [687.5, -111, 20, 22],
+          "beam_dir": 90,
+          "room": "room3"
+        },
+        {
+          "id": "humidifier-kids",
+          "type": "icon",
+          "kind": "humidifier",
+          "entity": "humidifier.kids_room",
+          "at": [700, 245],
+          "room": "room3"
+        },
+        {
+          "id": "plug-room1-desk",
+          "type": "icon",
+          "kind": "plug",
+          "entity": "switch.room_1_desk",
+          "at": [1689, 60],
+          "room": "room1",
+          "value_entity": "sensor.room_1_desk_power"
         }
       ],
       "climate": [
         {
           "id": "room1",
-          "at": [
-            1545,
-            405
-          ],
+          "at": [1545, 405],
           "temperature": "sensor.room_1_temperature",
           "humidity": "sensor.room_1_humidity"
         },
         {
           "id": "kids",
-          "at": [
-            900,
-            40
-          ],
+          "at": [900, 40],
           "temperature": "sensor.kids_room_temperature",
           "humidity": "sensor.kids_room_humidity"
         },
         {
           "id": "bedroom",
-          "at": [
-            1435,
-            1155
-          ],
+          "at": [1440, 1115],
           "temperature": "sensor.bedroom_temperature",
           "humidity": "sensor.bedroom_humidity"
+        },
+        {
+          "id": "sensor-room_2",
+          "at": [1040, 300],
+          "temperature": "sensor.room_2_temperature",
+          "humidity": "sensor.room_2_humidity",
+          "display": "icon"
+        },
+        {
+          "id": "sensor-landing",
+          "at": [1250, 390],
+          "temperature": "sensor.landing_temperature",
+          "humidity": "sensor.landing_humidity",
+          "display": "icon"
+        },
+        {
+          "id": "sensor-wardrobe",
+          "at": [1200, 995],
+          "temperature": "sensor.wardrobe_temperature",
+          "humidity": "sensor.wardrobe_humidity",
+          "display": "icon"
+        },
+        {
+          "id": "sensor-bathroom_first_floor",
+          "at": [1060, 960],
+          "temperature": "sensor.bathroom_first_floor_temperature",
+          "humidity": "sensor.bathroom_first_floor_humidity",
+          "display": "icon"
+        },
+        {
+          "id": "sensor-en_suite",
+          "at": [1025, 1030],
+          "temperature": "sensor.en_suite_temperature",
+          "humidity": "sensor.en_suite_humidity",
+          "display": "icon"
         }
       ],
       "furniture": [
         {
           "id": "f-room1-bed",
           "kind": "bed_single",
-          "at": [
-            1415,
-            115
-          ],
-          "size": [
-            90,
-            200
-          ],
+          "at": [1415, 115],
+          "size": [90, 200],
           "rot": 0,
           "room": "room1"
         },
         {
           "id": "f-room1-desk",
           "kind": "desk",
-          "at": [
-            1665,
-            115
-          ],
-          "size": [
-            160,
-            65
-          ],
+          "at": [1665, 115],
+          "size": [160, 65],
           "rot": 90,
           "room": "room1"
         },
         {
           "id": "f-room1-wardrobe",
           "kind": "wardrobe",
-          "at": [
-            1665,
-            355
-          ],
-          "size": [
-            250,
-            60
-          ],
+          "at": [1665, 355],
+          "size": [250, 60],
           "rot": 90,
           "room": "room1"
         },
         {
           "id": "f-room2-bed",
           "kind": "bed_single",
-          "at": [
-            1075,
-            -15
-          ],
-          "size": [
-            90,
-            200
-          ],
+          "at": [1075, -15],
+          "size": [90, 200],
           "rot": 0,
           "room": "room2"
         },
         {
           "id": "f-room2-wardrobe",
           "kind": "wardrobe",
-          "at": [
-            1315,
-            255
-          ],
-          "size": [
-            180,
-            55
-          ],
+          "at": [1315, 255],
+          "size": [180, 55],
           "rot": 90,
           "room": "room2"
         },
         {
           "id": "f-room2-desk",
           "kind": "desk",
-          "at": [
-            1315,
-            75
-          ],
-          "size": [
-            110,
-            55
-          ],
+          "at": [1315, 75],
+          "size": [110, 55],
           "rot": 90,
           "room": "room2"
         },
         {
           "id": "f-room3-desk",
           "kind": "desk",
-          "at": [
-            860,
-            -100
-          ],
-          "size": [
-            160,
-            60
-          ],
+          "at": [860, -100],
+          "size": [160, 60],
           "rot": 0,
           "room": "room3"
         },
         {
           "id": "f-room3-chair",
           "kind": "office_chair",
-          "at": [
-            860,
-            -45
-          ],
-          "size": [
-            55,
-            55
-          ],
+          "at": [860, -45],
+          "size": [55, 55],
           "rot": 180,
           "room": "room3"
         },
         {
           "id": "f-room3-bed",
           "kind": "bed_single",
-          "at": [
-            735,
-            140
-          ],
-          "size": [
-            95,
-            200
-          ],
+          "at": [735, 140],
+          "size": [95, 200],
           "rot": 0,
           "room": "room3"
         },
         {
           "id": "f-room3-wardrobe",
           "kind": "wardrobe",
-          "at": [
-            790,
-            300
-          ],
-          "size": [
-            200,
-            60
-          ],
+          "at": [790, 300],
+          "size": [200, 60],
           "rot": 0,
           "room": "room3"
         },
         {
           "id": "f-wardrobe-1",
           "kind": "wardrobe",
-          "at": [
-            1115,
-            850
-          ],
-          "size": [
-            130,
-            55
-          ],
+          "at": [1108.5, 895],
+          "size": [218, 55],
           "rot": 270,
           "room": "wardrobe"
         },
         {
           "id": "f-bed",
           "kind": "bed",
-          "at": [
-            1580,
-            1000
-          ],
-          "size": [
-            160,
-            200
-          ],
+          "at": [1580, 1000],
+          "size": [160, 200],
           "rot": 90,
           "room": "bedroom"
         },
         {
           "id": "f-bedside-1",
           "kind": "nightstand",
-          "at": [
-            1680,
-            880
-          ],
-          "size": [
-            50,
-            40
-          ],
+          "at": [1680, 880],
+          "size": [50, 40],
           "rot": 90,
           "room": "bedroom"
         },
         {
           "id": "f-bedside-2",
           "kind": "nightstand",
-          "at": [
-            1680,
-            1120
-          ],
-          "size": [
-            50,
-            40
-          ],
+          "at": [1680, 1120],
+          "size": [50, 40],
           "rot": 90,
           "room": "bedroom"
         },
         {
           "id": "f-bath1-tub",
           "kind": "corner_bath",
-          "at": [
-            750,
-            965
-          ],
-          "size": [
-            140,
-            140
-          ],
-          "rot": 180,
+          "at": [757.5, 856],
+          "size": [140, 140],
           "room": "bath1"
         },
-        {
-          "id": "f-bath1-wc",
-          "kind": "wc",
-          "at": [
-            1045,
-            900
-          ],
-          "size": [
-            38,
-            54
-          ],
-          "rot": 90,
-          "room": "bath1"
-        },
+        { "id": "f-bath1-wc", "kind": "wc", "at": [1045, 900], "size": [38, 54], "rot": 90, "room": "bath1" },
         {
           "id": "f-bath1-sink",
           "kind": "sink",
-          "at": [
-            935,
-            1015
-          ],
-          "size": [
-            60,
-            45
-          ],
+          "at": [944, 977.5],
+          "size": [60, 45],
           "rot": 180,
           "room": "bath1"
         },
         {
           "id": "f-ensuite-sink",
           "kind": "sink",
-          "at": [
-            1265,
-            1075
-          ],
-          "size": [
-            60,
-            45
-          ],
+          "at": [1265, 1075],
+          "size": [60, 45],
           "rot": 0,
           "room": "ensuite"
         },
         {
           "id": "f-ensuite-wc",
           "kind": "wc",
-          "at": [
-            1165,
-            1075
-          ],
-          "size": [
-            38,
-            54
-          ],
+          "at": [1165, 1075],
+          "size": [38, 54],
           "rot": 0,
           "room": "ensuite"
         },
         {
           "id": "f-ensuite-shower",
           "kind": "shower",
-          "at": [
-            1050,
-            1130
-          ],
-          "size": [
-            80,
-            130
-          ],
+          "at": [1050, 1130],
+          "size": [80, 130],
           "rot": 0,
           "room": "ensuite"
+        },
+        {
+          "kind": "wardrobe",
+          "at": [1289, 948],
+          "size": [112, 60],
+          "rot": 90,
+          "id": "furniture-wardrobe-1",
+          "room": "wardrobe"
         }
       ]
-    }
-  ],
-  "notes": [
-    {
-      "id": "marker-valve",
-      "type": "marker",
-      "at": [
-        285,
-        430
-      ],
-      "icon": "valve",
-      "text": "Water valve",
-      "note": "Main water valve, under the boiler.\nTurn clockwise to close."
-    },
-    {
-      "id": "marker-fuses",
-      "type": "marker",
-      "at": [
-        200,
-        700
-      ],
-      "icon": "fuse",
-      "text": "Fuse box",
-      "note": "Circuits labelled inside the door."
-    },
-    {
-      "id": "text-pantry",
-      "type": "text",
-      "at": [
-        1210,
-        1060
-      ],
-      "text": "Wine rack",
-      "size": 18,
-      "color": "#c9a273"
-    },
-    {
-      "id": "arrow-entrance",
-      "type": "arrow",
-      "from": [
-        700,
-        1180
-      ],
-      "to": [
-        790,
-        1060
-      ],
-      "color": "#ffab40"
-    },
-    {
-      "id": "text-entrance",
-      "type": "text",
-      "at": [
-        680,
-        1215
-      ],
-      "text": "Entrance",
-      "size": 18,
-      "color": "#ffab40"
-    }
-  ],
-  "garden": [
-    {
-      "id": "plot",
-      "kind": "plot",
-      "points": [
-        [
-          -600,
-          -500
-        ],
-        [
-          2500,
-          -500
-        ],
-        [
-          2500,
-          2350
-        ],
-        [
-          -600,
-          2350
-        ]
-      ]
-    },
-    {
-      "id": "lawn",
-      "kind": "lawn",
-      "points": [
-        [
-          -560,
-          -460
-        ],
-        [
-          2460,
-          -460
-        ],
-        [
-          2460,
-          2310
-        ],
-        [
-          -560,
-          2310
-        ]
-      ]
-    },
-    {
-      "id": "driveway",
-      "kind": "driveway",
-      "points": [
-        [
-          0,
-          1215
-        ],
-        [
-          710,
-          1215
-        ],
-        [
-          710,
-          2350
-        ],
-        [
-          0,
-          2350
-        ]
-      ]
-    },
-    {
-      "id": "path",
-      "kind": "path",
-      "points": [
-        [
-          770,
-          1215
-        ],
-        [
-          900,
-          1215
-        ],
-        [
-          900,
-          1900
-        ],
-        [
-          710,
-          1900
-        ],
-        [
-          710,
-          1780
-        ],
-        [
-          770,
-          1780
-        ]
-      ]
-    },
-    {
-      "id": "terrace",
-      "kind": "terrace",
-      "points": [
-        [
-          1715,
-          120
-        ],
-        [
-          2180,
-          120
-        ],
-        [
-          2180,
-          860
-        ],
-        [
-          1715,
-          860
-        ]
-      ]
-    },
-    {
-      "id": "pool",
-      "kind": "pool",
-      "points": [
-        [
-          1900,
-          1350
-        ],
-        [
-          2300,
-          1350
-        ],
-        [
-          2300,
-          1950
-        ],
-        [
-          1900,
-          1950
-        ]
-      ]
-    },
-    {
-      "id": "flowerbed",
-      "kind": "flowerbed",
-      "points": [
-        [
-          300,
-          -160
-        ],
-        [
-          1500,
-          -160
-        ],
-        [
-          1500,
-          -40
-        ],
-        [
-          300,
-          -40
-        ]
-      ]
-    },
-    {
-      "id": "gravel",
-      "kind": "gravel",
-      "points": [
-        [
-          1715,
-          860
-        ],
-        [
-          1860,
-          860
-        ],
-        [
-          1860,
-          1215
-        ],
-        [
-          1715,
-          1215
-        ]
-      ]
-    },
-    {
-      "id": "hedge",
-      "kind": "hedge",
-      "line": [
-        [
-          -540,
-          -440
-        ],
-        [
-          2440,
-          -440
-        ]
-      ]
-    },
-    {
-      "id": "fence",
-      "kind": "fence",
-      "line": [
-        [
-          2500,
-          -500
-        ],
-        [
-          2500,
-          2350
-        ],
-        [
-          1000,
-          2350
-        ]
-      ]
-    },
-    {
-      "id": "fence-west",
-      "kind": "fence",
-      "line": [
-        [
-          -600,
-          -500
-        ],
-        [
-          -600,
-          2350
-        ],
-        [
-          -100,
-          2350
-        ]
-      ]
-    },
-    {
-      "id": "tree-1",
-      "kind": "tree",
-      "at": [
-        -330,
-        350
-      ],
-      "r": 230
-    },
-    {
-      "id": "tree-2",
-      "kind": "tree",
-      "at": [
-        2230,
-        -200
-      ],
-      "r": 260
-    },
-    {
-      "id": "tree-3",
-      "kind": "tree",
-      "at": [
-        -330,
-        1750
-      ],
-      "r": 190
-    },
-    {
-      "id": "bush-1",
-      "kind": "bush",
-      "at": [
-        1250,
-        1500
-      ],
-      "r": 60
-    },
-    {
-      "id": "bush-2",
-      "kind": "bush",
-      "at": [
-        1420,
-        1520
-      ],
-      "r": 70
-    },
-    {
-      "id": "bush-3",
-      "kind": "bush",
-      "at": [
-        1590,
-        1490
-      ],
-      "r": 55
     }
   ]
 }

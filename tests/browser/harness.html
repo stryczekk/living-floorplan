@@ -384,8 +384,10 @@ if (shot) {
   }
   // notes: text, markers, arrows from the model; a marker's tap shows its note
   {
-    check("notes drawn: two texts, two markers, an arrow", svg.querySelectorAll("#notes .note-text").length === 2 && svg.querySelectorAll("#notes .note-marker").length === 2 &&
-      svg.querySelectorAll("#notes .note-arrow").length === 1, svg.querySelectorAll("#notes > *").length);
+    const nk = (k) => (model.notes || []).filter((x) => x.type === k).length;
+    check("notes drawn: the model's texts, markers and arrows", nk("marker") >= 1 && svg.querySelectorAll("#notes .note-text").length === nk("text") &&
+      svg.querySelectorAll("#notes .note-marker").length === nk("marker") && svg.querySelectorAll("#notes .note-arrow").length === nk("arrow"),
+      svg.querySelectorAll("#notes > *").length);
     const pin = svg.querySelector("#marker-valve .note-pin").getBoundingClientRect(), n1 = calls.length;
     const cx = pin.left + pin.width / 2, cy = pin.top + pin.height / 2;
     ev("pointerdown", cx, cy); ev("pointerup", cx, cy);
@@ -444,8 +446,8 @@ if (shot) {
   // zoom out below the whole plan, down to 0.5x, the plan in the middle
   {
     const zb = [...sr.querySelectorAll("#zoom button")];
-    zb[2].click(); const full = svg.getAttribute("viewBox").split(" ").map(Number);
-    for (let i = 0; i < 4; i++) zb[1].click();
+    zb[2].click(); const full = el._fullVB.slice();
+    for (let i = 0; i < 12; i++) zb[1].click();
     const out = svg.getAttribute("viewBox").split(" ").map(Number);
     check("zoom out to half: the whole plan smaller, in the middle", Math.abs(out[2] / full[2] - 2) < 0.01 && Math.abs((out[0] + out[2] / 2) - (full[0] + full[2] / 2)) < 0.5, out.join(" "));
     zb[2].click(); zb[0].click();
@@ -830,7 +832,7 @@ if (shot) {
     const sh = eh.shadowRoot;
     const trv = sh.querySelector('[data-entity="climate.bathroom"]');
     check("hvac: a heating TRV is coral and says current -> target", trv && trv.classList.contains("heating") && !trv.classList.contains("on") &&
-      trv.querySelector(".device-value").textContent === "21.5° → 22°", trv && trv.className.baseVal + " " + trv.querySelector(".device-value")?.textContent);
+      /^\d+\.\d° → 22°$/.test(trv.querySelector(".device-value").textContent), trv && trv.className.baseVal + " " + trv.querySelector(".device-value")?.textContent);
     const eu3 = await mount({ floor: "first-floor" }, fakeHass("night"), 900);
     const th = eu3.shadowRoot.querySelector('[data-entity="climate.bedroom"] .device-value');
     check("hvac: a thermostat with its own sensor shows that sensor -> target", th && /^\d+(\.\d)?° → 22°$/.test(th.textContent), th && th.textContent);
@@ -950,7 +952,12 @@ if (shot) {
 
   // maps: periods, comparing with the period before, energy in the rooms, signal
   {
-    const em = await mount({}, fakeHass("night"), 900);
+    const hm = fakeHass("night");
+    hm.states["sensor.dehumidifier_energy"] = { entity_id: "sensor.dehumidifier_energy", state: "123.4", last_updated: "m",
+      attributes: { unit_of_measurement: "kWh", device_class: "energy", state_class: "total_increasing" } };
+    hm.entities = { ...(hm.entities || {}), "switch.dehumidifier": { entity_id: "switch.dehumidifier", device_id: "m1" },
+      "sensor.dehumidifier_energy": { entity_id: "sensor.dehumidifier_energy", device_id: "m1" } };
+    const em = await mount({}, hm, 900);
     const sm = em.shadowRoot;
     const menu = (k) => { sm.getElementById("layer-btn").click(); [...sm.querySelectorAll("#layer-menu button")][k].click(); };
     const texts = () => [...sm.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);

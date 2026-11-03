@@ -6521,7 +6521,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     const NS = "http://www.w3.org/2000/svg";
     const root = document.createElementNS(NS, "g");
     root.id = "fc-power";
-    const F = this._fullVB || this._baseVB;
+    const F = this._homeVB || this._fullVB || this._baseVB;
     const u = F ? Math.min(F[2], F[3]) / 52 : 10;
     const seen = /* @__PURE__ */ new Set();
     for (const [id, sensors] of pairs) {

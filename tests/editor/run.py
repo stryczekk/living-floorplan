@@ -1567,7 +1567,7 @@ try:
     ev("floorplanEditor.switchFloor(-1); floorplanEditor.fit(); 1"); time.sleep(0.4)
     before = ev("JSON.stringify(floorplanEditor.model)")
     key("v")
-    b0 = json.loads(ev("JSON.stringify(floorplanEditor.model.lights[0].bulbs[0])"))
+    b0 = json.loads(ev("JSON.stringify(floorplanEditor.model.lights.find((l) => Array.isArray(l.bulbs) && Array.isArray(l.bulbs[0])).bulbs[0])"))
     drag(b0[:2], [b0[0] + 50, b0[1]])
     moved = ev("JSON.stringify(floorplanEditor.model)") != before
     key("z", ctrl=True)
