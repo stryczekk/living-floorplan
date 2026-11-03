@@ -10,7 +10,7 @@
 import { generateSvg } from "../generator/floorplan-model.js";
 import { FLOOR_PATTERNS, COLORS } from "../generator/floors.js";
 import { wallThickness, wallPolygons, wallEnds, CM_PER_SVG_DEFAULT, beamWedge, FRAME_MARGIN, floorModel } from "../generator/model-v2.js";
-import { t, LOCALE, translatePage } from "./i18n.js";
+import { t, LANG, LOCALE, translatePage } from "./i18n.js";
 import { SHAPES, CORNERS, shapeWalls } from "./shapes.js";
 import { OPENING_TYPES, WINDOW_KINDS, DOOR_KINDS, kindType, DEFAULT_WIDTH, DOOR_TYPES, GLAZED, frame, innerRange, fitOpening, makeOpening, retype, outsideOf, setCorner, cornerPair, cornerPartner, cornerRange, outerCornerAt, setCornerWidth, addCornerPair,
   shiftOpening, openingAt, sashes } from "./openings.js";
@@ -3593,6 +3593,18 @@ function download() {
 // Where the plan is kept: the editor's own server (tools/serve.mjs), or Home Assistant (the floor plan
 // integration - the editor is then a panel of HA and talks to it over its WebSocket).
 const IN_HA = new URLSearchParams(location.search).has("ha") || location.pathname.startsWith("/living_floorplan/");
+// the public demo's editor (its server adds <meta name="demo-editor">): no Home Assistant, no server - the plan lives in
+// this browser, and "See it live" opens it in the demo next door
+const DEMO = !IN_HA && !!document.querySelector('meta[name="demo-editor"]');
+if (DEMO) {
+  for (const id of ["b-ha", "b-publish"]) $(id).hidden = true;
+  $("c-live").closest("label").style.display = "none";
+  $("b-demo-live").hidden = false;
+  $("b-demo-live").onclick = () => {
+    try { localStorage.setItem(STORE, JSON.stringify(house())); } catch { /* private mode: the demo shows the example */ }
+    location.href = "../?mine&lang=" + LANG;
+  };
+}
 const httpBackend = {
   async plan() {
     const r = await fetch("/api/plan");
@@ -3960,6 +3972,7 @@ translatePage();
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch { /* ignore */ }
 if (saved && saved.version === 2) { S.house = saved; S.model = floorModel(saved, -1); }
+else if (DEMO && globalThis.FLOORPLAN_EXAMPLE) { S.house = JSON.parse(JSON.stringify(globalThis.FLOORPLAN_EXAMPLE)); S.model = floorModel(S.house, -1); }
 else S.house = S.model;
 // what this browser knew about the server's plan (the startup draw is not a change)
 try { Object.assign(S, (({ base, dirty }) => ({ base: base ?? null, dirty: !!dirty }))(JSON.parse(localStorage.getItem(SRV_STORE) || "{}"))); } catch { /* ignore */ }
@@ -3982,7 +3995,7 @@ const haReady = (async () => {
 // ?model=<url of a house.json> opens that model (furniture.svg next to it too)
 const startUrl = new URLSearchParams(location.search).get("model");
 if (startUrl) loadUrl(startUrl);
-else (async () => {
+else if (!DEMO) (async () => {
   // served by tools/serve.mjs (or a panel of HA): the plan from there - unless this browser has unsaved changes of the same plan
   if (IN_HA) await haReady;
   let plan;

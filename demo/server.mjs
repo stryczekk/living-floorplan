@@ -148,6 +148,14 @@ createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/x-ndjson" });
     return createReadStream(HITS).pipe(res);
   }
+  if (url.pathname === "/editor") return send(301, "", "text/plain", { Location: "/editor/" + url.search });
+  if (url.pathname === "/editor/" || url.pathname === "/editor/index.html") {
+    // the floor plan editor in demo mode: starts from the example house, keeps the plan in the visitor's browser
+    try {
+      return send(200, readFileSync(join(ROOT, "editor.html"), "utf8").replace("<head>", '<head>\n<meta name="demo-editor" content="1">'),
+        "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
+    } catch { return send(404, "not found"); }
+  }
   if (url.pathname === "/" || url.pathname === "/index.html") {
     try { return send(200, PAGE(), "text/html; charset=utf-8", { "Cache-Control": "no-cache" }); } catch (e) { return send(500, "the demo page is missing"); }
   }

@@ -2364,7 +2364,7 @@ export class LivingFloorplanCard extends HTMLElement {
   }
 
   // An entity's name as Home Assistant's own lists show it: the name it was given, else
-  // the friendly name without its device's name in front ("BoneIO ESP … Light25-salon" -> "Light25-salon").
+  // the friendly name without its device's name in front ("Relay board 3 Living room light" -> "Living room light").
   _shortName(id) {
     const h = this._hass, s = h.states[id], reg = h.entities && h.entities[id];
     if (reg && reg.name) return reg.name;

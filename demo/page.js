@@ -21,6 +21,7 @@ const L = {
     a_heating: "heating", a_cooling: "cooling", a_idle: "idle", a_off: "off", now: "in the room", now_water: "water", set: "set",
     in_24h: "in 24 h", pressed_short: "pressed", no_changes: "no changes in 24 h",
     last: "Changed {t}", simulated: "Simulated camera · nothing is recorded",
+    house: "The house", edit: "Draw your own / change this one", back: "Back to the example house", mine: "Your plan from the editor",
   },
   pl: {
     title: "Living Floor Plan", tag: "demo",
@@ -37,6 +38,7 @@ const L = {
     a_heating: "grzeje", a_cooling: "chłodzi", a_idle: "nie grzeje", a_off: "wyłączony", now: "w pokoju", now_water: "woda", set: "zadana",
     in_24h: "w 24 h", pressed_short: "naciśnięty", no_changes: "bez zmian w 24 h",
     last: "Zmiana {t}", simulated: "Symulowana kamera · nic nie jest nagrywane",
+    house: "Dom", edit: "Narysuj swój / przerób ten", back: "Wróć do przykładowego domu", mine: "Twój plan z edytora",
   },
   de: {
     title: "Living Floor Plan", tag: "Demo",
@@ -53,6 +55,7 @@ const L = {
     a_heating: "heizt", a_cooling: "kühlt", a_idle: "untätig", a_off: "aus", now: "im Raum", now_water: "Wasser", set: "Soll",
     in_24h: "in 24 h", pressed_short: "gedrückt", no_changes: "keine Änderungen in 24 h",
     last: "Geändert {t}", simulated: "Simulierte Kamera · keine Aufnahme",
+    house: "Das Haus", edit: "Eigenes zeichnen / dieses ändern", back: "Zurück zum Beispielhaus", mine: "Dein Plan aus dem Editor",
   },
 };
 const P = new URLSearchParams(location.search);
@@ -61,7 +64,37 @@ if (!L[lang]) lang = "en";
 const t = (k, v = {}) => (L[lang][k] || L.en[k] || k).replace(/\{(\w+)\}/g, (_, x) => v[x]);
 
 // ---- the model: the server's current plan when there is one (the editor's sandbox), else the bundled example ----
+// ?mine: the plan the visitor drew in the demo's editor (same site, kept in their browser)
+const EDITOR_STORE = "floorplan-editor.model";
+function ownPlan() {
+  try { const m = JSON.parse(localStorage.getItem(EDITOR_STORE) || "null"); return m && m.version === 2 && Array.isArray(m.walls) ? m : null; } catch { return null; }
+}
+// a drawn plan has no entities yet: give every lamp, cover, device, reading, lock and camera a made-up one,
+// of the domain the example house uses for that kind of device, so the simulated home brings it to life
+function withPlaceholders(model, example) {
+  const m = JSON.parse(JSON.stringify(model)), byKind = {};
+  for (const f of [example || {}, ...((example && example.floors) || [])])
+    for (const d of f.devices || []) { const dom = String(d.entity || "").split(".")[0]; if (dom) byKind[(d.type || "") + "|" + (d.kind || "")] ??= dom; }
+  const TYPE = { motion: "binary_sensor", presence: "binary_sensor", tv: "media_player", climate_unit: "climate", skylight: "cover", appliance: "switch" };
+  const slug = (s) => String(s || "x").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "x";
+  let n = 0;
+  const make = (dom, id, word) => dom + ".demo_" + slug(id || "item_" + ++n) + (word ? "_" + slug(word) : "");
+  for (const f of [m, ...(m.floors || [])]) {
+    for (const l of f.lights || []) if (!l.entity) l.entity = make("light", l.id);
+    for (const c of f.covers || []) if (!c.entity) c.entity = make("cover", c.id);
+    for (const d of f.devices || []) if (!d.entity) {
+      const dom = byKind[(d.type || "") + "|" + (d.kind || "")] || TYPE[d.type] || "sensor";
+      d.entity = make(dom, d.id, d.kind || d.type);
+    }
+    for (const c of f.climate || []) { if (!c.temperature) c.temperature = make("sensor", c.id, "temperature"); if (!c.humidity) c.humidity = make("sensor", c.id, "humidity"); }
+    for (const l of f.locks || []) if (!l.entity) l.entity = make("lock", l.id);
+    for (const c of f.cameras || []) if (!c.entity) c.entity = make("camera", c.id);
+  }
+  return m;
+}
+const MINE = P.has("mine") && ownPlan();
 async function loadModel() {
+  if (MINE) return withPlaceholders(MINE, window.FLOORPLAN_EXAMPLE);
   if (P.get("model")) return (await fetch(P.get("model"))).json();
   try { const r = await fetch("/api/plan", { cache: "no-cache" }); if (r.ok) { const j = await r.json(); if (j.model) return j.model; } } catch { /* static hosting */ }
   if (window.FLOORPLAN_EXAMPLE) return window.FLOORPLAN_EXAMPLE;
@@ -369,6 +402,15 @@ document.getElementById("theme").onclick = () => {
 };
 try { if (localStorage.getItem("living-floorplan-demo:theme") === "light") { document.body.classList.add("light"); mount(); } } catch { /* private mode */ }
 for (const a of document.querySelectorAll("[data-lang]")) a.classList.toggle("on", a.dataset.lang === lang);
+// the language links keep the visitor's own plan
+if (MINE) for (const a of document.querySelectorAll("[data-lang]")) a.href = "?mine&lang=" + a.dataset.lang;
+{
+  const ed = document.getElementById("to-editor"), back = document.getElementById("to-example");
+  ed.href = "editor/?lang=" + lang;
+  back.href = "?lang=" + lang;
+  back.hidden = !MINE;
+  document.getElementById("mine-note").hidden = !MINE;
+}
 // ?gallery: one box of details per kind of entity, all at once (for checking the dialogs)
 if (P.has("gallery")) {
   const ids = Object.keys(demo.hass.states).sort();
@@ -416,6 +458,7 @@ if (hitUrl) {
     if (!el) return;
     if (el.dataset.trigger) event("demo:" + el.dataset.trigger);
     else if (el.id === "theme" || el.id === "reset") event("demo:" + el.id);
+    else if (el.id === "to-editor" || el.id === "to-example") event("demo:" + el.id);
     else if (el.dataset.lang) event("lang:" + el.dataset.lang);
     else if (el.closest && el.closest("#floors")) event("card:floor");
     else if (el.id === "tt-btn") event("card:time_travel");

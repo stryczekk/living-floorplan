@@ -1,4 +1,4 @@
-// Notes on the plan: free text ("Kubuś's cot"), markers (a pin with an icon,
+// Notes on the plan: free text ("the baby's cot"), markers (a pin with an icon,
 // a caption and a longer note - "main water valve", "fuse box") and arrows.
 // Static drawing; a card may show a marker's note on a tap.
 //

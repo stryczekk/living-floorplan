@@ -30,6 +30,11 @@ Links can carry `utm_source` / `utm_medium` / `utm_campaign` (the README's link 
 from someone's own Home Assistant (a private address, `*.local`, Nabu Casa) is counted as "(home assistant)". Addresses
 in `<data>/ignore-ips`, one a line, are not counted (your own tests).
 
+`/editor/` is the editor in demo mode (`dist/living-floorplan-editor.html` saved next to the page as `editor.html`; the
+server adds `<meta name="demo-editor">`): it starts from the example house, keeps the plan in the visitor's browser and
+*See it live* opens the demo with it (`/?mine`) - every lamp, cover and device without an entity gets a made-up one, so
+the simulated home brings it to life.
+
 ## Screenshots
 
 `docs/images/` - the plan shots come from the card's browser test:

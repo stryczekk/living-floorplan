@@ -266,3 +266,6 @@ polyline.ov-sketch.live { fill: none; }
 /* a rack's contents in its panel: the kind's icon, its entity, take out, remove */
 .rack-row input { flex: 1; width: auto; }
 .rack-row .ico { width: 18px; height: 18px; }
+
+/* the demo's "See it live" */
+#bar button.accent { background: #ffc300; color: #131a24; border-color: #ffc300; font-weight: 600; }
