@@ -206,6 +206,14 @@ try:
     check("the rooms list is in the Rooms tool, the plan's settings and the help on the left",
           ev("!!document.querySelector('#rooms-list') && (document.querySelector('[data-open=plan]').click(), !!document.querySelector('#tb-plan #pl-rot')) && !!document.querySelector('[data-panel=help] #help-list li')"))
 
+    # the start view: what the editor shows, kept in the model; removed again
+    ev("document.getElementById('pl-start').click(); 1"); time.sleep(0.2)
+    st = ev("JSON.stringify(floorplanEditor.state.model.canvas.start || null)")
+    check("start view: set to what the editor shows", st and len(json.loads(st)) == 4 and json.loads(st)[2] > 0, st)
+    check("start view: the panel says it is set and offers Show / Remove", ev("!!document.getElementById('pl-start-show') && !!document.getElementById('pl-start-del')"))
+    ev("document.getElementById('pl-start-del').click(); 1"); time.sleep(0.2)
+    check("start view: removed", ev("floorplanEditor.state.model.canvas.start === undefined"))
+
     # 9. the plan rendered without errors
     time.sleep(0.2)
     check("no drawing error", ev("document.getElementById('st-msg').textContent") == "",

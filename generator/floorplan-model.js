@@ -105,7 +105,7 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
   const out = [];
   const w = (s) => out.push(s);
 
-  w(`<svg xmlns="http://www.w3.org/2000/svg"\n     viewBox="${c.viewBox.map(n).join(" ")}" width="${n(c.viewBox[2])}" height="${n(c.viewBox[3])}"\n     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}>`);
+  w(`<svg xmlns="http://www.w3.org/2000/svg"\n     viewBox="${c.viewBox.map(n).join(" ")}" width="${n(c.viewBox[2])}" height="${n(c.viewBox[3])}"\n     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}${c.start ? ` data-start="${c.start.map(n).join(" ")}"` : ""}>`);
   w(`  <!-- GENERATED from the house model by generator/floorplan-model.js - do not edit by hand -->`);
   if (c.description) w(`  <desc id="desc">${esc(c.description)}</desc>`);
   w(`  <g id="${N.rotation}" transform="rotate(${n(c.rotate)})">`);
@@ -117,6 +117,13 @@ export function generateSvg(model, { furniture = "", names = null, floor = null 
   if (garden) w(`  <defs>\n${gardenDefs(model.garden, kcm)}\n  </defs>\n` + garden);
 
   // --- rooms ---------------------------------------------------------------
+  // the floor slab and the doorways' floor (under the rooms, the same colour)
+  if ((model.slab || []).length || (model.thresholds || []).length) {
+    w(`  <g id="slab" fill="#1e2836" stroke="none" pointer-events="none">`);
+    for (const t of model.slab || []) w(`    <polygon points="${pts(t)}"/>`);
+    for (const t of model.thresholds || []) w(`    <polygon class="threshold" points="${pts(t)}"/>`);
+    w(`  </g>`);
+  }
   w(`  <g id="rooms" fill="#1e2836" stroke="none" pointer-events="all">`);
   for (const r of model.rooms) {
     const tint = r.tint && r.tint.entity ? attrs({ [N.attrTintEntity]: r.tint.entity, [N.attrTintKind]: r.tint.kind || "state" }) : "";

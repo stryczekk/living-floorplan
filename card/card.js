@@ -46,6 +46,9 @@ export const STRINGS = {
     card_description: "Your house from the floor plan editor, live: light that fills the rooms, covers, readings, presence.",
     model_required: "Set 'model' to the house.json from the floor plan editor, e.g. /local/house.json.",
     loading: "Loading the plan…",
+    g_click: "Click", g_hold: "hold", g_on: "turn on", g_off: "turn off", g_open: "open", g_close: "close", g_stop: "stop",
+    g_info: "details", g_stats: "statistics", g_door: "open the door", undo: "Undo", u_on: "on", u_off: "off",
+    u_opening: "opening", u_closing: "closing", u_stopped: "stopped", door_opening: "Opening the door…", door_open: "Door opened",
     load_error: "Could not load {url}: {msg}",
     onb_title: "Draw your house",
     onb_text: "Open the floor plan editor (Floor plan in the sidebar): draw the walls or trace a photo or PDF of your plan, place lights, covers and sensors and pick their entities. Save - this card shows the plan at once.",
@@ -83,7 +86,7 @@ export const STRINGS = {
     s_sun: "Sun through the windows",
     s_trail: "Trail of movement",
     s_labels: "Room names",
-    s_readings: "Temperatures",
+    s_readings: "Temperatures", s_heating: "Heating rooms tinted",
     s_reset: "Defaults",
     s_layers: "Show on the plan",
     s_idle_lights: "Lamps that are off",
@@ -141,6 +144,9 @@ export const STRINGS = {
     card_name: "Living Floor Plan",
     card_description: "Twój dom z edytora rzutu, na żywo: światło wypełniające pokoje, rolety, odczyty, obecność.",
     model_required: "Ustaw 'model' na house.json z edytora rzutu, np. /local/house.json.",
+    g_click: "Klik", g_hold: "przytrzymaj", g_on: "zapal", g_off: "zgaś", g_open: "otwórz", g_close: "zamknij", g_stop: "zatrzymaj",
+    g_info: "szczegóły", g_stats: "statystyki", g_door: "otwórz drzwi", undo: "Cofnij", u_on: "zapalone", u_off: "zgaszone",
+    u_opening: "otwiera się", u_closing: "zamyka się", u_stopped: "zatrzymana", door_opening: "Otwieram drzwi…", door_open: "Drzwi otwarte",
     loading: "Wczytuję rzut…",
     load_error: "Nie udało się wczytać {url}: {msg}",
     onb_title: "Narysuj swój dom",
@@ -179,7 +185,7 @@ export const STRINGS = {
     s_sun: "Słońce w oknach",
     s_trail: "Ślad ruchu",
     s_labels: "Nazwy pokoi",
-    s_readings: "Temperatury",
+    s_readings: "Temperatury", s_heating: "Grzejące pokoje na czerwono",
     s_reset: "Domyślne",
     s_layers: "Pokazuj na rzucie",
     s_idle_lights: "Zgaszone lampy",
@@ -233,6 +239,105 @@ export const STRINGS = {
     rec_t: "Zapisz zakres jako animowany GIF (około 30 sekund)",
     edit_plan: "Edytuj rzut",
   },
+  de: {
+    card_name: "Living Floor Plan",
+    card_description: "Dein Haus aus dem Grundriss-Editor, live: Licht, das die Räume füllt, Rollläden, Messwerte, Präsenz.",
+    model_required: "Setze 'model' auf die house.json aus dem Grundriss-Editor, z. B. /local/house.json.",
+    loading: "Grundriss wird geladen…",
+    g_click: "Klick", g_hold: "halten", g_on: "einschalten", g_off: "ausschalten", g_open: "öffnen", g_close: "schließen", g_stop: "stoppen",
+    g_info: "Details", g_stats: "Statistik", g_door: "Tür öffnen", undo: "Rückgängig", u_on: "an", u_off: "aus",
+    u_opening: "öffnet", u_closing: "schließt", u_stopped: "gestoppt", door_opening: "Tür wird geöffnet…", door_open: "Tür geöffnet",
+    load_error: "{url} konnte nicht geladen werden: {msg}",
+    onb_title: "Zeichne dein Haus",
+    onb_text: "Öffne den Grundriss-Editor (Grundriss in der Seitenleiste): zeichne die Wände oder zeichne ein Foto oder PDF deines Plans nach, platziere Lichter, Rollläden und Sensoren und wähle ihre Entitäten. Speichern - diese Karte zeigt den Plan sofort.",
+    onb_button: "Editor öffnen",
+    ground_floor: "Erdgeschoss",
+    zoom_in: "Vergrößern",
+    zoom_out: "Verkleinern",
+    fit: "Ganzer Plan",
+    map_live: "Live",
+    map_temperature: "Temperatur",
+    map_humidity: "Luftfeuchtigkeit",
+    map_light_hours: "Stunden Licht",
+    map_presence_hours: "Stunden Präsenz",
+    map_light_energy: "Energie für Licht",
+    hours: "{n} h",
+    loading_history: "Verlauf wird geladen…",
+    alert_smoke: "Rauch",
+    alert_co: "Kohlenmonoxid",
+    alert_leak: "Wasserleck",
+    alert_gas: "Gas",
+    alert_siren: "Alarm",
+    alert_cold: "Fenster offen, draußen {t}°",
+    time_travel: "Zurück in der Zeit",
+    live: "Live",
+    range_24h: "24 h",
+    range_7d: "7 Tage",
+    range_30d: "30 Tage",
+    range_90d: "3 Monate",
+    play: "Abspielen",
+    pause: "Pause",
+    settings: "Einstellungen",
+    s_light: "Licht",
+    s_realistic: "Realistisch",
+    s_glow: "Lichtkreise",
+    s_sun: "Sonne durch die Fenster",
+    s_trail: "Bewegungsspur",
+    s_labels: "Raumnamen",
+    s_readings: "Temperaturen", s_heating: "Heizende Räume einfärben",
+    s_reset: "Standard",
+    s_layers: "Auf dem Plan zeigen",
+    s_idle_lights: "Ausgeschaltete Lampen",
+    s_sensors: "Bewegungs- und Präsenzsensoren",
+    s_devices: "Geräte und Haushaltsgeräte",
+    s_cameras: "Kameras",
+    s_furniture: "Möbel",
+    s_strength: "Lichtstärke",
+    s_note: "Nur auf diesem Gerät.",
+    s_theme: "Design",
+    th_auto: "Wie Home Assistant",
+    th_dark: "Dunkel",
+    th_light: "Hell",
+    forgotten: "💡 {room}: an, seit {min} min niemand da · ausschalten",
+    cam_seen: "jemand da",
+    ev_open: "{name} offen",
+    ev_detect: "{name}: Erkennung",
+    close: "Schließen",
+    confirm: "Bist du sicher?",
+    map_energy: "Energie in den Räumen",
+    map_signal: "Signal (Zigbee, WLAN)",
+    p_now: "Jetzt",
+    p_days: "{n} Tage",
+    p_year: "Jahr",
+    p_winter: "Winter",
+    p_summer: "Sommer",
+    compare: "± vorher",
+    vs_before: "im Vergleich zum Zeitraum davor",
+    sig_weak: "schwach",
+    sig_good: "stark",
+    none_found: "keine Signalsensoren gefunden",
+    r_lights: "Lichter",
+    r_covers: "Rollläden",
+    r_climate: "Klima",
+    r_devices: "Geräte",
+    r_all_off: "Alle aus",
+    r_all_up: "Alle hoch",
+    r_all_down: "Alle runter",
+    r_someone: "jemand da",
+    r_empty: "niemand",
+    r_empty_for: "seit {t} niemand",
+    r_nothing: "Von diesem Raum ist nichts auf dem Plan.",
+    r_24h: "24 h",
+    lasso_hint: "Bereich wählen: umrande ihn (mit der Maus: Shift + Ziehen)",
+    lasso_count: "{l} Lichter · {c} Rollläden",
+    lasso_none: "Hier gibt es nichts zu schalten",
+    lasso_on: "Einschalten",
+    lasso_off: "Ausschalten",
+    power_house: "Haus jetzt {w}",
+    power_devices: "Geräte jetzt {w}",
+    rec_t: "Zeitraum als animiertes GIF speichern (etwa 30 Sekunden)",
+    edit_plan: "Plan bearbeiten",
+  },
 };
 
 export function translate(lang, key, vars = {}) {
@@ -243,6 +348,15 @@ export function translate(lang, key, vars = {}) {
 }
 
 const TOGGLE_DOMAINS = new Set(["light", "switch", "fan", "input_boolean", "cover", "media_player", "humidifier"]);
+// what a tap on the plan switches: lights and covers only (safe, and undone at once); anything else opens its details,
+// a hold always does (a door strike set to `lock_action: hold` is the one exception: a hold opens it)
+const TAP_TOGGLE = new Set(["light", "cover"]);
+// what a tap on a cover does (cover.toggle): stops a moving one, closes an open one, opens a closed one
+function coverTapWord(st) {
+  if (st.state === "opening" || st.state === "closing") return "u_stopped";
+  const p = st.attributes && st.attributes.current_position;
+  return (typeof p === "number" ? p > 0 : st.state === "open") ? "u_closing" : "u_opening";
+}
 const HIT_PX = 24;      // a finger hits the nearest device within this distance
 const DRAG_PX = 10;     // movement that turns a tap into panning
 const HOLD_MS = 500;
@@ -456,6 +570,7 @@ export class LivingFloorplanCard extends HTMLElement {
     // layers: `hide: [idle_lights, sensors, devices, cameras, furniture]` in the config, each switchable in ⚙
     const hide = new Set(Array.isArray(config.hide) ? config.hide : []);
     this._defaults = { light: this._config.light, sun: !!this._config.sun, trail: this._config.trail, labels: this._config.labels, readings: true,
+      heating: this._config.roomHeating,
       idle_lights: !hide.has("idle_lights"), sensors: !hide.has("sensors"), devices: !hide.has("devices"),
       cameras: !hide.has("cameras"), furniture: !hide.has("furniture"),
       strength: 0.36, // a quarter of the ⚙ slider (owner, 26.10)
@@ -635,6 +750,30 @@ export class LivingFloorplanCard extends HTMLElement {
     background: var(--fc-solid); border: 1px solid var(--fc-line); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     font: 13px var(--paper-font-body1_-_font-family, sans-serif); color: var(--fc-text); }
   #fc-lasso-bar[hidden] { display: none; }
+  /* a finger held on a device: a ring fills until the hold acts (red: it opens a door) */
+  #fc-press { position: absolute; z-index: 6; width: 52px; height: 52px; margin: -26px 0 0 -26px; pointer-events: none; }
+  #fc-press[hidden] { display: none; }
+  #fc-press svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  #fc-press circle { fill: none; stroke-width: 4; }
+  #fc-press .bg { stroke: rgba(0, 0, 0, 0.35); }
+  #fc-press .fg { stroke: var(--fc-accent, #ffc300); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
+  #fc-press.run .fg { transition: stroke-dashoffset var(--fc-press-ms, 400ms) linear; stroke-dashoffset: 0; }
+  #fc-press.door .fg { stroke: #e57373; }
+  #fc-press span { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); white-space: nowrap; font-size: 12px;
+    background: var(--fc-panel); color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 2px 7px; }
+  #fc-press span:empty { display: none; }
+  #fc-press.door span { border-color: #e57373; }
+  /* what a tap just switched, with an undo */
+  #fc-undo { position: absolute; left: 50%; transform: translateX(-50%); bottom: 54px; z-index: 5; display: flex; align-items: center; gap: 10px;
+    background: var(--fc-panel); color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 10px; padding: 6px 6px 6px 12px;
+    font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); max-width: calc(100% - 24px); }
+  #fc-undo[hidden] { display: none; }
+  #fc-undo .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fc-undo button[hidden] { display: none; }
+  /* a mouse over a device: what a click and a hold do */
+  #fc-tip { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; font-size: 12px; background: var(--fc-panel);
+    color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 3px 8px; transform: translate(12px, 14px); }
+  #fc-tip[hidden] { display: none; }
   #fc-lasso-bar .n { color: var(--fc-text2); padding: 0 4px; }
   #fc-lasso-bar .b { display: contents; }
   /* a marker's note */
@@ -721,6 +860,9 @@ export class LivingFloorplanCard extends HTMLElement {
     <svg id="fc-lasso" hidden><path class="l"/><g class="dots"></g></svg>
     <div id="fc-lasso-bar" hidden><span class="n"></span><span class="b"></span><button class="fc" data-l="x">✕</button></div>
     <div id="fc-note" hidden><div class="t"></div><div class="n"></div></div>
+    <div id="fc-press" hidden><svg viewBox="0 0 52 52"><circle class="bg" cx="26" cy="26" r="22"/><circle class="fg" cx="26" cy="26" r="22" pathLength="100"/></svg><span></span></div>
+    <div id="fc-undo" hidden><span class="m"></span><button class="fc" data-undo></button></div>
+    <div id="fc-tip" hidden></div>
     <div id="fc-room" hidden><div class="dlg"><div class="bar"><span class="t"></span><button class="fc" id="fc-room-x">✕</button></div><div class="body"></div></div></div>
     <div id="campop" hidden><div class="bar"><span class="t"></span><button class="fc" id="campop-x">✕</button></div><div class="pic"></div></div>
     <div id="legend" hidden></div>
@@ -956,6 +1098,66 @@ export class LivingFloorplanCard extends HTMLElement {
     }
   }
 
+  // Readings under icons (a thermostat's "21° → 21°", a plug's watts) kept off the walls: under the icon when there is
+  // room, else to its right, its left or above it - whichever touches no wall on the screen (the plan may be turned).
+  // Done again only when the texts' lengths, the floor or the turn change.
+  _placeLabels() {
+    const svg = this._svg;
+    if (!svg) return;
+    const texts = [...svg.querySelectorAll("text." + NAMES.deviceValue)].filter((t) => t.textContent && t.textContent !== "—");
+    const key = (this._turned ? "t" : "f") + (this._floor || "") + ":" + texts.map((t) => t.textContent.length).join(",");
+    if (key === this._labelKey) return;
+    this._labelKey = key;
+    const walls = [...svg.querySelectorAll("#walls-exterior path, #walls-interior path")];
+    if (!walls.length || !svg.getBoundingClientRect().width) { this._labelKey = null; return; }
+    const hits = (t) => {
+      const r = t.getBoundingClientRect();
+      if (!r.width) return 0;
+      let n = 0;
+      for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++) {
+        const x = r.left + (r.width * i) / 6, y = r.top + r.height * (0.2 + 0.3 * j);
+        for (const w of walls) {
+          const m = w.getScreenCTM();
+          if (m && w.isPointInFill(new DOMPoint(x, y).matrixTransform(m.inverse()))) { n++; break; }
+        }
+      }
+      return n;
+    };
+    for (const t of texts) {
+      if (t.dataset.fcX === undefined) { t.dataset.fcX = t.getAttribute("x"); t.dataset.fcY = t.getAttribute("y"); }
+      // the icon's middle: the generator writes the text 12 units under it
+      const x = Number(t.dataset.fcX), y = Number(t.dataset.fcY) - 12;
+      const spots = [[x, y + 12, "middle"], [x + 9, y + 3.5, "start"], [x - 9, y + 3.5, "end"], [x, y - 9, "middle"]];
+      let best = null;
+      for (const [sx, sy, a] of spots) {
+        t.setAttribute("x", sx); t.setAttribute("y", sy); t.style.textAnchor = a;
+        const h = hits(t);
+        if (!best || h < best.h) best = { sx, sy, a, h };
+        if (!h) break;
+      }
+      t.setAttribute("x", best.sx); t.setAttribute("y", best.sy); t.style.textAnchor = best.a;
+    }
+  }
+
+  // Rooms the plan itself tints by heating (tint: {kind: heating}) follow the ⚙ switch too: off - put aside, on - back.
+  _heatingTints() {
+    const svg = this._svg;
+    if (!svg) return;
+    if (!this._config.roomHeating) {
+      svg.querySelectorAll(`#rooms polygon[${NAMES.attrTintKind}="heating"]:not([data-fc-heat])`).forEach((el) => {
+        el.setAttribute("data-fc-heat-off", el.getAttribute(NAMES.attrTintEntity) || "");
+        el.removeAttribute(NAMES.attrTintEntity); el.removeAttribute(NAMES.attrTintKind);
+        el.classList.remove(NAMES.isHeating);
+        el.style.removeProperty("fill");
+      });
+    } else {
+      svg.querySelectorAll("#rooms polygon[data-fc-heat-off]").forEach((el) => {
+        el.setAttribute(NAMES.attrTintEntity, el.getAttribute("data-fc-heat-off")); el.setAttribute(NAMES.attrTintKind, "heating");
+        el.removeAttribute("data-fc-heat-off");
+      });
+    }
+  }
+
   // A room with a thermostat or a TRV on the plan, and no colour of its own, is tinted while it heats.
   _heatRooms(roomAt) {
     if (!this._config.roomHeating || !this._svg) return;
@@ -966,6 +1168,7 @@ export class LivingFloorplanCard extends HTMLElement {
       if (!poly || poly.hasAttribute(NAMES.attrTintEntity) || poly.classList.contains("unused")) continue;
       poly.setAttribute(NAMES.attrTintEntity, d.entity);
       poly.setAttribute(NAMES.attrTintKind, "heating");
+      poly.setAttribute("data-fc-heat", "");
     }
   }
 
@@ -1068,14 +1271,20 @@ export class LivingFloorplanCard extends HTMLElement {
     svg.removeAttribute("height");
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     this._baseVB = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
+    // the start view set in the editor (SVG units), else the whole plan
+    const st = (svg.getAttribute("data-start") || "").split(/[\s,]+/).map(Number);
+    this._startVB = st.length === 4 && st.every(Number.isFinite) && st[2] > 0 && st[3] > 0 ? st : null;
     this._doorsKey = null;
     this._placeLightField();
     if (this._config.labels) svg.querySelector("#room-labels")?.removeAttribute("display");
     this._turned = null;
+    this._labelKey = null; // a new drawing: its readings placed again
     if (this._lowered) {
       const idx = roomIndex(this._lowered);
       this._rooms = idx.rooms;
       this._sources = roomSources(this._lowered, idx.roomAt);
+      this._roomAt = idx.roomAt;
+      this._heatingTints();
       this._heatRooms(idx.roomAt);
     } else { this._rooms = []; this._sources = {}; }
     this._wireCameras();
@@ -1114,6 +1323,7 @@ export class LivingFloorplanCard extends HTMLElement {
     c.trail = !!this._pref("trail");
     c.labels = !!this._pref("labels");
     c.readings = this._pref("readings") !== false;
+    c.roomHeating = !!this._pref("heating");
   }
 
   _renderSettings() {
@@ -1128,7 +1338,7 @@ export class LivingFloorplanCard extends HTMLElement {
       <div class="seg"><span>${t("s_light")}</span><button class="fc${this._pref("light") !== "glow" ? " sel" : ""}" data-light="realistic">${t("s_realistic")}</button><button class="fc${this._pref("light") === "glow" ? " sel" : ""}" data-light="glow">${t("s_glow")}</button></div>
       <div class="seg"><span>${t("s_theme")}</span>${["auto", "dark", "light"].map((v) => `<button class="fc${this._pref("theme") === v ? " sel" : ""}" data-theme="${v}">${t("th_" + v)}</button>`).join("")}</div>
       <label class="strength"><span>${t("s_strength")} <b data-pct>${Math.round(this._pref("strength") * 100)} %</b></span><input type="range" min="0.15" max="1" step="0.01" data-strength value="${this._pref("strength")}"></label>
-      ${check("sun")}${check("trail")}${check("labels")}${check("readings")}
+      ${check("sun")}${check("trail")}${check("labels")}${check("readings")}${check("heating")}
       <div class="sub">${t("s_layers")}</div>${LAYERS.map(check).join("")}
       <div class="foot"><span>${t("s_note")}</span><button class="fc" data-reset>${t("s_reset")}</button></div>`;
     const ed = panel.querySelector("[data-edit]");
@@ -1172,6 +1382,14 @@ export class LivingFloorplanCard extends HTMLElement {
     if (labels) { if (this._config.labels) labels.removeAttribute("display"); else labels.setAttribute("display", "none"); }
     if (!this._config.sun) svg.querySelectorAll("#fc-sun").forEach((el) => el.remove());
     if (!this._config.trail) svg.querySelectorAll("#fc-trail").forEach((el) => el.remove());
+    // heating rooms tinted (⚙): the tint this card gave them goes or comes back
+    svg.querySelectorAll("[data-fc-heat]").forEach((el) => {
+      el.removeAttribute(NAMES.attrTintEntity); el.removeAttribute(NAMES.attrTintKind); el.removeAttribute("data-fc-heat");
+      el.classList.remove(NAMES.isHeating);
+      el.style.removeProperty("fill"); el.style.removeProperty("fill-opacity");
+    });
+    this._heatingTints();
+    if (this._config.roomHeating && this._roomAt) this._heatRooms(this._roomAt);
     if (this._applyTheme()) return; // the plan drawn again in the new look
     this._sig = "";
     if (this._travel) this._showAt(this._sliderTime());
@@ -1293,7 +1511,8 @@ export class LivingFloorplanCard extends HTMLElement {
     if (!svg) return;
     const wrap = this.shadowRoot.getElementById("wrap");
     const W = wrap.clientWidth || this.clientWidth || 400;
-    const vb = this._baseVB;
+    // whether to turn: by the start view's shape when the editor set one (the house, not its garden)
+    const vb = this._startVB || this._baseVB;
     let turn = this._config.rotate === 90;
     if (this._config.rotate === "auto") {
       // the space a dashboard gives: the card's width and most of the window height
@@ -1344,8 +1563,12 @@ export class LivingFloorplanCard extends HTMLElement {
       if (m && Math.abs(Number(m[1]) - textRot) < 0.01) {
         el.setAttribute("transform", turn ? `rotate(${Number(m[1]) - 90} ${m[2]} ${m[3]})` : tr);
       }
+      // a moving cover's arrow (translate, then rotate): up / down the screen too
+      const mv = el.classList.contains("cover-move") && /^translate\(([-\d.]+) ([-\d.]+)\) rotate\(([-\d.]+)\)$/.exec(tr);
+      if (mv) el.setAttribute("transform", turn ? `translate(${mv[1]} ${mv[2]}) rotate(${Number(mv[3]) - 90})` : tr);
     });
     this._fullVB = turn ? turnedViewBox(this._baseVB) : this._baseVB.slice();
+    this._homeVB = this._startVB ? (turn ? turnedViewBox(this._startVB) : this._startVB.slice()) : null;
     this._drawWidgets();
     this._drawPower();
   }
@@ -1470,9 +1693,22 @@ export class LivingFloorplanCard extends HTMLElement {
     else this._moreInfo(w.entity);
   }
 
+  // back to the start view (the editor's), else the whole plan
   _fit() {
-    this._vb = this._fullVB.slice();
+    this._vb = this._homeView();
     this._applyVB();
+  }
+  _homeView() {
+    const F = this._fullVB, H = this._homeVB;
+    if (!H) return F.slice();
+    // the start view at the whole plan's proportions (the card keeps them), round its middle, inside the plan
+    const s = Math.max(H[2] / F[2], H[3] / F[3]);
+    const keep = this._vb;
+    this._vb = [H[0] + H[2] / 2 - (F[2] * s) / 2, H[1] + H[3] / 2 - (F[3] * s) / 2, F[2] * s, F[3] * s];
+    this._clampVB();
+    const v = this._vb;
+    this._vb = keep;
+    return v;
   }
 
   _applyVB() {
@@ -1527,7 +1763,7 @@ export class LivingFloorplanCard extends HTMLElement {
     const wrap = this.shadowRoot.getElementById("wrap");
     const pts = new Map();
     let start = null, pinch = null, holdTimer = null, moved = false, lasso = null;
-    const cancelHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    const cancelHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } this._pressRing(null); };
     for (const t of ["pointerdown", "wheel", "keydown"]) wrap.addEventListener(t, () => this._touched(), { capture: true, passive: true });
     // the plan's gestures start on the plan only - not on a button, a checkbox or a slider of a panel over it (26.10)
     const onPanel = (e) => !!(e.target.closest && e.target.closest("button, input, label, select, #layers, #settings, #layer-menu, #timeline, #legend, #alerts, #campop, #zoom, #floors, #fc-room, #fc-lasso-bar"));
@@ -1550,8 +1786,11 @@ export class LivingFloorplanCard extends HTMLElement {
         cancelHold();
         const hitNow = this._hit(e.clientX, e.clientY);
         const wait = hitNow && this._isLock(hitNow) ? 800 : HOLD_MS;
+        this._tipHide();
+        if (hitNow && !this._actionFor(hitNow, "hold")) this._pressRing(e.clientX, e.clientY, wait, this._isLock(hitNow) && this._config.lockAction === "hold");
         holdTimer = setTimeout(() => {
           holdTimer = null;
+          this._pressRing(null);
           // a hold on a device opens it; on empty floor the finger may still pan
           if (!moved && start && this._activate(start.x, start.y, true)) start = null;
           else if (start) start.held = true;
@@ -1565,6 +1804,7 @@ export class LivingFloorplanCard extends HTMLElement {
       }
     });
     wrap.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "mouse" && !e.buttons && !pts.size) { this._tipAt(e.clientX, e.clientY, onPanel(e)); return; }
       if (!pts.has(e.pointerId)) return;
       pts.set(e.pointerId, [e.clientX, e.clientY]);
       if (lasso) {
@@ -1614,6 +1854,7 @@ export class LivingFloorplanCard extends HTMLElement {
       if (!pts.size) start = null;
     };
     wrap.addEventListener("pointerup", end);
+    wrap.addEventListener("pointerleave", () => this._tipHide());
     wrap.addEventListener("pointercancel", end);
     wrap.addEventListener("wheel", (e) => {
       if (!this._vb || onPanel(e)) return;
@@ -1736,6 +1977,87 @@ export class LivingFloorplanCard extends HTMLElement {
     else this._moreInfo(id);
   }
 
+  // ---- what a gesture will do: the ring of a hold, the hint of a mouse, the undo of a tap ----
+
+  // x, y: the finger (null: hide); ms: the hold's time; door: the hold opens a door strike
+  _pressRing(x, y, ms, door) {
+    const el = this.shadowRoot && this.shadowRoot.getElementById("fc-press");
+    if (!el) return;
+    clearTimeout(this._pressT);
+    if (x === null) { el.hidden = true; el.classList.remove("run"); return; }
+    // only once the finger stays a moment: a plain tap shows nothing
+    this._pressT = setTimeout(() => {
+      const r = this.shadowRoot.getElementById("wrap").getBoundingClientRect();
+      el.style.left = x - r.left + "px"; el.style.top = y - r.top + "px";
+      el.style.setProperty("--fc-press-ms", Math.max(80, ms - 120) + "ms");
+      el.classList.toggle("door", !!door);
+      el.querySelector("span").textContent = door ? translate(this._lang(), "door_opening") : "";
+      el.classList.remove("run");
+      el.hidden = false;
+      void el.offsetWidth;
+      el.classList.add("run");
+    }, 120);
+  }
+
+  // "Click: turn on · hold: statistics" next to the mouse, for what is under it
+  _gestureHint(id) {
+    const t = (k) => translate(this._lang(), k), st = this._hass && this._hass.states[id];
+    if (!st) return "";
+    const domain = id.split(".")[0];
+    const own = this._actionFor(id, "tap");
+    const holdWord = this._isLock(id) && this._config.lockAction === "hold" ? t("g_door")
+      : this._config.hold === "insights" && window.entityInsights ? t("g_stats") : t("g_info");
+    const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
+    let tap = t("g_info");
+    if (own) tap = "…";
+    else if (this._isLock(id)) tap = t("g_info");
+    else if (this._fixtureOf(id)) { const [s, l] = this._fixtureOf(id); tap = [s, l].some((e) => this._hass.states[e] && this._hass.states[e].state === "on") ? t("g_off") : t("g_on"); }
+    else if (TAP_TOGGLE.has(domain) && !inRack) tap = domain === "cover" ? t({ u_opening: "g_open", u_closing: "g_close", u_stopped: "g_stop" }[coverTapWord(st)]) : st.state === "on" ? t("g_off") : t("g_on");
+    return `${t("g_click")}: ${tap} · ${t("g_hold")}: ${holdWord}`;
+  }
+  _tipAt(x, y, overPanel) {
+    const now = Date.now();
+    if (this._tipT && now - this._tipT < 60) return;
+    this._tipT = now;
+    const tip = this.shadowRoot.getElementById("fc-tip");
+    const id = !overPanel && this._hass && !this._travel ? this._hit(x, y) : null;
+    const text = id ? this._gestureHint(id) : "";
+    if (!text) { tip.hidden = true; return; }
+    const r = this.shadowRoot.getElementById("wrap").getBoundingClientRect();
+    tip.textContent = text;
+    tip.hidden = false;
+    // kept inside the card: to the left of the mouse near the right edge
+    const left = Math.min(x - r.left, r.width - tip.offsetWidth - 16);
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = y - r.top + "px";
+  }
+  _tipHide() { const tip = this.shadowRoot && this.shadowRoot.getElementById("fc-tip"); if (tip) tip.hidden = true; }
+
+  // A message at the bottom for a few seconds; with undo: the states before the tap come back
+  _toast(text, undo) {
+    const box = this.shadowRoot.getElementById("fc-undo");
+    box.querySelector(".m").textContent = text;
+    const b = box.querySelector("[data-undo]");
+    b.textContent = translate(this._lang(), "undo");
+    b.hidden = !undo;
+    b.onclick = () => { box.hidden = true; if (undo) undo(); };
+    box.hidden = false;
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => { box.hidden = true; }, undo ? 6000 : 3000);
+  }
+  _undoable(ids, name, word) {
+    const prev = ids.map((e) => this._hass.states[e]).filter(Boolean).map((s) => ({ id: s.entity_id, state: s.state, a: { ...s.attributes } }));
+    this._toast(`${name} — ${translate(this._lang(), word)}`, () => {
+      for (const p of prev) {
+        const domain = p.id.split(".")[0];
+        if (domain === "cover") {
+          if (typeof p.a.current_position === "number") this._hass.callService("cover", "set_cover_position", { entity_id: p.id, position: p.a.current_position });
+          else this._hass.callService("cover", p.state === "closed" ? "close_cover" : "open_cover", { entity_id: p.id });
+        } else if (p.state === "on") this._hass.callService("light", "turn_on", { entity_id: p.id, ...(typeof p.a.brightness === "number" ? { brightness: p.a.brightness } : {}) });
+        else this._hass.callService(domain === "light" ? "light" : "homeassistant", "turn_off", { entity_id: p.id });
+      }
+    });
+  }
+
   // -> true when a device was hit
   _activate(clientX, clientY, hold) {
     const wd = this._hass && this._widgetAt(clientX, clientY);
@@ -1769,7 +2091,7 @@ export class LivingFloorplanCard extends HTMLElement {
     }
     if (this._isLock(id)) {
       // a door is never opened by a tap
-      if (hold && this._config.lockAction === "hold") this._openLock(id);
+      if (hold && this._config.lockAction === "hold") { this._openLock(id); this._toast(translate(this._lang(), "door_open")); }
       else this._moreInfo(id);
       return true;
     }
@@ -1781,6 +2103,7 @@ export class LivingFloorplanCard extends HTMLElement {
       this._lastToggle = { id: fx.join(), t: now };
       const on = (e) => this._hass.states[e] && this._hass.states[e].state === "on";
       const [small, large] = fx;
+      this._undoable(fx, this._fixtureTitle(id, fx).name, !on(small) && !on(large) ? "u_on" : this._config.fixtureTap === "cycle" && on(small) && !on(large) ? "u_on" : "u_off");
       if (!on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: small });
       else if (this._config.fixtureTap === "cycle" && on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
       else this._hass.callService("light", "turn_off", { entity_id: [small, large] });
@@ -1806,11 +2129,13 @@ export class LivingFloorplanCard extends HTMLElement {
     }
     // equipment in a rack: its window only, a tap never switches it (a recorder's "recording" is a switch)
     const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
-    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id] && !inRack) {
+    if (TAP_TOGGLE.has(domain) && this._hass.states[id] && !inRack) {
       // a quick second tap on the same device (a double tap) does not switch it back
       const now = Date.now();
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id, t: now };
+      const st = this._hass.states[id];
+      this._undoable([id], st.attributes.friendly_name || id, domain === "cover" ? coverTapWord(st) : st.state === "on" ? "u_off" : "u_on");
       this._hass.callService(domain === "cover" ? "cover" : "homeassistant", "toggle", { entity_id: id });
       if (domain === "cover") this._coverTapped(id);
     } else this._moreInfo(id);
@@ -2195,7 +2520,7 @@ export class LivingFloorplanCard extends HTMLElement {
       if (this._travel && !this._playTimer) this._exitTravel();
       const menu = this.shadowRoot.getElementById("layer-menu");
       if (menu) menu.hidden = true;
-      if (this._vb && this._fullVB && this._vb.join() !== this._fullVB.join()) this._fit();
+      if (this._vb && this._fullVB && this._vb.join() !== this._homeView().join()) this._fit();
     }
     const dim = this.shadowRoot.getElementById("dim");
     const night = this._isNight() && idle;
@@ -2235,6 +2560,7 @@ export class LivingFloorplanCard extends HTMLElement {
     this._sig = sig;
     const states = { get: (id) => this._hass.states[id] };
     applyStates(this._svg, states, this._lang(), this._paintFn());
+    this._placeLabels();
     this._checkDetections();
     if (this._config.widgets.length) this._drawWidgets();
     if (this._roomOpen) this._renderRoom(false);
@@ -2640,6 +2966,7 @@ export class LivingFloorplanCard extends HTMLElement {
     const get = statesAt(this._travel.hist, this._hass.states, t);
     this._placeLightField(get);
     applyStates(this._svg, { get }, this._lang(), this._paintFn());
+    this._placeLabels();
     this._svg.querySelectorAll(".fc-forgotten").forEach((el) => el.classList.remove("fc-forgotten"));
     this._drawSun(t);
     this._drawTrail(t, (id) => this._travel.hist[id] || []);
@@ -3134,39 +3461,39 @@ export class LivingFloorplanCard extends HTMLElement {
 
   // The visual editor in the dashboard (Home Assistant's own form).
   static getConfigForm() {
-    const pl = String(navigator.language || "").startsWith("pl");
-    const L = (en, plText) => (pl ? plText : en);
+    const nl = String(navigator.language || "").slice(0, 2).toLowerCase(), pl = nl === "pl", de = nl === "de";
+    const L = (en, plText, deText) => (pl ? plText : de && deText ? deText : en);
     return {
       schema: [
         { name: "model", selector: { text: {} } },
         { name: "light", selector: { select: { mode: "dropdown", options: [
-          { value: "realistic", label: L("Realistic (shadows, through doorways)", "Realistyczne (cienie, przez drzwi)") },
-          { value: "glow", label: L("Round glows", "Okrągłe poświaty") }] } } },
+          { value: "realistic", label: L("Realistic (shadows, through doorways)", "Realistyczne (cienie, przez drzwi)", "Realistisch (Schatten, durch Türen)") },
+          { value: "glow", label: L("Round glows", "Okrągłe poświaty", "Runde Lichtkreise") }] } } },
         { name: "rotate", selector: { select: { mode: "dropdown", options: [
-          { value: "auto", label: L("Automatic", "Automatycznie") }, { value: "0", label: "0°" }, { value: "90", label: "90°" }] } } },
+          { value: "auto", label: L("Automatic", "Automatycznie", "Automatisch") }, { value: "0", label: "0°" }, { value: "90", label: "90°" }] } } },
         { name: "map", selector: { select: { mode: "dropdown", options: MAP_KINDS.map((k) => ({ value: k, label: translate(navigator.language, "map_" + k, { days: 7 }) })) } } },
         { name: "map_days", selector: { number: { min: 1, max: 30, mode: "box" } } },
         { name: "doors", selector: { select: { mode: "dropdown", options: [
-          { value: "closed", label: L("Closed (they stop the light)", "Zamknięte (blokują światło)") },
-          { value: "open", label: L("Open (light goes through)", "Otwarte (światło przechodzi)") }] } } },
+          { value: "closed", label: L("Closed (they stop the light)", "Zamknięte (blokują światło)", "Geschlossen (sie halten das Licht auf)") },
+          { value: "open", label: L("Open (light goes through)", "Otwarte (światło przechodzi)", "Offen (Licht geht durch)") }] } } },
         { name: "price", selector: { number: { min: 0, step: 0.01, mode: "box" } } },
         { name: "theme", selector: { select: { mode: "dropdown", options: [
-          { value: "auto", label: L("Like Home Assistant", "Jak Home Assistant") }, { value: "dark", label: L("Dark", "Ciemny") }, { value: "light", label: L("Light", "Jasny") }] } } },
+          { value: "auto", label: L("Like Home Assistant", "Jak Home Assistant", "Wie Home Assistant") }, { value: "dark", label: L("Dark", "Ciemny", "Dunkel") }, { value: "light", label: L("Light", "Jasny", "Hell") }] } } },
         { name: "camera_popup", selector: { select: { mode: "dropdown", options: [
-          { value: "kiosk", label: L("In tablet mode", "W trybie tabletu") }, { value: "always", label: L("Always", "Zawsze") }, { value: "never", label: L("Never", "Nigdy") }] } } },
+          { value: "kiosk", label: L("In tablet mode", "W trybie tabletu", "Im Tablet-Modus") }, { value: "always", label: L("Always", "Zawsze", "Immer") }, { value: "never", label: L("Never", "Nigdy", "Nie") }] } } },
         { name: "show_room_names", selector: { boolean: {} } },
         { name: "time_travel", selector: { boolean: {} } },
         { name: "maps", selector: { boolean: {} } },
         { name: "hold_action", selector: { select: { mode: "dropdown", options: [
-          { value: "insights", label: "Entity Insights" }, { value: "more-info", label: L("Entity dialog", "Okno encji") }] } } },
+          { value: "insights", label: "Entity Insights" }, { value: "more-info", label: L("Entity dialog", "Okno encji", "Entitätsdialog") }] } } },
       ],
       computeLabel: (s) => ({
-        model: L("Model (house.json from the floor plan editor)", "Model (house.json z edytora rzutu)"),
-        light: L("Light", "Światło"), rotate: L("Turn the plan", "Obrót rzutu"), map: L("Map on load", "Mapa na starcie"),
-        map_days: L("Days of history for the maps", "Dni historii dla map"), price: L("Electricity price per kWh", "Cena prądu za kWh"), doors: L("Doors without a contact sensor", "Drzwi bez kontaktronu"), show_room_names: L("Room names", "Nazwy pokoi"),
-        time_travel: L("Time travel button", "Przycisk przewijania czasu"), maps: L("Map button", "Przycisk map"),
-        hold_action: L("Hold", "Przytrzymanie"), theme: L("Theme", "Wygląd"),
-        camera_popup: L("Camera picture when it sees someone", "Obraz kamery, gdy kogoś wykryje"),
+        model: L("Model (house.json from the floor plan editor)", "Model (house.json z edytora rzutu)", "Modell (house.json aus dem Grundriss-Editor)"),
+        light: L("Light", "Światło", "Licht"), rotate: L("Turn the plan", "Obrót rzutu", "Plan drehen"), map: L("Map on load", "Mapa na starcie", "Karte beim Laden"),
+        map_days: L("Days of history for the maps", "Dni historii dla map", "Tage Verlauf für die Karten"), price: L("Electricity price per kWh", "Cena prądu za kWh", "Strompreis pro kWh"), doors: L("Doors without a contact sensor", "Drzwi bez kontaktronu", "Türen ohne Kontaktsensor"), show_room_names: L("Room names", "Nazwy pokoi", "Raumnamen"),
+        time_travel: L("Time travel button", "Przycisk przewijania czasu", "Zeitreise-Taste"), maps: L("Map button", "Przycisk map", "Karten-Taste"),
+        hold_action: L("Hold", "Przytrzymanie", "Gedrückt halten"), theme: L("Theme", "Wygląd", "Design"),
+        camera_popup: L("Camera picture when it sees someone", "Obraz kamery, gdy kogoś wykryje", "Kamerabild, wenn sie jemanden sieht"),
       })[s.name],
     };
   }

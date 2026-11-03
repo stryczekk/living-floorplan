@@ -22,7 +22,7 @@ import { generateSvg } from "../generator/floorplan-model.js";
 import { prettyJson } from "../editor/json-pretty.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const STATIC = ["editor", "generator", "examples", "view3d"]; // the only directories served (view3d: the house in 3D, built by house3d)
+const STATIC = ["editor", "generator", "examples", "view3d", "demo"]; // the only directories served (view3d: the house in 3D, built by house3d; demo: the demo page)
 const arg = (name, def) => { const i = process.argv.indexOf("--" + name); return i > 0 ? process.argv[i + 1] : def; };
 // --publish: the editor gets a "Send to Home Assistant" button. The server only leaves a request file in the
 // data directory; something with the rights to reach Home Assistant (a systemd path unit, a cron job) picks it

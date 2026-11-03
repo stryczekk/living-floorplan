@@ -1714,12 +1714,23 @@ function framePanel() {
       `<option value="${v}"${(c.rotate || 0) === v ? " selected" : ""}>${v}°</option>`).join("")}</select></div>
     ${c.viewBox ? `<div class="empty">${t("frame_fixed")}</div><button id="pl-auto">${t("frame_auto")}</button>`
       : `<div class="row"><span>${t("margin")}</span><span class="margins">${side(0, "m_top")}${side(1, "m_right")}${side(2, "m_bottom")}${side(3, "m_left")}</span></div>
-         <div class="empty">${t("frame_hint")}</div>`}`;
+         <div class="empty">${t("frame_hint")}</div>`}
+    <div class="row"><span>${t("start_view")}</span><b>${c.start ? t("start_set_yes") : t("start_whole")}</b></div>
+    <div class="row"><button id="pl-start">${t("start_set")}</button>${c.start ? `<button id="pl-start-show">${t("start_show")}</button><button id="pl-start-del">${t("start_del")}</button>` : ""}</div>
+    <div class="empty">${t("start_hint")}</div>`;
 }
 function frameWire(box) {
   const edit = (f) => { const before = snapshot(); f(S.model.canvas = S.model.canvas || {}); commit(before); };
   $("pl-rot").onchange = (e) => edit((c) => { c.rotate = Number(e.target.value); });
   if ($("pl-auto")) $("pl-auto").onclick = () => edit((c) => { delete c.viewBox; delete c.sheet; });
+  // the start view: what the editor shows now (the card opens there)
+  $("pl-start").onclick = () => edit((c) => { c.start = viewBoxCm().map((v) => Math.round(v)); });
+  if ($("pl-start-show")) $("pl-start-show").onclick = () => {
+    const [x, y, w, h] = S.model.canvas.start, [W, H] = stageSize();
+    S.view = { cx: x + w / 2, cy: y + h / 2, s: Math.min(W / w, H / h) };
+    draw();
+  };
+  if ($("pl-start-del")) $("pl-start-del").onclick = () => edit((c) => { delete c.start; });
   box.querySelectorAll("[data-margin]").forEach((inp) => {
     inp.onchange = () => edit((c) => {
       const v = [...box.querySelectorAll("[data-margin]")].map((x) => Math.max(0, Number(x.value) || 0));

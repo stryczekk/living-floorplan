@@ -867,7 +867,7 @@ function gardenDefs(items, k) {
   const s = (v) => n2(v * k);
   const P = (id, w, h, body) => `    <pattern id="gd-${id}" patternUnits="userSpaceOnUse" width="${s(w)}" height="${s(h)}">${body}</pattern>`;
   const out = [];
-  if (used.has("lawn")) out.push(P("lawn", 40, 40, `<rect width="${s(40)}" height="${s(40)}" fill="#1f3326"/>` + [[6, 9], [22, 4], [33, 18], [14, 27], [29, 34], [3, 36]].map(([x, y]) => `<path d="M${s(x)} ${s(y)} l${s(1)} ${s(-4)}" stroke="#2b4634" stroke-width="${s(1)}"/>`).join("")));
+  if (used.has("lawn")) out.push(P("lawn", 40, 40, `<rect width="${s(40)}" height="${s(40)}" fill="#1f3326"/>` + [[6, 9, 1], [22, 4, -1], [33, 18, 1], [14, 27, -1], [29, 34, 1], [3, 36, -1], [17, 13, 1], [37, 7, -1], [10, 19, -1], [25, 24, 1], [35, 29, -1], [20, 38, 1]].map(([x, y, d], i) => `<path d="M${s(x)} ${s(y)} l${s(d)} ${s(-4)}" stroke="${i % 2 ? "#264030" : "#2b4634"}" stroke-width="${s(1)}" stroke-linecap="round"/>`).join("")));
   if (used.has("terrace")) out.push(P("terrace", 200, 14, `<rect width="${s(200)}" height="${s(14)}" fill="#332c27"/><path d="M0 0H${s(200)}" stroke="#463c35" stroke-width="${s(1.2)}"/>`));
   if (used.has("driveway")) out.push(P("driveway", 20, 20, `<rect width="${s(20)}" height="${s(20)}" fill="#2a2f37"/><path d="M0 0H${s(20)}M0 ${s(10)}H${s(20)}M0 0V${s(10)}M${s(10)} ${s(10)}V${s(20)}" stroke="#363c46" stroke-width="${s(1)}"/>`));
   if (used.has("path")) out.push(P("path", 50, 50, `<rect width="${s(50)}" height="${s(50)}" fill="#2e3541"/><path d="M0 0H${s(50)}M0 0V${s(50)}" stroke="#3b4352" stroke-width="${s(1.2)}"/>`));
@@ -1152,7 +1152,7 @@ function wallEnds(model, w, end) {
   const base = end === "a" ? 0 : L;
   const flat = { left: base, right: base };
   const others = spokes(model, P, w);
-  if (!others.length) return flat;
+  if (!others.length) return endInside(model, w, end, P, d, h, base, L) || flat;
   const ang = (x) => Math.atan2(x[1], x[0]);
   const all = [{ d, h, own: true }, ...others].sort((x, y) => ang(x.d) - ang(y.d));
   const i = all.findIndex((x) => x.own);
@@ -1173,6 +1173,29 @@ function wallEnds(model, w, end) {
   const toU = (s) => end === "a" ? s : L - s;
   const plus = ok(sPlus) ? toU(sPlus) : base, minus = ok(sMinus) ? toU(sMinus) : base;
   return end === "a" ? { left: plus, right: minus } : { left: minus, right: plus };
+}
+function endInside(model, w, end, P, d, h, base, L) {
+  const Ln = (x) => [-x[1], x[0]], own = Ln(d);
+  let best = null;
+  for (const o of model.walls) {
+    if (o === w) continue;
+    const v = sub2(o.b, o.a), Lo = len(v);
+    if (Lo < EPS2) continue;
+    const uo = mul2(v, 1 / Lo), ho = wallThickness(model, o) / 2, no = Ln(uo);
+    const rel = sub2(P, o.a), along = dot(rel, uo), across = dot(rel, no);
+    if (along < -EPS2 || along > Lo + EPS2 || Math.abs(across) > ho + EPS2) continue;
+    if (Math.abs(cross2(d, uo)) < 0.2) continue;
+    const far = (off) => {
+      const ss = [1, -1].map((k) => meet(add2(P, mul2(own, off)), d, add2(o.a, mul2(no, k * ho)), uo)).filter((x) => x !== null);
+      return ss.length ? Math.min(...ss) : null;
+    };
+    const sp = far(h), sm = far(-h);
+    if (sp === null || sm === null || Math.min(sp, sm) < -4 * Math.max(h, ho)) continue;
+    if (!best || Math.min(sp, sm) < Math.min(best.sp, best.sm)) best = { sp, sm };
+  }
+  if (!best) return null;
+  const toU = (x) => end === "a" ? x : L - x;
+  return end === "a" ? { left: toU(best.sp), right: toU(best.sm) } : { left: toU(best.sm), right: toU(best.sp) };
 }
 function wallPolygons(model, w) {
   const u = unit(sub2(w.b, w.a)), n5 = [-u[1], u[0]];
@@ -1284,6 +1307,10 @@ function lowerV2(m) {
     for (const o of w.openings || []) {
       const width = o.to - o.from;
       const side = o.swing === "left" ? 1 : -1;
+      if (["door", "pocket_door", "sliding_door", "passage", "balcony_door", "hst", "garage_door", "window", "corner_window"].includes(o.type)) {
+        const th = wallThickness(m, w) / 2 + 0.5;
+        (v1.thresholds = v1.thresholds || []).push([at(o.from, -th), at(o.to, -th), at(o.to, th), at(o.from, th)].map(P));
+      }
       const hs = o.hinge === "to" ? o.to : o.from, cs = o.hinge === "to" ? o.from : o.to;
       const splits = (() => {
         const n22 = o.panes || 1, ps = o.pane_sizes;
@@ -1368,12 +1395,23 @@ function lowerV2(m) {
       }
     }
   }
+  try {
+    v1.slab = faces(m, { withDividers: false }).map((f) => f.pts.map(P));
+  } catch (e) {
+    v1.slab = [];
+  }
   v1.covers = m.covers;
   if (!v1.canvas.viewBox) {
     const f = frame(m);
     v1.canvas.viewBox = f.viewBox;
     v1.canvas.sheet = f.sheet;
   }
+  if (Array.isArray(m.canvas.start) && m.canvas.start.length === 4 && m.canvas.start.every(Number.isFinite)) {
+    const [x, y, w2, h2] = m.canvas.start, a = (m.canvas.rotate || 0) * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+    const q = [[x, y], [x + w2, y], [x, y + h2], [x + w2, y + h2]].map(([px, py]) => [(px * cos - py * sin) * k, (px * sin + py * cos) * k]);
+    const xs = q.map((p2) => p2[0]), ys = q.map((p2) => p2[1]);
+    v1.canvas.start = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)].map((v) => Math.round(v * 100) / 100);
+  } else delete v1.canvas.start;
   delete v1.canvas.margin;
   const bulb = (b) => [b[0] * k, b[1] * k, ...b.slice(2)];
   const beamClip = (id, c, rot, angle) => {
@@ -1585,7 +1623,7 @@ function generateSvg(model, { furniture = "", names = null, floor = null } = {})
   const w = (s) => out.push(s);
   w(`<svg xmlns="http://www.w3.org/2000/svg"
      viewBox="${c.viewBox.map(n4).join(" ")}" width="${n4(c.viewBox[2])}" height="${n4(c.viewBox[3])}"
-     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}>`);
+     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}${c.start ? ` data-start="${c.start.map(n4).join(" ")}"` : ""}>`);
   w(`  <!-- GENERATED from the house model by generator/floorplan-model.js - do not edit by hand -->`);
   if (c.description) w(`  <desc id="desc">${esc3(c.description)}</desc>`);
   w(`  <g id="${N.rotation}" transform="rotate(${n4(c.rotate)})">`);
@@ -1596,6 +1634,12 @@ function generateSvg(model, { furniture = "", names = null, floor = null } = {})
 ${gardenDefs(model.garden, kcm)}
   </defs>
 ` + garden);
+  if ((model.slab || []).length || (model.thresholds || []).length) {
+    w(`  <g id="slab" fill="#1e2836" stroke="none" pointer-events="none">`);
+    for (const t of model.slab || []) w(`    <polygon points="${pts2(t)}"/>`);
+    for (const t of model.thresholds || []) w(`    <polygon class="threshold" points="${pts2(t)}"/>`);
+    w(`  </g>`);
+  }
   w(`  <g id="rooms" fill="#1e2836" stroke="none" pointer-events="all">`);
   for (const r of model.rooms) {
     const tint = r.tint && r.tint.entity ? attrs({ [N.attrTintEntity]: r.tint.entity, [N.attrTintKind]: r.tint.kind || "state" }) : "";
@@ -2453,7 +2497,32 @@ var WORDS = {
     windy: "wiatr",
     lightning: "burza",
     "lightning-rainy": "burza",
-    "clear-night": "noc"
+    "clear-night": "noc",
+    on: "w\u0142.",
+    off: "wy\u0142.",
+    open: "otwarte",
+    closed: "zamkni\u0119te"
+  },
+  de: {
+    today: "heute",
+    tomorrow: "morgen",
+    in: "in {n} T.",
+    sunny: "Sonne",
+    clear: "klar",
+    cloudy: "bew\xF6lkt",
+    partlycloudy: "Wolken",
+    rainy: "Regen",
+    pouring: "Starkregen",
+    snowy: "Schnee",
+    fog: "Nebel",
+    windy: "Wind",
+    lightning: "Gewitter",
+    "lightning-rainy": "Gewitter",
+    "clear-night": "Nacht",
+    on: "an",
+    off: "aus",
+    open: "offen",
+    closed: "zu"
   }
 };
 var word = (locale, k) => (WORDS[String(locale).slice(0, 2)] || WORDS.en)[k] || (WORDS.en[k] ?? k);
@@ -2493,15 +2562,18 @@ function readingText(kind, v, locale = "en") {
     return v.state === "on" && p2 > 0 ? Math.round(p2) + "%" : "";
   }
   if (kind === "bin") {
-    const n5 = daysUntil(v);
-    if (n5 === null) return v.state;
-    return n5 <= 0 ? word(locale, "today") : n5 === 1 ? word(locale, "tomorrow") : word(locale, "in").replace("{n}", n5);
+    const n6 = daysUntil(v);
+    if (n6 === null) return v.state;
+    return n6 <= 0 ? word(locale, "today") : n6 === 1 ? word(locale, "tomorrow") : word(locale, "in").replace("{n}", n6);
   }
   if (kind === "weather" && v.entity_id && v.entity_id.startsWith("weather.")) {
     const t = v.attributes?.temperature;
     return (typeof t === "number" ? Math.round(t) + "\xB0 " : "") + word(locale, v.state);
   }
-  return `${v.state}${v.attributes?.unit_of_measurement ? " " + v.attributes.unit_of_measurement : ""}`;
+  const unit2 = v.attributes?.unit_of_measurement ? " " + v.attributes.unit_of_measurement : "";
+  const n5 = String(v.state).trim() === "" ? NaN : Number(v.state);
+  if (Number.isFinite(n5)) return n5.toLocaleString(locale, { maximumFractionDigits: Math.abs(n5) >= 100 ? 0 : 1, useGrouping: false }) + unit2;
+  return word(locale, v.state) + unit2;
 }
 var DONE = ["finished", "finish", "complete", "completed", "end", "done"];
 var NOT_RUNNING = [...OFF, "stop", "stopped", "ready", "pause", "pausing", "finished", "finish", "end", "done", "complete", "completed", "error"];
@@ -2713,8 +2785,38 @@ var LIGHT = {
   "#c3cfdf": "#2b3442",
   // texts
   "#1d3347": "#cfe1f2",
-  "#1f2f3d": "#d9e7f2"
+  "#1f2f3d": "#d9e7f2",
   // room tint: humid
+  // the garden in its own light colours (the automatic lightening washed them out to white)
+  "#1f3326": "#cfe5c0",
+  "#2b4634": "#a9cf92",
+  "#264030": "#b9daa5",
+  // lawn, its blades
+  "#332c27": "#e6d4bd",
+  "#463c35": "#c9b08f",
+  // terrace boards
+  "#2a2f37": "#dde0e5",
+  "#363c46": "#c2c7cf",
+  // driveway setts
+  "#2e3541": "#e9e6df",
+  "#3b4352": "#d0ccc2",
+  // path slabs
+  "#2f271f": "#dccaaf",
+  "#3d5838": "#8db777",
+  // flowerbed soil, plants
+  "#323437": "#e0ddd6",
+  "#46494d": "#bdb9b0",
+  // gravel
+  "#2f4f36": "#b4d89f",
+  "#21382a": "#93c07d",
+  "#3b5f42": "#6f9e5a",
+  "#2a4632": "#80ad69",
+  "#3a3027": "#8a6e55",
+  // trees, bushes
+  "#284531": "#8fbd7b",
+  // hedge
+  "#1d4a6b": "#a8d5f0"
+  // pool
 };
 function lightOf(hex) {
   const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
@@ -2936,7 +3038,8 @@ function normalizeWidgets(list) {
 }
 var W = {
   en: { now: "now", tomorrow: "tomorrow", none: "nothing planned" },
-  pl: { now: "teraz", tomorrow: "jutro", none: "nic w planie" }
+  pl: { now: "teraz", tomorrow: "jutro", none: "nic w planie" },
+  de: { now: "jetzt", tomorrow: "morgen", none: "nichts geplant" }
 };
 var word2 = (lang, k) => (W[String(lang).slice(0, 2)] || W.en)[k];
 var cut = (s, n5) => s.length > n5 ? s.slice(0, n5 - 1) + "\u2026" : s;
@@ -3591,6 +3694,24 @@ var STRINGS = {
     card_description: "Your house from the floor plan editor, live: light that fills the rooms, covers, readings, presence.",
     model_required: "Set 'model' to the house.json from the floor plan editor, e.g. /local/house.json.",
     loading: "Loading the plan\u2026",
+    g_click: "Click",
+    g_hold: "hold",
+    g_on: "turn on",
+    g_off: "turn off",
+    g_open: "open",
+    g_close: "close",
+    g_stop: "stop",
+    g_info: "details",
+    g_stats: "statistics",
+    g_door: "open the door",
+    undo: "Undo",
+    u_on: "on",
+    u_off: "off",
+    u_opening: "opening",
+    u_closing: "closing",
+    u_stopped: "stopped",
+    door_opening: "Opening the door\u2026",
+    door_open: "Door opened",
     load_error: "Could not load {url}: {msg}",
     onb_title: "Draw your house",
     onb_text: "Open the floor plan editor (Floor plan in the sidebar): draw the walls or trace a photo or PDF of your plan, place lights, covers and sensors and pick their entities. Save - this card shows the plan at once.",
@@ -3629,6 +3750,7 @@ var STRINGS = {
     s_trail: "Trail of movement",
     s_labels: "Room names",
     s_readings: "Temperatures",
+    s_heating: "Heating rooms tinted",
     s_reset: "Defaults",
     s_layers: "Show on the plan",
     s_idle_lights: "Lamps that are off",
@@ -3686,6 +3808,24 @@ var STRINGS = {
     card_name: "Living Floor Plan",
     card_description: "Tw\xF3j dom z edytora rzutu, na \u017Cywo: \u015Bwiat\u0142o wype\u0142niaj\u0105ce pokoje, rolety, odczyty, obecno\u015B\u0107.",
     model_required: "Ustaw 'model' na house.json z edytora rzutu, np. /local/house.json.",
+    g_click: "Klik",
+    g_hold: "przytrzymaj",
+    g_on: "zapal",
+    g_off: "zga\u015B",
+    g_open: "otw\xF3rz",
+    g_close: "zamknij",
+    g_stop: "zatrzymaj",
+    g_info: "szczeg\xF3\u0142y",
+    g_stats: "statystyki",
+    g_door: "otw\xF3rz drzwi",
+    undo: "Cofnij",
+    u_on: "zapalone",
+    u_off: "zgaszone",
+    u_opening: "otwiera si\u0119",
+    u_closing: "zamyka si\u0119",
+    u_stopped: "zatrzymana",
+    door_opening: "Otwieram drzwi\u2026",
+    door_open: "Drzwi otwarte",
     loading: "Wczytuj\u0119 rzut\u2026",
     load_error: "Nie uda\u0142o si\u0119 wczyta\u0107 {url}: {msg}",
     onb_title: "Narysuj sw\xF3j dom",
@@ -3725,6 +3865,7 @@ var STRINGS = {
     s_trail: "\u015Alad ruchu",
     s_labels: "Nazwy pokoi",
     s_readings: "Temperatury",
+    s_heating: "Grzej\u0105ce pokoje na czerwono",
     s_reset: "Domy\u015Blne",
     s_layers: "Pokazuj na rzucie",
     s_idle_lights: "Zgaszone lampy",
@@ -3777,6 +3918,121 @@ var STRINGS = {
     power_devices: "Urz\u0105dzenia teraz {w}",
     rec_t: "Zapisz zakres jako animowany GIF (oko\u0142o 30 sekund)",
     edit_plan: "Edytuj rzut"
+  },
+  de: {
+    card_name: "Living Floor Plan",
+    card_description: "Dein Haus aus dem Grundriss-Editor, live: Licht, das die R\xE4ume f\xFCllt, Rolll\xE4den, Messwerte, Pr\xE4senz.",
+    model_required: "Setze 'model' auf die house.json aus dem Grundriss-Editor, z. B. /local/house.json.",
+    loading: "Grundriss wird geladen\u2026",
+    g_click: "Klick",
+    g_hold: "halten",
+    g_on: "einschalten",
+    g_off: "ausschalten",
+    g_open: "\xF6ffnen",
+    g_close: "schlie\xDFen",
+    g_stop: "stoppen",
+    g_info: "Details",
+    g_stats: "Statistik",
+    g_door: "T\xFCr \xF6ffnen",
+    undo: "R\xFCckg\xE4ngig",
+    u_on: "an",
+    u_off: "aus",
+    u_opening: "\xF6ffnet",
+    u_closing: "schlie\xDFt",
+    u_stopped: "gestoppt",
+    door_opening: "T\xFCr wird ge\xF6ffnet\u2026",
+    door_open: "T\xFCr ge\xF6ffnet",
+    load_error: "{url} konnte nicht geladen werden: {msg}",
+    onb_title: "Zeichne dein Haus",
+    onb_text: "\xD6ffne den Grundriss-Editor (Grundriss in der Seitenleiste): zeichne die W\xE4nde oder zeichne ein Foto oder PDF deines Plans nach, platziere Lichter, Rolll\xE4den und Sensoren und w\xE4hle ihre Entit\xE4ten. Speichern - diese Karte zeigt den Plan sofort.",
+    onb_button: "Editor \xF6ffnen",
+    ground_floor: "Erdgeschoss",
+    zoom_in: "Vergr\xF6\xDFern",
+    zoom_out: "Verkleinern",
+    fit: "Ganzer Plan",
+    map_live: "Live",
+    map_temperature: "Temperatur",
+    map_humidity: "Luftfeuchtigkeit",
+    map_light_hours: "Stunden Licht",
+    map_presence_hours: "Stunden Pr\xE4senz",
+    map_light_energy: "Energie f\xFCr Licht",
+    hours: "{n} h",
+    loading_history: "Verlauf wird geladen\u2026",
+    alert_smoke: "Rauch",
+    alert_co: "Kohlenmonoxid",
+    alert_leak: "Wasserleck",
+    alert_gas: "Gas",
+    alert_siren: "Alarm",
+    alert_cold: "Fenster offen, drau\xDFen {t}\xB0",
+    time_travel: "Zur\xFCck in der Zeit",
+    live: "Live",
+    range_24h: "24 h",
+    range_7d: "7 Tage",
+    range_30d: "30 Tage",
+    range_90d: "3 Monate",
+    play: "Abspielen",
+    pause: "Pause",
+    settings: "Einstellungen",
+    s_light: "Licht",
+    s_realistic: "Realistisch",
+    s_glow: "Lichtkreise",
+    s_sun: "Sonne durch die Fenster",
+    s_trail: "Bewegungsspur",
+    s_labels: "Raumnamen",
+    s_readings: "Temperaturen",
+    s_heating: "Heizende R\xE4ume einf\xE4rben",
+    s_reset: "Standard",
+    s_layers: "Auf dem Plan zeigen",
+    s_idle_lights: "Ausgeschaltete Lampen",
+    s_sensors: "Bewegungs- und Pr\xE4senzsensoren",
+    s_devices: "Ger\xE4te und Haushaltsger\xE4te",
+    s_cameras: "Kameras",
+    s_furniture: "M\xF6bel",
+    s_strength: "Lichtst\xE4rke",
+    s_note: "Nur auf diesem Ger\xE4t.",
+    s_theme: "Design",
+    th_auto: "Wie Home Assistant",
+    th_dark: "Dunkel",
+    th_light: "Hell",
+    forgotten: "\u{1F4A1} {room}: an, seit {min} min niemand da \xB7 ausschalten",
+    cam_seen: "jemand da",
+    ev_open: "{name} offen",
+    ev_detect: "{name}: Erkennung",
+    close: "Schlie\xDFen",
+    confirm: "Bist du sicher?",
+    map_energy: "Energie in den R\xE4umen",
+    map_signal: "Signal (Zigbee, WLAN)",
+    p_now: "Jetzt",
+    p_days: "{n} Tage",
+    p_year: "Jahr",
+    p_winter: "Winter",
+    p_summer: "Sommer",
+    compare: "\xB1 vorher",
+    vs_before: "im Vergleich zum Zeitraum davor",
+    sig_weak: "schwach",
+    sig_good: "stark",
+    none_found: "keine Signalsensoren gefunden",
+    r_lights: "Lichter",
+    r_covers: "Rolll\xE4den",
+    r_climate: "Klima",
+    r_devices: "Ger\xE4te",
+    r_all_off: "Alle aus",
+    r_all_up: "Alle hoch",
+    r_all_down: "Alle runter",
+    r_someone: "jemand da",
+    r_empty: "niemand",
+    r_empty_for: "seit {t} niemand",
+    r_nothing: "Von diesem Raum ist nichts auf dem Plan.",
+    r_24h: "24 h",
+    lasso_hint: "Bereich w\xE4hlen: umrande ihn (mit der Maus: Shift + Ziehen)",
+    lasso_count: "{l} Lichter \xB7 {c} Rolll\xE4den",
+    lasso_none: "Hier gibt es nichts zu schalten",
+    lasso_on: "Einschalten",
+    lasso_off: "Ausschalten",
+    power_house: "Haus jetzt {w}",
+    power_devices: "Ger\xE4te jetzt {w}",
+    rec_t: "Zeitraum als animiertes GIF speichern (etwa 30 Sekunden)",
+    edit_plan: "Plan bearbeiten"
   }
 };
 function translate(lang, key2, vars = {}) {
@@ -3786,6 +4042,12 @@ function translate(lang, key2, vars = {}) {
   return text.replace(/\{(\w+)\}/g, (m, k) => vars[k] !== void 0 ? vars[k] : m);
 }
 var TOGGLE_DOMAINS = /* @__PURE__ */ new Set(["light", "switch", "fan", "input_boolean", "cover", "media_player", "humidifier"]);
+var TAP_TOGGLE = /* @__PURE__ */ new Set(["light", "cover"]);
+function coverTapWord(st) {
+  if (st.state === "opening" || st.state === "closing") return "u_stopped";
+  const p2 = st.attributes && st.attributes.current_position;
+  return (typeof p2 === "number" ? p2 > 0 : st.state === "open") ? "u_closing" : "u_opening";
+}
 var HIT_PX = 24;
 var DRAG_PX = 10;
 var HOLD_MS = 500;
@@ -4034,6 +4296,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       trail: this._config.trail,
       labels: this._config.labels,
       readings: true,
+      heating: this._config.roomHeating,
       idle_lights: !hide.has("idle_lights"),
       sensors: !hide.has("sensors"),
       devices: !hide.has("devices"),
@@ -4222,6 +4485,30 @@ var LivingFloorplanCard = class extends HTMLElement {
     background: var(--fc-solid); border: 1px solid var(--fc-line); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     font: 13px var(--paper-font-body1_-_font-family, sans-serif); color: var(--fc-text); }
   #fc-lasso-bar[hidden] { display: none; }
+  /* a finger held on a device: a ring fills until the hold acts (red: it opens a door) */
+  #fc-press { position: absolute; z-index: 6; width: 52px; height: 52px; margin: -26px 0 0 -26px; pointer-events: none; }
+  #fc-press[hidden] { display: none; }
+  #fc-press svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+  #fc-press circle { fill: none; stroke-width: 4; }
+  #fc-press .bg { stroke: rgba(0, 0, 0, 0.35); }
+  #fc-press .fg { stroke: var(--fc-accent, #ffc300); stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
+  #fc-press.run .fg { transition: stroke-dashoffset var(--fc-press-ms, 400ms) linear; stroke-dashoffset: 0; }
+  #fc-press.door .fg { stroke: #e57373; }
+  #fc-press span { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); white-space: nowrap; font-size: 12px;
+    background: var(--fc-panel); color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 2px 7px; }
+  #fc-press span:empty { display: none; }
+  #fc-press.door span { border-color: #e57373; }
+  /* what a tap just switched, with an undo */
+  #fc-undo { position: absolute; left: 50%; transform: translateX(-50%); bottom: 54px; z-index: 5; display: flex; align-items: center; gap: 10px;
+    background: var(--fc-panel); color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 10px; padding: 6px 6px 6px 12px;
+    font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); max-width: calc(100% - 24px); }
+  #fc-undo[hidden] { display: none; }
+  #fc-undo .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fc-undo button[hidden] { display: none; }
+  /* a mouse over a device: what a click and a hold do */
+  #fc-tip { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; font-size: 12px; background: var(--fc-panel);
+    color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 3px 8px; transform: translate(12px, 14px); }
+  #fc-tip[hidden] { display: none; }
   #fc-lasso-bar .n { color: var(--fc-text2); padding: 0 4px; }
   #fc-lasso-bar .b { display: contents; }
   /* a marker's note */
@@ -4308,6 +4595,9 @@ var LivingFloorplanCard = class extends HTMLElement {
     <svg id="fc-lasso" hidden><path class="l"/><g class="dots"></g></svg>
     <div id="fc-lasso-bar" hidden><span class="n"></span><span class="b"></span><button class="fc" data-l="x">\u2715</button></div>
     <div id="fc-note" hidden><div class="t"></div><div class="n"></div></div>
+    <div id="fc-press" hidden><svg viewBox="0 0 52 52"><circle class="bg" cx="26" cy="26" r="22"/><circle class="fg" cx="26" cy="26" r="22" pathLength="100"/></svg><span></span></div>
+    <div id="fc-undo" hidden><span class="m"></span><button class="fc" data-undo></button></div>
+    <div id="fc-tip" hidden></div>
     <div id="fc-room" hidden><div class="dlg"><div class="bar"><span class="t"></span><button class="fc" id="fc-room-x">\u2715</button></div><div class="body"></div></div></div>
     <div id="campop" hidden><div class="bar"><span class="t"></span><button class="fc" id="campop-x">\u2715</button></div><div class="pic"></div></div>
     <div id="legend" hidden></div>
@@ -4544,6 +4834,78 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (id) g.setAttribute("data-entity-detect", id);
     }
   }
+  // Readings under icons (a thermostat's "21° → 21°", a plug's watts) kept off the walls: under the icon when there is
+  // room, else to its right, its left or above it - whichever touches no wall on the screen (the plan may be turned).
+  // Done again only when the texts' lengths, the floor or the turn change.
+  _placeLabels() {
+    const svg = this._svg;
+    if (!svg) return;
+    const texts = [...svg.querySelectorAll("text." + NAMES.deviceValue)].filter((t) => t.textContent && t.textContent !== "\u2014");
+    const key2 = (this._turned ? "t" : "f") + (this._floor || "") + ":" + texts.map((t) => t.textContent.length).join(",");
+    if (key2 === this._labelKey) return;
+    this._labelKey = key2;
+    const walls = [...svg.querySelectorAll("#walls-exterior path, #walls-interior path")];
+    if (!walls.length || !svg.getBoundingClientRect().width) {
+      this._labelKey = null;
+      return;
+    }
+    const hits = (t) => {
+      const r = t.getBoundingClientRect();
+      if (!r.width) return 0;
+      let n5 = 0;
+      for (let i = 0; i <= 6; i++) for (let j = 0; j <= 2; j++) {
+        const x = r.left + r.width * i / 6, y = r.top + r.height * (0.2 + 0.3 * j);
+        for (const w of walls) {
+          const m = w.getScreenCTM();
+          if (m && w.isPointInFill(new DOMPoint(x, y).matrixTransform(m.inverse()))) {
+            n5++;
+            break;
+          }
+        }
+      }
+      return n5;
+    };
+    for (const t of texts) {
+      if (t.dataset.fcX === void 0) {
+        t.dataset.fcX = t.getAttribute("x");
+        t.dataset.fcY = t.getAttribute("y");
+      }
+      const x = Number(t.dataset.fcX), y = Number(t.dataset.fcY) - 12;
+      const spots = [[x, y + 12, "middle"], [x + 9, y + 3.5, "start"], [x - 9, y + 3.5, "end"], [x, y - 9, "middle"]];
+      let best = null;
+      for (const [sx, sy, a] of spots) {
+        t.setAttribute("x", sx);
+        t.setAttribute("y", sy);
+        t.style.textAnchor = a;
+        const h = hits(t);
+        if (!best || h < best.h) best = { sx, sy, a, h };
+        if (!h) break;
+      }
+      t.setAttribute("x", best.sx);
+      t.setAttribute("y", best.sy);
+      t.style.textAnchor = best.a;
+    }
+  }
+  // Rooms the plan itself tints by heating (tint: {kind: heating}) follow the ⚙ switch too: off - put aside, on - back.
+  _heatingTints() {
+    const svg = this._svg;
+    if (!svg) return;
+    if (!this._config.roomHeating) {
+      svg.querySelectorAll(`#rooms polygon[${NAMES.attrTintKind}="heating"]:not([data-fc-heat])`).forEach((el) => {
+        el.setAttribute("data-fc-heat-off", el.getAttribute(NAMES.attrTintEntity) || "");
+        el.removeAttribute(NAMES.attrTintEntity);
+        el.removeAttribute(NAMES.attrTintKind);
+        el.classList.remove(NAMES.isHeating);
+        el.style.removeProperty("fill");
+      });
+    } else {
+      svg.querySelectorAll("#rooms polygon[data-fc-heat-off]").forEach((el) => {
+        el.setAttribute(NAMES.attrTintEntity, el.getAttribute("data-fc-heat-off"));
+        el.setAttribute(NAMES.attrTintKind, "heating");
+        el.removeAttribute("data-fc-heat-off");
+      });
+    }
+  }
   // A room with a thermostat or a TRV on the plan, and no colour of its own, is tinted while it heats.
   _heatRooms(roomAt) {
     if (!this._config.roomHeating || !this._svg) return;
@@ -4554,6 +4916,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (!poly || poly.hasAttribute(NAMES.attrTintEntity) || poly.classList.contains("unused")) continue;
       poly.setAttribute(NAMES.attrTintEntity, d.entity);
       poly.setAttribute(NAMES.attrTintKind, "heating");
+      poly.setAttribute("data-fc-heat", "");
     }
   }
   // A camera's sensor going on: its picture pops up (tablet mode by default).
@@ -4660,14 +5023,19 @@ var LivingFloorplanCard = class extends HTMLElement {
     svg.removeAttribute("height");
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     this._baseVB = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
+    const st = (svg.getAttribute("data-start") || "").split(/[\s,]+/).map(Number);
+    this._startVB = st.length === 4 && st.every(Number.isFinite) && st[2] > 0 && st[3] > 0 ? st : null;
     this._doorsKey = null;
     this._placeLightField();
     if (this._config.labels) svg.querySelector("#room-labels")?.removeAttribute("display");
     this._turned = null;
+    this._labelKey = null;
     if (this._lowered) {
       const idx = roomIndex(this._lowered);
       this._rooms = idx.rooms;
       this._sources = roomSources(this._lowered, idx.roomAt);
+      this._roomAt = idx.roomAt;
+      this._heatingTints();
       this._heatRooms(idx.roomAt);
     } else {
       this._rooms = [];
@@ -4710,6 +5078,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     c.trail = !!this._pref("trail");
     c.labels = !!this._pref("labels");
     c.readings = this._pref("readings") !== false;
+    c.roomHeating = !!this._pref("heating");
   }
   _renderSettings() {
     const sr = this.shadowRoot;
@@ -4723,7 +5092,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       <div class="seg"><span>${t("s_light")}</span><button class="fc${this._pref("light") !== "glow" ? " sel" : ""}" data-light="realistic">${t("s_realistic")}</button><button class="fc${this._pref("light") === "glow" ? " sel" : ""}" data-light="glow">${t("s_glow")}</button></div>
       <div class="seg"><span>${t("s_theme")}</span>${["auto", "dark", "light"].map((v) => `<button class="fc${this._pref("theme") === v ? " sel" : ""}" data-theme="${v}">${t("th_" + v)}</button>`).join("")}</div>
       <label class="strength"><span>${t("s_strength")} <b data-pct>${Math.round(this._pref("strength") * 100)} %</b></span><input type="range" min="0.15" max="1" step="0.01" data-strength value="${this._pref("strength")}"></label>
-      ${check("sun")}${check("trail")}${check("labels")}${check("readings")}
+      ${check("sun")}${check("trail")}${check("labels")}${check("readings")}${check("heating")}
       <div class="sub">${t("s_layers")}</div>${LAYERS.map(check).join("")}
       <div class="foot"><span>${t("s_note")}</span><button class="fc" data-reset>${t("s_reset")}</button></div>`;
     const ed = panel.querySelector("[data-edit]");
@@ -4773,6 +5142,16 @@ var LivingFloorplanCard = class extends HTMLElement {
     }
     if (!this._config.sun) svg.querySelectorAll("#fc-sun").forEach((el) => el.remove());
     if (!this._config.trail) svg.querySelectorAll("#fc-trail").forEach((el) => el.remove());
+    svg.querySelectorAll("[data-fc-heat]").forEach((el) => {
+      el.removeAttribute(NAMES.attrTintEntity);
+      el.removeAttribute(NAMES.attrTintKind);
+      el.removeAttribute("data-fc-heat");
+      el.classList.remove(NAMES.isHeating);
+      el.style.removeProperty("fill");
+      el.style.removeProperty("fill-opacity");
+    });
+    this._heatingTints();
+    if (this._config.roomHeating && this._roomAt) this._heatRooms(this._roomAt);
     if (this._applyTheme()) return;
     this._sig = "";
     if (this._travel) this._showAt(this._sliderTime());
@@ -4893,7 +5272,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     if (!svg) return;
     const wrap = this.shadowRoot.getElementById("wrap");
     const W2 = wrap.clientWidth || this.clientWidth || 400;
-    const vb = this._baseVB;
+    const vb = this._startVB || this._baseVB;
     let turn = this._config.rotate === 90;
     if (this._config.rotate === "auto") {
       const H = this._config.height || Math.max(240, (window.innerHeight || 800) - 140);
@@ -4940,8 +5319,11 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (m && Math.abs(Number(m[1]) - textRot) < 0.01) {
         el.setAttribute("transform", turn ? `rotate(${Number(m[1]) - 90} ${m[2]} ${m[3]})` : tr);
       }
+      const mv = el.classList.contains("cover-move") && /^translate\(([-\d.]+) ([-\d.]+)\) rotate\(([-\d.]+)\)$/.exec(tr);
+      if (mv) el.setAttribute("transform", turn ? `translate(${mv[1]} ${mv[2]}) rotate(${Number(mv[3]) - 90})` : tr);
     });
     this._fullVB = turn ? turnedViewBox(this._baseVB) : this._baseVB.slice();
+    this._homeVB = this._startVB ? turn ? turnedViewBox(this._startVB) : this._startVB.slice() : null;
     this._drawWidgets();
     this._drawPower();
   }
@@ -5084,9 +5466,21 @@ var LivingFloorplanCard = class extends HTMLElement {
     else if (domain === "button" || domain === "input_button") this._hass.callService(domain, "press", { entity_id: w.entity });
     else this._moreInfo(w.entity);
   }
+  // back to the start view (the editor's), else the whole plan
   _fit() {
-    this._vb = this._fullVB.slice();
+    this._vb = this._homeView();
     this._applyVB();
+  }
+  _homeView() {
+    const F = this._fullVB, H = this._homeVB;
+    if (!H) return F.slice();
+    const s = Math.max(H[2] / F[2], H[3] / F[3]);
+    const keep = this._vb;
+    this._vb = [H[0] + H[2] / 2 - F[2] * s / 2, H[1] + H[3] / 2 - F[3] * s / 2, F[2] * s, F[3] * s];
+    this._clampVB();
+    const v = this._vb;
+    this._vb = keep;
+    return v;
   }
   _applyVB() {
     if (this._picked) this._clearLasso();
@@ -5138,6 +5532,7 @@ var LivingFloorplanCard = class extends HTMLElement {
         clearTimeout(holdTimer);
         holdTimer = null;
       }
+      this._pressRing(null);
     };
     for (const t of ["pointerdown", "wheel", "keydown"]) wrap.addEventListener(t, () => this._touched(), { capture: true, passive: true });
     const onPanel = (e) => !!(e.target.closest && e.target.closest("button, input, label, select, #layers, #settings, #layer-menu, #timeline, #legend, #alerts, #campop, #zoom, #floors, #fc-room, #fc-lasso-bar"));
@@ -5162,8 +5557,11 @@ var LivingFloorplanCard = class extends HTMLElement {
         cancelHold();
         const hitNow = this._hit(e.clientX, e.clientY);
         const wait = hitNow && this._isLock(hitNow) ? 800 : HOLD_MS;
+        this._tipHide();
+        if (hitNow && !this._actionFor(hitNow, "hold")) this._pressRing(e.clientX, e.clientY, wait, this._isLock(hitNow) && this._config.lockAction === "hold");
         holdTimer = setTimeout(() => {
           holdTimer = null;
+          this._pressRing(null);
           if (!moved && start && this._activate(start.x, start.y, true)) start = null;
           else if (start) start.held = true;
         }, wait);
@@ -5176,6 +5574,10 @@ var LivingFloorplanCard = class extends HTMLElement {
       }
     });
     wrap.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "mouse" && !e.buttons && !pts3.size) {
+        this._tipAt(e.clientX, e.clientY, onPanel(e));
+        return;
+      }
       if (!pts3.has(e.pointerId)) return;
       pts3.set(e.pointerId, [e.clientX, e.clientY]);
       if (lasso) {
@@ -5230,6 +5632,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (!pts3.size) start = null;
     };
     wrap.addEventListener("pointerup", end);
+    wrap.addEventListener("pointerleave", () => this._tipHide());
     wrap.addEventListener("pointercancel", end);
     wrap.addEventListener("wheel", (e) => {
       if (!this._vb || onPanel(e)) return;
@@ -5346,6 +5749,99 @@ var LivingFloorplanCard = class extends HTMLElement {
     else if (domain === "cover") this._hass.callService("cover", "open_cover", { entity_id: id });
     else this._moreInfo(id);
   }
+  // ---- what a gesture will do: the ring of a hold, the hint of a mouse, the undo of a tap ----
+  // x, y: the finger (null: hide); ms: the hold's time; door: the hold opens a door strike
+  _pressRing(x, y, ms, door) {
+    const el = this.shadowRoot && this.shadowRoot.getElementById("fc-press");
+    if (!el) return;
+    clearTimeout(this._pressT);
+    if (x === null) {
+      el.hidden = true;
+      el.classList.remove("run");
+      return;
+    }
+    this._pressT = setTimeout(() => {
+      const r = this.shadowRoot.getElementById("wrap").getBoundingClientRect();
+      el.style.left = x - r.left + "px";
+      el.style.top = y - r.top + "px";
+      el.style.setProperty("--fc-press-ms", Math.max(80, ms - 120) + "ms");
+      el.classList.toggle("door", !!door);
+      el.querySelector("span").textContent = door ? translate(this._lang(), "door_opening") : "";
+      el.classList.remove("run");
+      el.hidden = false;
+      void el.offsetWidth;
+      el.classList.add("run");
+    }, 120);
+  }
+  // "Click: turn on · hold: statistics" next to the mouse, for what is under it
+  _gestureHint(id) {
+    const t = (k) => translate(this._lang(), k), st = this._hass && this._hass.states[id];
+    if (!st) return "";
+    const domain = id.split(".")[0];
+    const own = this._actionFor(id, "tap");
+    const holdWord = this._isLock(id) && this._config.lockAction === "hold" ? t("g_door") : this._config.hold === "insights" && window.entityInsights ? t("g_stats") : t("g_info");
+    const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
+    let tap = t("g_info");
+    if (own) tap = "\u2026";
+    else if (this._isLock(id)) tap = t("g_info");
+    else if (this._fixtureOf(id)) {
+      const [s, l] = this._fixtureOf(id);
+      tap = [s, l].some((e) => this._hass.states[e] && this._hass.states[e].state === "on") ? t("g_off") : t("g_on");
+    } else if (TAP_TOGGLE.has(domain) && !inRack) tap = domain === "cover" ? t({ u_opening: "g_open", u_closing: "g_close", u_stopped: "g_stop" }[coverTapWord(st)]) : st.state === "on" ? t("g_off") : t("g_on");
+    return `${t("g_click")}: ${tap} \xB7 ${t("g_hold")}: ${holdWord}`;
+  }
+  _tipAt(x, y, overPanel) {
+    const now = Date.now();
+    if (this._tipT && now - this._tipT < 60) return;
+    this._tipT = now;
+    const tip = this.shadowRoot.getElementById("fc-tip");
+    const id = !overPanel && this._hass && !this._travel ? this._hit(x, y) : null;
+    const text = id ? this._gestureHint(id) : "";
+    if (!text) {
+      tip.hidden = true;
+      return;
+    }
+    const r = this.shadowRoot.getElementById("wrap").getBoundingClientRect();
+    tip.textContent = text;
+    tip.hidden = false;
+    const left = Math.min(x - r.left, r.width - tip.offsetWidth - 16);
+    tip.style.left = Math.max(0, left) + "px";
+    tip.style.top = y - r.top + "px";
+  }
+  _tipHide() {
+    const tip = this.shadowRoot && this.shadowRoot.getElementById("fc-tip");
+    if (tip) tip.hidden = true;
+  }
+  // A message at the bottom for a few seconds; with undo: the states before the tap come back
+  _toast(text, undo) {
+    const box = this.shadowRoot.getElementById("fc-undo");
+    box.querySelector(".m").textContent = text;
+    const b = box.querySelector("[data-undo]");
+    b.textContent = translate(this._lang(), "undo");
+    b.hidden = !undo;
+    b.onclick = () => {
+      box.hidden = true;
+      if (undo) undo();
+    };
+    box.hidden = false;
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => {
+      box.hidden = true;
+    }, undo ? 6e3 : 3e3);
+  }
+  _undoable(ids, name, word3) {
+    const prev = ids.map((e) => this._hass.states[e]).filter(Boolean).map((s) => ({ id: s.entity_id, state: s.state, a: { ...s.attributes } }));
+    this._toast(`${name} \u2014 ${translate(this._lang(), word3)}`, () => {
+      for (const p2 of prev) {
+        const domain = p2.id.split(".")[0];
+        if (domain === "cover") {
+          if (typeof p2.a.current_position === "number") this._hass.callService("cover", "set_cover_position", { entity_id: p2.id, position: p2.a.current_position });
+          else this._hass.callService("cover", p2.state === "closed" ? "close_cover" : "open_cover", { entity_id: p2.id });
+        } else if (p2.state === "on") this._hass.callService("light", "turn_on", { entity_id: p2.id, ...typeof p2.a.brightness === "number" ? { brightness: p2.a.brightness } : {} });
+        else this._hass.callService(domain === "light" ? "light" : "homeassistant", "turn_off", { entity_id: p2.id });
+      }
+    });
+  }
   // -> true when a device was hit
   _activate(clientX, clientY, hold) {
     const wd = this._hass && this._widgetAt(clientX, clientY);
@@ -5385,8 +5881,10 @@ var LivingFloorplanCard = class extends HTMLElement {
       return true;
     }
     if (this._isLock(id)) {
-      if (hold && this._config.lockAction === "hold") this._openLock(id);
-      else this._moreInfo(id);
+      if (hold && this._config.lockAction === "hold") {
+        this._openLock(id);
+        this._toast(translate(this._lang(), "door_open"));
+      } else this._moreInfo(id);
       return true;
     }
     const fx = !hold && this._fixtureOf(id);
@@ -5396,6 +5894,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       this._lastToggle = { id: fx.join(), t: now };
       const on = (e) => this._hass.states[e] && this._hass.states[e].state === "on";
       const [small, large] = fx;
+      this._undoable(fx, this._fixtureTitle(id, fx).name, !on(small) && !on(large) ? "u_on" : this._config.fixtureTap === "cycle" && on(small) && !on(large) ? "u_on" : "u_off");
       if (!on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: small });
       else if (this._config.fixtureTap === "cycle" && on(small) && !on(large)) this._hass.callService("light", "turn_on", { entity_id: large });
       else this._hass.callService("light", "turn_off", { entity_id: [small, large] });
@@ -5420,10 +5919,12 @@ var LivingFloorplanCard = class extends HTMLElement {
       return true;
     }
     const inRack = this._svg && this._svg.querySelector(`.rack-item[data-entity="${CSS.escape(id)}"]`);
-    if (TOGGLE_DOMAINS.has(domain) && this._hass.states[id] && !inRack) {
+    if (TAP_TOGGLE.has(domain) && this._hass.states[id] && !inRack) {
       const now = Date.now();
       if (this._lastToggle && this._lastToggle.id === id && now - this._lastToggle.t < 400) return true;
       this._lastToggle = { id, t: now };
+      const st = this._hass.states[id];
+      this._undoable([id], st.attributes.friendly_name || id, domain === "cover" ? coverTapWord(st) : st.state === "on" ? "u_off" : "u_on");
       this._hass.callService(domain === "cover" ? "cover" : "homeassistant", "toggle", { entity_id: id });
       if (domain === "cover") this._coverTapped(id);
     } else this._moreInfo(id);
@@ -5857,7 +6358,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       if (this._travel && !this._playTimer) this._exitTravel();
       const menu = this.shadowRoot.getElementById("layer-menu");
       if (menu) menu.hidden = true;
-      if (this._vb && this._fullVB && this._vb.join() !== this._fullVB.join()) this._fit();
+      if (this._vb && this._fullVB && this._vb.join() !== this._homeView().join()) this._fit();
     }
     const dim = this.shadowRoot.getElementById("dim");
     const night = this._isNight() && idle;
@@ -5899,6 +6400,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     this._sig = sig;
     const states = { get: (id) => this._hass.states[id] };
     applyStates(this._svg, states, this._lang(), this._paintFn());
+    this._placeLabels();
     this._checkDetections();
     if (this._config.widgets.length) this._drawWidgets();
     if (this._roomOpen) this._renderRoom(false);
@@ -6327,6 +6829,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     const get = statesAt(this._travel.hist, this._hass.states, t);
     this._placeLightField(get);
     applyStates(this._svg, { get }, this._lang(), this._paintFn());
+    this._placeLabels();
     this._svg.querySelectorAll(".fc-forgotten").forEach((el) => el.classList.remove("fc-forgotten"));
     this._drawSun(t);
     this._drawTrail(t, (id) => this._travel.hist[id] || []);
@@ -6870,59 +7373,59 @@ var LivingFloorplanCard = class extends HTMLElement {
   }
   // The visual editor in the dashboard (Home Assistant's own form).
   static getConfigForm() {
-    const pl = String(navigator.language || "").startsWith("pl");
-    const L = (en, plText) => pl ? plText : en;
+    const nl = String(navigator.language || "").slice(0, 2).toLowerCase(), pl = nl === "pl", de = nl === "de";
+    const L = (en, plText, deText) => pl ? plText : de && deText ? deText : en;
     return {
       schema: [
         { name: "model", selector: { text: {} } },
         { name: "light", selector: { select: { mode: "dropdown", options: [
-          { value: "realistic", label: L("Realistic (shadows, through doorways)", "Realistyczne (cienie, przez drzwi)") },
-          { value: "glow", label: L("Round glows", "Okr\u0105g\u0142e po\u015Bwiaty") }
+          { value: "realistic", label: L("Realistic (shadows, through doorways)", "Realistyczne (cienie, przez drzwi)", "Realistisch (Schatten, durch T\xFCren)") },
+          { value: "glow", label: L("Round glows", "Okr\u0105g\u0142e po\u015Bwiaty", "Runde Lichtkreise") }
         ] } } },
         { name: "rotate", selector: { select: { mode: "dropdown", options: [
-          { value: "auto", label: L("Automatic", "Automatycznie") },
+          { value: "auto", label: L("Automatic", "Automatycznie", "Automatisch") },
           { value: "0", label: "0\xB0" },
           { value: "90", label: "90\xB0" }
         ] } } },
         { name: "map", selector: { select: { mode: "dropdown", options: MAP_KINDS.map((k) => ({ value: k, label: translate(navigator.language, "map_" + k, { days: 7 }) })) } } },
         { name: "map_days", selector: { number: { min: 1, max: 30, mode: "box" } } },
         { name: "doors", selector: { select: { mode: "dropdown", options: [
-          { value: "closed", label: L("Closed (they stop the light)", "Zamkni\u0119te (blokuj\u0105 \u015Bwiat\u0142o)") },
-          { value: "open", label: L("Open (light goes through)", "Otwarte (\u015Bwiat\u0142o przechodzi)") }
+          { value: "closed", label: L("Closed (they stop the light)", "Zamkni\u0119te (blokuj\u0105 \u015Bwiat\u0142o)", "Geschlossen (sie halten das Licht auf)") },
+          { value: "open", label: L("Open (light goes through)", "Otwarte (\u015Bwiat\u0142o przechodzi)", "Offen (Licht geht durch)") }
         ] } } },
         { name: "price", selector: { number: { min: 0, step: 0.01, mode: "box" } } },
         { name: "theme", selector: { select: { mode: "dropdown", options: [
-          { value: "auto", label: L("Like Home Assistant", "Jak Home Assistant") },
-          { value: "dark", label: L("Dark", "Ciemny") },
-          { value: "light", label: L("Light", "Jasny") }
+          { value: "auto", label: L("Like Home Assistant", "Jak Home Assistant", "Wie Home Assistant") },
+          { value: "dark", label: L("Dark", "Ciemny", "Dunkel") },
+          { value: "light", label: L("Light", "Jasny", "Hell") }
         ] } } },
         { name: "camera_popup", selector: { select: { mode: "dropdown", options: [
-          { value: "kiosk", label: L("In tablet mode", "W trybie tabletu") },
-          { value: "always", label: L("Always", "Zawsze") },
-          { value: "never", label: L("Never", "Nigdy") }
+          { value: "kiosk", label: L("In tablet mode", "W trybie tabletu", "Im Tablet-Modus") },
+          { value: "always", label: L("Always", "Zawsze", "Immer") },
+          { value: "never", label: L("Never", "Nigdy", "Nie") }
         ] } } },
         { name: "show_room_names", selector: { boolean: {} } },
         { name: "time_travel", selector: { boolean: {} } },
         { name: "maps", selector: { boolean: {} } },
         { name: "hold_action", selector: { select: { mode: "dropdown", options: [
           { value: "insights", label: "Entity Insights" },
-          { value: "more-info", label: L("Entity dialog", "Okno encji") }
+          { value: "more-info", label: L("Entity dialog", "Okno encji", "Entit\xE4tsdialog") }
         ] } } }
       ],
       computeLabel: (s) => ({
-        model: L("Model (house.json from the floor plan editor)", "Model (house.json z edytora rzutu)"),
-        light: L("Light", "\u015Awiat\u0142o"),
-        rotate: L("Turn the plan", "Obr\xF3t rzutu"),
-        map: L("Map on load", "Mapa na starcie"),
-        map_days: L("Days of history for the maps", "Dni historii dla map"),
-        price: L("Electricity price per kWh", "Cena pr\u0105du za kWh"),
-        doors: L("Doors without a contact sensor", "Drzwi bez kontaktronu"),
-        show_room_names: L("Room names", "Nazwy pokoi"),
-        time_travel: L("Time travel button", "Przycisk przewijania czasu"),
-        maps: L("Map button", "Przycisk map"),
-        hold_action: L("Hold", "Przytrzymanie"),
-        theme: L("Theme", "Wygl\u0105d"),
-        camera_popup: L("Camera picture when it sees someone", "Obraz kamery, gdy kogo\u015B wykryje")
+        model: L("Model (house.json from the floor plan editor)", "Model (house.json z edytora rzutu)", "Modell (house.json aus dem Grundriss-Editor)"),
+        light: L("Light", "\u015Awiat\u0142o", "Licht"),
+        rotate: L("Turn the plan", "Obr\xF3t rzutu", "Plan drehen"),
+        map: L("Map on load", "Mapa na starcie", "Karte beim Laden"),
+        map_days: L("Days of history for the maps", "Dni historii dla map", "Tage Verlauf f\xFCr die Karten"),
+        price: L("Electricity price per kWh", "Cena pr\u0105du za kWh", "Strompreis pro kWh"),
+        doors: L("Doors without a contact sensor", "Drzwi bez kontaktronu", "T\xFCren ohne Kontaktsensor"),
+        show_room_names: L("Room names", "Nazwy pokoi", "Raumnamen"),
+        time_travel: L("Time travel button", "Przycisk przewijania czasu", "Zeitreise-Taste"),
+        maps: L("Map button", "Przycisk map", "Karten-Taste"),
+        hold_action: L("Hold", "Przytrzymanie", "Gedr\xFCckt halten"),
+        theme: L("Theme", "Wygl\u0105d", "Design"),
+        camera_popup: L("Camera picture when it sees someone", "Obraz kamery, gdy kogo\u015B wykryje", "Kamerabild, wenn sie jemanden sieht")
       })[s.name]
     };
   }

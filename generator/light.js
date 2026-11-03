@@ -33,6 +33,16 @@ export const LIGHT = {
   "#8fa3bd": "#7d91ab", // cover fabric
   "#c3cfdf": "#2b3442", // texts
   "#1d3347": "#cfe1f2", "#1f2f3d": "#d9e7f2", // room tint: humid
+  // the garden in its own light colours (the automatic lightening washed them out to white)
+  "#1f3326": "#cfe5c0", "#2b4634": "#a9cf92", "#264030": "#b9daa5", // lawn, its blades
+  "#332c27": "#e6d4bd", "#463c35": "#c9b08f", // terrace boards
+  "#2a2f37": "#dde0e5", "#363c46": "#c2c7cf", // driveway setts
+  "#2e3541": "#e9e6df", "#3b4352": "#d0ccc2", // path slabs
+  "#2f271f": "#dccaaf", "#3d5838": "#8db777", // flowerbed soil, plants
+  "#323437": "#e0ddd6", "#46494d": "#bdb9b0", // gravel
+  "#2f4f36": "#b4d89f", "#21382a": "#93c07d", "#3b5f42": "#6f9e5a", "#2a4632": "#80ad69", "#3a3027": "#8a6e55", // trees, bushes
+  "#284531": "#8fbd7b", // hedge
+  "#1d4a6b": "#a8d5f0", // pool
 };
 
 // A colour not in the table (furniture drawn in its own colours): dark ones turned

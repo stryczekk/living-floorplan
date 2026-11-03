@@ -32,7 +32,11 @@ const WORDS = {
   en: { today: "today", tomorrow: "tomorrow", in: "in {n} d", sunny: "sun", clear: "clear", cloudy: "cloudy", partlycloudy: "clouds",
     rainy: "rain", pouring: "pouring", snowy: "snow", fog: "fog", windy: "wind", lightning: "storm", "lightning-rainy": "storm", "clear-night": "night" },
   pl: { today: "dziś", tomorrow: "jutro", in: "za {n} dni", sunny: "słońce", clear: "pogodnie", cloudy: "pochmurno", partlycloudy: "chmury",
-    rainy: "deszcz", pouring: "ulewa", snowy: "śnieg", fog: "mgła", windy: "wiatr", lightning: "burza", "lightning-rainy": "burza", "clear-night": "noc" },
+    rainy: "deszcz", pouring: "ulewa", snowy: "śnieg", fog: "mgła", windy: "wiatr", lightning: "burza", "lightning-rainy": "burza", "clear-night": "noc",
+    on: "wł.", off: "wył.", open: "otwarte", closed: "zamknięte" },
+  de: { today: "heute", tomorrow: "morgen", in: "in {n} T.", sunny: "Sonne", clear: "klar", cloudy: "bewölkt", partlycloudy: "Wolken",
+    rainy: "Regen", pouring: "Starkregen", snowy: "Schnee", fog: "Nebel", windy: "Wind", lightning: "Gewitter", "lightning-rainy": "Gewitter", "clear-night": "Nacht",
+    on: "an", off: "aus", open: "offen", closed: "zu" },
 };
 const word = (locale, k) => (WORDS[String(locale).slice(0, 2)] || WORDS.en)[k] || (WORDS.en[k] ?? k);
 
@@ -90,7 +94,11 @@ export function readingText(kind, v, locale = "en") {
     const t = v.attributes?.temperature;
     return (typeof t === "number" ? Math.round(t) + "° " : "") + word(locale, v.state);
   }
-  return `${v.state}${v.attributes?.unit_of_measurement ? " " + v.attributes.unit_of_measurement : ""}`;
+  const unit = v.attributes?.unit_of_measurement ? " " + v.attributes.unit_of_measurement : "";
+  const n = String(v.state).trim() === "" ? NaN : Number(v.state);
+  // numbers in the viewer's format ("10,9 °C"), on / off and the like in their language
+  if (Number.isFinite(n)) return n.toLocaleString(locale, { maximumFractionDigits: Math.abs(n) >= 100 ? 0 : 1, useGrouping: false }) + unit;
+  return word(locale, v.state) + unit;
 }
 
 // Appliance labels ("W 1:25", "D ✓"): a machine's state, job and end entities.

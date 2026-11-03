@@ -32,6 +32,23 @@ if (html.includes('src="editor.js"') || html.includes('href="editor.css"')) thro
 writeFileSync("dist/living-floorplan-editor.html", "<!-- Living Floor Plan - editor -->\n" + html);
 console.log("dist/living-floorplan-editor.html", Math.round(html.length / 1024) + " kB");
 
+// The demo page: the card on the example house in a made-up home (demo/), one file to host anywhere;
+// with Entity Insights for the hold dialogs when its repository sits next to this one.
+{
+  const { existsSync } = await import("node:fs");
+  const insights = "../entity-insights/entity-insights.js", chart = "../long-term-chart-card/long-term-chart-card.js";
+  const entry = [insights, chart].filter((f) => existsSync(f)).map((f) => `import "${f}";\n`).join("") + `import "./demo/page.js";\n`;
+  const dm = await build({ stdin: { contents: entry, resolveDir: ".", loader: "js" }, bundle: true, format: "esm", target: "es2022",
+    write: false, legalComments: "none" });
+  const djs = dm.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
+  let dhtml = readFileSync("demo/index.html", "utf8");
+  dhtml = dhtml.replace('<script type="module" src="page.js"></script>', () =>
+    "<script>window.FLOORPLAN_EXAMPLE = " + example.trim() + ";</script>\n<script type=\"module\">\n" + djs + "\n</script>");
+  if (dhtml.includes('src="page.js"')) throw new Error("demo page: placeholder not replaced");
+  writeFileSync("dist/living-floorplan-demo.html", "<!-- Living Floor Plan - demo -->\n" + dhtml);
+  console.log("dist/living-floorplan-demo.html", Math.round(dhtml.length / 1024) + " kB", existsSync(insights) ? "(with Entity Insights)" : "");
+}
+
 // The Home Assistant integration carries them all: the card (loaded on every dashboard), the editor
 // (its panel) and the panel itself - custom_components/living_floorplan/frontend/
 import { mkdirSync, copyFileSync } from "node:fs";

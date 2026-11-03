@@ -27,6 +27,7 @@ export function normalizeWidgets(list) {
 const W = {
   en: { now: "now", tomorrow: "tomorrow", none: "nothing planned" },
   pl: { now: "teraz", tomorrow: "jutro", none: "nic w planie" },
+  de: { now: "jetzt", tomorrow: "morgen", none: "nichts geplant" },
 };
 const word = (lang, k) => (W[String(lang).slice(0, 2)] || W.en)[k];
 const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect x="9" y="9" width="24" height="16" fill="currentColor" opacity=".9"/>
+<polygon points="22,25 31,25 55,42 55,55 39.4,55" fill="currentColor" opacity=".55"/>
+<path d="M6 6H36V26H58V58H6Z" fill="none" stroke="currentColor" stroke-width="6"/>
+<path d="M6 26H22M31 26H36" stroke="currentColor" stroke-width="4"/>
+</svg>

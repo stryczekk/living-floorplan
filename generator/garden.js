@@ -46,8 +46,10 @@ export function gardenDefs(items, k) {
   const s = (v) => n(v * k);
   const P = (id, w, h, body) => `    <pattern id="gd-${id}" patternUnits="userSpaceOnUse" width="${s(w)}" height="${s(h)}">${body}</pattern>`;
   const out = [];
+  // grass: blades in two shades, leaning both ways, so the lawn reads as grass and not as a flat colour
   if (used.has("lawn")) out.push(P("lawn", 40, 40, `<rect width="${s(40)}" height="${s(40)}" fill="#1f3326"/>` +
-    [[6, 9], [22, 4], [33, 18], [14, 27], [29, 34], [3, 36]].map(([x, y]) => `<path d="M${s(x)} ${s(y)} l${s(1)} ${s(-4)}" stroke="#2b4634" stroke-width="${s(1)}"/>`).join("")));
+    [[6, 9, 1], [22, 4, -1], [33, 18, 1], [14, 27, -1], [29, 34, 1], [3, 36, -1], [17, 13, 1], [37, 7, -1], [10, 19, -1], [25, 24, 1], [35, 29, -1], [20, 38, 1]]
+      .map(([x, y, d], i) => `<path d="M${s(x)} ${s(y)} l${s(d)} ${s(-4)}" stroke="${i % 2 ? "#264030" : "#2b4634"}" stroke-width="${s(1)}" stroke-linecap="round"/>`).join("")));
   if (used.has("terrace")) out.push(P("terrace", 200, 14, `<rect width="${s(200)}" height="${s(14)}" fill="#332c27"/><path d="M0 0H${s(200)}" stroke="#463c35" stroke-width="${s(1.2)}"/>`));
   if (used.has("driveway")) out.push(P("driveway", 20, 20, `<rect width="${s(20)}" height="${s(20)}" fill="#2a2f37"/><path d="M0 0H${s(20)}M0 ${s(10)}H${s(20)}M0 0V${s(10)}M${s(10)} ${s(10)}V${s(20)}" stroke="#363c46" stroke-width="${s(1)}"/>`));
   if (used.has("path")) out.push(P("path", 50, 50, `<rect width="${s(50)}" height="${s(50)}" fill="#2e3541"/><path d="M0 0H${s(50)}M0 0V${s(50)}" stroke="#3b4352" stroke-width="${s(1.2)}"/>`));

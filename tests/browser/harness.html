@@ -31,6 +31,7 @@ const shot = P.get("shot");
 const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok: !!ok, detail: ok ? "" : String(detail) });
 const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
+const coreBox = (el) => { const b = el.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; };
 customElements.define("ha-card", class extends HTMLElement {
   connectedCallback() { this.style.cssText = "display:block;border-radius:12px;border:1px solid #2a3547"; }
 });
@@ -71,7 +72,7 @@ function makeStates(mode) {
     } else if (d === "sensor") {
       s.state = /hum/.test(id) ? String(40 + (i % 15)) : /temp/.test(id) ? (20 + (i % 5) * 0.6).toFixed(1) : "1";
       s.attributes.unit_of_measurement = /hum/.test(id) ? "%" : "°C";
-    } else if (d === "binary_sensor" && /_(smoke|leak|co)$/.test(id)) {
+    } else if (d === "binary_sensor" && /_(smoke|leak|co|gas)$/.test(id)) {
       s.state = "off"; // alarms only where a test turns them on
     } else if (d === "binary_sensor") {
       s.state = /door|contact|window/.test(id) ? (i % 4 === 0 ? "on" : "off") : i % 3 === 0 ? "on" : "off";
@@ -193,7 +194,7 @@ if (shot) {
     await tick(400);
   } else {
   const el = await mount({ light: shot === "glow" ? "glow" : "realistic", floor: shot === "upstairs" ? "first-floor" : null,
-    rotate: shot === "phone" ? "auto" : 0, map: maps[shot], doors: shot === "night" || shot === "phone" ? "open" : undefined }, fakeHass(mode, P.get("lang") || "en"), shot === "phone" ? null : 1000);
+    rotate: shot === "phone" ? "auto" : 0, map: maps[shot], room_heating: shot === "heating", doors: shot === "night" || shot === "phone" ? "open" : undefined }, fakeHass(mode, P.get("lang") || "en"), shot === "phone" ? null : 1000);
   await tick(400);
   void el;
   }
@@ -242,6 +243,52 @@ if (shot) {
     await tick(150);
     check("stopped: the arrow goes", !cv.classList.contains("moving-up") && !cv.classList.contains("moving-down"));
   }
+  // a start view set in the editor: the card opens there, □ goes back there; zooming out still reaches the whole plan
+  {
+    const start = [200, 100, 600, 400];
+    const es = await mount({ model: { ...model, canvas: { ...model.canvas, start } }, rotate: 0 }, hass, 700);
+    const ss = es.shadowRoot.querySelector("svg"), vb = () => ss.getAttribute("viewBox").split(" ").map(Number);
+    const k = 1 / (model.canvas.cm_per_svg || 30 / 17);
+    const v0 = vb(), cx = v0[0] + v0[2] / 2, cy = v0[1] + v0[3] / 2;
+    const full = es._fullVB;
+    check("start view: opens on it (its middle, zoomed in)", Math.abs(cx - (start[0] + start[2] / 2) * k) < 2 && Math.abs(cy - (start[1] + start[3] / 2) * k) < 2 && v0[2] < full[2] * 0.9,
+      JSON.stringify({ v0, full }));
+    for (let i = 0; i < 8; i++) es.shadowRoot.querySelectorAll("#zoom button")[1].click();
+    check("start view: zooming out reaches the whole plan", vb()[2] >= full[2] - 0.5, vb().join(" "));
+    es.shadowRoot.querySelectorAll("#zoom button")[2].click();
+    check("start view: □ goes back to it", vb().map((x) => Math.round(x)).join() === v0.map((x) => Math.round(x)).join(), vb().join(" "));
+    es.remove();
+  }
+  // readings under icons (thermostats, plugs) kept off the walls - also on a turned plan
+  for (const rot of [0, 90]) {
+    const el2 = await mount({ rotate: rot }, hass, rot ? 360 : 900);
+    await tick(300);
+    const sv = el2.shadowRoot.querySelector("svg");
+    const walls = [...sv.querySelectorAll("#walls-exterior path, #walls-interior path")];
+    const bad = [...sv.querySelectorAll("text.device-value")].filter((t) => t.textContent && t.textContent !== "—").filter((t) => {
+      const r = t.getBoundingClientRect();
+      for (let i = 1; i < 6; i++) for (let j = 0; j <= 2; j++) {
+        const pt = new DOMPoint(r.left + (r.width * i) / 6, r.top + r.height * (0.2 + 0.3 * j));
+        if (walls.some((w) => w.isPointInFill(pt.matrixTransform(w.getScreenCTM().inverse())))) return true;
+      }
+      return false;
+    }).map((t) => t.closest("[id]").id);
+    check("readings off the walls" + (rot ? " (turned plan)" : ""), bad.length === 0, bad.join(", "));
+    el2.remove();
+  }
+  // the arrow points up the screen also on a plan the card turned (a phone): every cover, whatever its wall
+  {
+    const et = await mount({ rotate: 90 }, hass, 360);
+    const st = et.shadowRoot.querySelector("svg");
+    const ups = [...st.querySelectorAll(".cover .cover-move-up")];
+    const dirs = ups.map((p) => {
+      const m = p.getScreenCTM(), tip = new DOMPoint(0, -4.2).matrixTransform(m), base = new DOMPoint(0, 2.4).matrixTransform(m);
+      return [tip.x - base.x, tip.y - base.y];
+    });
+    check("turned plan: cover arrows point up the screen", et._turned && dirs.length && dirs.every(([dx, dy]) => dy < 0 && Math.abs(dx) < Math.abs(dy) * 0.1),
+      JSON.stringify(dirs.slice(0, 3).map((d) => d.map((v) => Math.round(v * 10) / 10))) + " turned " + et._turned);
+    et.remove();
+  }
   const floors = [...sr.querySelectorAll("#floors button")].map((b) => b.textContent);
   check("floor switcher lists both floors", floors.length === 2, floors.join("|"));
 
@@ -260,6 +307,45 @@ if (shot) {
   ev("pointerup", r.left + r.width / 2 + 10, r.top + r.height / 2);
   check("hold opens the entity dialog (finger 10 px off)", info === id, info);
   check("hold does not toggle", calls.length === 1, calls.length);
+  // the tap said what it did, with an undo that brings the state before it back
+  {
+    const box = sr.getElementById("fc-undo"), was = el._hass.states[id].state;
+    check("tap: a message with undo", !box.hidden && box.querySelector("[data-undo]") && !box.querySelector("[data-undo]").hidden, box.textContent);
+    const n = calls.length;
+    box.querySelector("[data-undo]").click();
+    const u = calls[n];
+    check("undo: the lamp back as it was", u && u[0] === "light" && u[1] === (was === "on" ? "turn_on" : "turn_off") && u[2].entity_id === id, JSON.stringify(u));
+    check("undo: the message goes", box.hidden);
+  }
+  // a hold shows a ring filling under the finger (after a moment, not on a plain tap)
+  {
+    const x = r.left + r.width / 2, y = r.top + r.height / 2, ring = sr.getElementById("fc-press");
+    ev("pointerdown", x, y, 7);
+    await tick(250);
+    check("hold: the ring fills under the finger", !ring.hidden && ring.classList.contains("run") && !ring.classList.contains("door"));
+    ev("pointerup", x, y, 7);
+    check("hold: the ring goes when let go", ring.hidden);
+    info = null;
+  }
+  // a mouse over the lamp: what a click and a hold do
+  {
+    const tip = sr.getElementById("fc-tip");
+    el._tipT = 0;
+    wrap.dispatchEvent(new PointerEvent("pointermove", { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, pointerType: "mouse", buttons: 0, bubbles: true }));
+    check("mouse over a lamp: the hint says click and hold", !tip.hidden && /: .+ · .+: /.test(tip.textContent), tip.textContent);
+    wrap.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
+  }
+  // anything but a light or a cover: a tap opens it, never switches it (a switch, a media player...)
+  {
+    const sw = svg.querySelector('[data-entity^="switch."], [data-entity^="media_player."], [data-entity^="fan."]');
+    if (sw) {
+      const swId = sw.getAttribute("data-entity"), rs = coreBox(sw);
+      const n = calls.length; info = null;
+      ev("pointerdown", rs.x, rs.y, 8); ev("pointerup", rs.x, rs.y, 8);
+      const hitId = el._hit(rs.x, rs.y);
+      check("tap on a " + swId.split(".")[0] + " opens it, does not switch it", calls.length === n && (info === hitId || hitId !== swId), JSON.stringify({ calls: calls.slice(n), info, hitId }));
+    } else check("example has a switch / player / fan", false);
+  }
   // tap on a room's empty floor -> the room's window
   {
     const poly = svg.querySelector("#rooms polygon#room-room1") || [...svg.querySelectorAll("#rooms polygon[id^='room-']")].find((p) => el._roomContents(p.id.slice(5)).covers.length);
@@ -364,9 +450,10 @@ if (shot) {
     check("zoom out to half: the whole plan smaller, in the middle", Math.abs(out[2] / full[2] - 2) < 0.01 && Math.abs((out[0] + out[2] / 2) - (full[0] + full[2] / 2)) < 0.5, out.join(" "));
     zb[2].click(); zb[0].click();
   }
+  const nDrag = calls.length;
   ev("pointerdown", 300, 200, 2); ev("pointermove", 340, 230, 2); ev("pointermove", 380, 260, 2); ev("pointerup", 380, 260, 2);
   check("drag pans the plan", svg.getAttribute("viewBox") !== vb1, svg.getAttribute("viewBox"));
-  check("drag does not toggle", calls.length === 1, calls.length);
+  check("drag does not toggle", calls.length === nDrag, calls.length - nDrag);
   // a closed door with a contact sensor blocks light: count lit area before / after is hard - check the layer rebuilds
   // a closed door with a contact sensor stops the light: the bathroom door
   const pathsOf = (svgEl) => [...svgEl.querySelectorAll("[data-lf] path")].map((p) => p.getAttribute("d")).join("|");
@@ -654,6 +741,14 @@ if (shot) {
       await tick(400);
       wf.dispatchEvent(new PointerEvent("pointerup", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 53, bubbles: true }));
       check("lock: opened by a 0.8 s hold", calls.length === n2 + 1 && /open/.test(calls[n2][1]), JSON.stringify(calls[n2]));
+      const ub = sf.getElementById("fc-undo");
+      check("lock: 'door opened', no undo", !ub.hidden && ub.querySelector("[data-undo]").hidden, ub.textContent);
+      wf.dispatchEvent(new PointerEvent("pointerdown", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 55, bubbles: true }));
+      await tick(250);
+      const rg = sf.getElementById("fc-press");
+      check("lock: the hold's ring is red with 'opening the door'", !rg.hidden && rg.classList.contains("door") && rg.textContent.length > 3, rg.className + " " + rg.textContent);
+      wf.dispatchEvent(new PointerEvent("pointerup", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 55, bubbles: true }));
+      check("lock: let go early opens nothing", calls.length === n2 + 1, calls.length - n2);
     } else check("example has a lock on the plan", false);
   }
 
@@ -747,6 +842,27 @@ if (shot) {
       fan.querySelector(".device-value").textContent === "60%" && getComputedStyle(fan.querySelector(".icon")).animationName !== "none", fan && fan.style.getPropertyValue("--fp-spin"));
     const eo2 = await mount({ room_heating: false }, fakeHass("night"), 600);
     check("hvac: room_heating: false leaves rooms alone", !eo2.shadowRoot.querySelector("#rooms #room-bathroom").hasAttribute("data-tint-kind"));
+    // a room the plan itself tints by heating (the example's bedroom) is off too
+    {
+      const fl = (model.floors || []).find((f) => (f.rooms || []).some((r) => r.tint && r.tint.kind === "heating"));
+      if (fl) {
+        const on = await mount({ floor: fl.id }, fakeHass("night"), 500), off = await mount({ floor: fl.id, room_heating: false }, fakeHass("night"), 500);
+        const q = (e) => e.shadowRoot.querySelectorAll('#rooms polygon[data-tint-kind="heating"]').length;
+        check("hvac: the plan's own heating tint: on by default, off with room_heating: false", q(on) >= 1 && q(off) === 0, q(on) + " / " + q(off));
+        on.remove(); off.remove();
+      } else check("example has a room tinted by heating", false);
+    }
+    // a viewer turns it on in ⚙ (and off again)
+    const hk = eo2.shadowRoot.querySelector('#settings input[data-k="heating"]');
+    check("hvac: ⚙ has the heating rooms switch, off with room_heating: false", hk && !hk.checked);
+    if (hk) {
+      eo2._setPref("heating", true); await tick(100);
+      const bath2 = eo2.shadowRoot.querySelector("#rooms #room-bathroom");
+      check("hvac: ⚙ heating on tints the room", bath2.getAttribute("data-tint-kind") === "heating");
+      eo2._setPref("heating", false); await tick(100);
+      check("hvac: ⚙ heating off clears the tint", !bath2.hasAttribute("data-tint-kind") && !bath2.classList.contains("heating"));
+    }
+    try { localStorage.clear(); } catch (e) {}
   }
 
   // cameras: the sensor of the model, one found on the camera's device, the picture in tablet mode

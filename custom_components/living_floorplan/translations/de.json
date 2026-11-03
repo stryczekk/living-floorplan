@@ -1,0 +1,11 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Living Floor Plan",
+        "description": "Fügt allen Dashboards die Grundriss-Karte und der Seitenleiste den Grundriss-Editor hinzu (für Administratoren). Der Grundriss wird in Home Assistant gespeichert."
+      }
+    },
+    "abort": { "single_instance_allowed": "Bereits eingerichtet." }
+  }
+}

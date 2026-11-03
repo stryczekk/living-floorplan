@@ -9,6 +9,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Floor plan editor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22#131a24%22/%3E%3Cg transform=%22translate%285 5%29 scale%28.84375%29%22%3E%3Crect x=%2210%22 y=%2210%22 width=%2222%22 height=%2213%22 fill=%22#ffb340%22/%3E%3Cpolygon points=%2220,24 32,24 54,40 54,54 38,54%22 fill=%22#ffc300%22/%3E%3Cpath d=%22M6 6H36V26H58V58H6Z%22 fill=%22none%22 stroke=%22#e6ebf2%22 stroke-width=%228%22/%3E%3Cpath d=%22M6 26H20M32 26H36%22 stroke=%22#e6ebf2%22 stroke-width=%226%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
 /* Floor plan editor - the colour palette of the generated plan. */
 :root {
@@ -219,8 +220,11 @@ input.bad { border-color: var(--warn); color: var(--warn); }
   border-top: 1px solid var(--line); font-size: 12px; }
 .versions .vrow.cur b { color: var(--accent); }
 .versions .vrow span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.margins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.margins input { width: 100%; }
+/* the four margins on a line of their own under their label (in a narrow panel they showed no digits) */
+.row:has(> .margins) { flex-wrap: wrap; }
+.margins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 100%; }
+.margins input { width: 100%; min-width: 0; padding: 4px 2px; text-align: center; -moz-appearance: textfield; }
+.margins input::-webkit-outer-spin-button, .margins input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 #panel textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; font: 12px system-ui, sans-serif; padding: 5px; resize: vertical; }
 .ov-below { fill: rgba(142, 161, 186, 0.10); stroke: rgba(142, 161, 186, 0.35); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -3489,7 +3493,7 @@ polyline.ov-sketch.live { fill: none; }
     }
   ]
 };
-window.FLOORPLAN_BUILD = "0.2.2 · 02.11, 20:22";</script>
+window.FLOORPLAN_BUILD = "0.2.2 · 03.11, 14:29";</script>
 <script type="module">
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -4537,7 +4541,7 @@ function gardenDefs(items, k) {
   const s = (v) => n2(v * k);
   const P = (id, w, h, body) => `    <pattern id="gd-${id}" patternUnits="userSpaceOnUse" width="${s(w)}" height="${s(h)}">${body}</pattern>`;
   const out = [];
-  if (used.has("lawn")) out.push(P("lawn", 40, 40, `<rect width="${s(40)}" height="${s(40)}" fill="#1f3326"/>` + [[6, 9], [22, 4], [33, 18], [14, 27], [29, 34], [3, 36]].map(([x, y]) => `<path d="M${s(x)} ${s(y)} l${s(1)} ${s(-4)}" stroke="#2b4634" stroke-width="${s(1)}"/>`).join("")));
+  if (used.has("lawn")) out.push(P("lawn", 40, 40, `<rect width="${s(40)}" height="${s(40)}" fill="#1f3326"/>` + [[6, 9, 1], [22, 4, -1], [33, 18, 1], [14, 27, -1], [29, 34, 1], [3, 36, -1], [17, 13, 1], [37, 7, -1], [10, 19, -1], [25, 24, 1], [35, 29, -1], [20, 38, 1]].map(([x, y, d], i) => `<path d="M${s(x)} ${s(y)} l${s(d)} ${s(-4)}" stroke="${i % 2 ? "#264030" : "#2b4634"}" stroke-width="${s(1)}" stroke-linecap="round"/>`).join("")));
   if (used.has("terrace")) out.push(P("terrace", 200, 14, `<rect width="${s(200)}" height="${s(14)}" fill="#332c27"/><path d="M0 0H${s(200)}" stroke="#463c35" stroke-width="${s(1.2)}"/>`));
   if (used.has("driveway")) out.push(P("driveway", 20, 20, `<rect width="${s(20)}" height="${s(20)}" fill="#2a2f37"/><path d="M0 0H${s(20)}M0 ${s(10)}H${s(20)}M0 0V${s(10)}M${s(10)} ${s(10)}V${s(20)}" stroke="#363c46" stroke-width="${s(1)}"/>`));
   if (used.has("path")) out.push(P("path", 50, 50, `<rect width="${s(50)}" height="${s(50)}" fill="#2e3541"/><path d="M0 0H${s(50)}M0 0V${s(50)}" stroke="#3b4352" stroke-width="${s(1.2)}"/>`));
@@ -4830,7 +4834,7 @@ function wallEnds(model, w, end) {
   const base = end === "a" ? 0 : L;
   const flat = { left: base, right: base };
   const others = spokes(model, P, w);
-  if (!others.length) return flat;
+  if (!others.length) return endInside(model, w, end, P, d, h, base, L) || flat;
   const ang = (x) => Math.atan2(x[1], x[0]);
   const all = [{ d, h, own: true }, ...others].sort((x, y) => ang(x.d) - ang(y.d));
   const i = all.findIndex((x) => x.own);
@@ -4851,6 +4855,29 @@ function wallEnds(model, w, end) {
   const toU = (s) => end === "a" ? s : L - s;
   const plus = ok(sPlus) ? toU(sPlus) : base, minus = ok(sMinus) ? toU(sMinus) : base;
   return end === "a" ? { left: plus, right: minus } : { left: minus, right: plus };
+}
+function endInside(model, w, end, P, d, h, base, L) {
+  const Ln = (x) => [-x[1], x[0]], own = Ln(d);
+  let best = null;
+  for (const o of model.walls) {
+    if (o === w) continue;
+    const v = sub2(o.b, o.a), Lo = len(v);
+    if (Lo < EPS2) continue;
+    const uo = mul2(v, 1 / Lo), ho = wallThickness(model, o) / 2, no = Ln(uo);
+    const rel = sub2(P, o.a), along = dot(rel, uo), across = dot(rel, no);
+    if (along < -EPS2 || along > Lo + EPS2 || Math.abs(across) > ho + EPS2) continue;
+    if (Math.abs(cross2(d, uo)) < 0.2) continue;
+    const far = (off) => {
+      const ss = [1, -1].map((k) => meet(add2(P, mul2(own, off)), d, add2(o.a, mul2(no, k * ho)), uo)).filter((x) => x !== null);
+      return ss.length ? Math.min(...ss) : null;
+    };
+    const sp = far(h), sm = far(-h);
+    if (sp === null || sm === null || Math.min(sp, sm) < -4 * Math.max(h, ho)) continue;
+    if (!best || Math.min(sp, sm) < Math.min(best.sp, best.sm)) best = { sp, sm };
+  }
+  if (!best) return null;
+  const toU = (x) => end === "a" ? x : L - x;
+  return end === "a" ? { left: toU(best.sp), right: toU(best.sm) } : { left: toU(best.sm), right: toU(best.sp) };
 }
 function wallPolygons(model, w) {
   const u = unit(sub2(w.b, w.a)), n5 = [-u[1], u[0]];
@@ -4962,6 +4989,10 @@ function lowerV2(m) {
     for (const o of w.openings || []) {
       const width = o.to - o.from;
       const side = o.swing === "left" ? 1 : -1;
+      if (["door", "pocket_door", "sliding_door", "passage", "balcony_door", "hst", "garage_door", "window", "corner_window"].includes(o.type)) {
+        const th = wallThickness(m, w) / 2 + 0.5;
+        (v1.thresholds = v1.thresholds || []).push([at(o.from, -th), at(o.to, -th), at(o.to, th), at(o.from, th)].map(P));
+      }
       const hs = o.hinge === "to" ? o.to : o.from, cs = o.hinge === "to" ? o.from : o.to;
       const splits = (() => {
         const n22 = o.panes || 1, ps = o.pane_sizes;
@@ -5046,12 +5077,23 @@ function lowerV2(m) {
       }
     }
   }
+  try {
+    v1.slab = faces(m, { withDividers: false }).map((f) => f.pts.map(P));
+  } catch (e) {
+    v1.slab = [];
+  }
   v1.covers = m.covers;
   if (!v1.canvas.viewBox) {
     const f = frame(m);
     v1.canvas.viewBox = f.viewBox;
     v1.canvas.sheet = f.sheet;
   }
+  if (Array.isArray(m.canvas.start) && m.canvas.start.length === 4 && m.canvas.start.every(Number.isFinite)) {
+    const [x, y, w2, h2] = m.canvas.start, a = (m.canvas.rotate || 0) * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+    const q = [[x, y], [x + w2, y], [x, y + h2], [x + w2, y + h2]].map(([px, py]) => [(px * cos - py * sin) * k, (px * sin + py * cos) * k]);
+    const xs = q.map((p2) => p2[0]), ys = q.map((p2) => p2[1]);
+    v1.canvas.start = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)].map((v) => Math.round(v * 100) / 100);
+  } else delete v1.canvas.start;
   delete v1.canvas.margin;
   const bulb = (b) => [b[0] * k, b[1] * k, ...b.slice(2)];
   const beamClip = (id, c, rot, angle) => {
@@ -5263,7 +5305,7 @@ function generateSvg(model, { furniture = "", names = null, floor = null } = {})
   const w = (s) => out.push(s);
   w(`<svg xmlns="http://www.w3.org/2000/svg"
      viewBox="${c.viewBox.map(n4).join(" ")}" width="${n4(c.viewBox[2])}" height="${n4(c.viewBox[3])}"
-     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}>`);
+     role="img" ${N.attrContract}="${c.contract}" data-generator="${GENERATOR_VERSION}"${floorsAttr}${c.start ? ` data-start="${c.start.map(n4).join(" ")}"` : ""}>`);
   w(`  <!-- GENERATED from the house model by generator/floorplan-model.js - do not edit by hand -->`);
   if (c.description) w(`  <desc id="desc">${esc3(c.description)}</desc>`);
   w(`  <g id="${N.rotation}" transform="rotate(${n4(c.rotate)})">`);
@@ -5274,6 +5316,12 @@ function generateSvg(model, { furniture = "", names = null, floor = null } = {})
 ${gardenDefs(model.garden, kcm)}
   </defs>
 ` + garden);
+  if ((model.slab || []).length || (model.thresholds || []).length) {
+    w(`  <g id="slab" fill="#1e2836" stroke="none" pointer-events="none">`);
+    for (const t2 of model.slab || []) w(`    <polygon points="${pts2(t2)}"/>`);
+    for (const t2 of model.thresholds || []) w(`    <polygon class="threshold" points="${pts2(t2)}"/>`);
+    w(`  </g>`);
+  }
   w(`  <g id="rooms" fill="#1e2836" stroke="none" pointer-events="all">`);
   for (const r of model.rooms) {
     const tint = r.tint && r.tint.entity ? attrs({ [N.attrTintEntity]: r.tint.entity, [N.attrTintKind]: r.tint.kind || "state" }) : "";
@@ -6269,6 +6317,13 @@ var STRINGS = {
     merged: "{n} lights are one circuit now",
     outdoor: "outdoor",
     fixture_name_auto: "from the circuits' names",
+    start_view: "Start view",
+    start_set_yes: "set",
+    start_whole: "the whole plan",
+    start_set: "Set to what I see",
+    start_show: "Show",
+    start_del: "Remove",
+    start_hint: "Where the card opens and where its \u25A1 button goes back to. Zoom out still shows the whole plan.",
     bulbs_1_12: "1 to 12 bulbs",
     circuit_large: "Large circuit",
     circuit_small: "Small circuit",
@@ -6936,6 +6991,13 @@ var STRINGS = {
     merged: "{n} lamp to teraz jeden obw\xF3d",
     outdoor: "na zewn\u0105trz",
     fixture_name_auto: "z nazw obwod\xF3w",
+    start_view: "Widok startowy",
+    start_set_yes: "ustawiony",
+    start_whole: "ca\u0142y plan",
+    start_set: "Ustaw jak teraz widz\u0119",
+    start_show: "Poka\u017C",
+    start_del: "Usu\u0144",
+    start_hint: "Tak karta otwiera rzut i tu wraca przycisk \u25A1. Oddalaj\u0105c, nadal wida\u0107 ca\u0142y plan.",
     bulbs_1_12: "Od 1 do 12 \u017Car\xF3wek",
     circuit_large: "Du\u017Cy obw\xF3d",
     circuit_small: "Ma\u0142y obw\xF3d",
@@ -7201,11 +7263,685 @@ var STRINGS = {
     loaded: "Wczytano {name}",
     not_v2: "to nie jest model v2",
     confirm_new: "Zacz\u0105\u0107 nowy, pusty rzut? Obecny zniknie z edytora (zapisz go wcze\u015Bniej)."
+  },
+  de: {
+    title: "Grundriss-Editor",
+    new: "Neu",
+    new_t: "Ein neuer, leerer Grundriss",
+    open: "\xD6ffnen\u2026",
+    open_t: "Eine JSON-Datei laden",
+    save: "Speichern",
+    save_t: "Grundriss speichern (auf dem Server: \xFCberschreiben oder neue Version; sonst ein Download)",
+    preview: "Vorschau",
+    wizard: "Assistent",
+    cancel: "Abbrechen",
+    wizard_t: "Ein Haus in 5 Minuten: Gr\xF6\xDFe und R\xE4ume angeben, der Grundriss wird f\xFCr dich gezeichnet",
+    wizard_h: "Ein Haus in 5 Minuten",
+    wizard_intro: "Die Au\xDFenma\xDFe und welche R\xE4ume. W\xE4nde, T\xFCren, Fenster, ein Licht in jedem Raum und M\xF6bel werden f\xFCr dich gezeichnet - danach kannst du alles verschieben.",
+    wz_width: "Breite",
+    wz_depth: "Tiefe",
+    wz_bedrooms: "Schlafzimmer",
+    wz_kids: "Kinderzimmer",
+    wz_bathrooms: "Badezimmer",
+    wz_office: "Arbeitszimmer",
+    wz_wc: "Separates WC",
+    wz_utility: "Hauswirtschaftsraum",
+    wz_wardrobe: "Ankleide",
+    wz_kitchen_open: "K\xFCche offen zum Wohnzimmer",
+    wz_furniture: "M\xF6bel",
+    wz_go: "Haus zeichnen",
+    wz_too_small: "Zu viele R\xE4ume f\xFCr diese Gr\xF6\xDFe - mach das Haus gr\xF6\xDFer oder nimm einen Raum heraus.",
+    wz_size: "Die Gr\xF6\xDFe muss 6 bis 50 m betragen.",
+    wz_replace: "Den vorhandenen Grundriss durch das neue Haus ersetzen? (R\xFCckg\xE4ngig holt ihn zur\xFCck.)",
+    wzr_bedroom: "Schlafzimmer",
+    wzr_kids: "Kinderzimmer",
+    wzr_office: "Arbeitszimmer",
+    wzr_bathroom: "Badezimmer",
+    wzr_wc: "WC",
+    wzr_utility: "Hauswirtschaftsraum",
+    wzr_wardrobe: "Ankleide",
+    wzr_kitchen: "K\xFCche",
+    wzr_living: "Wohnzimmer",
+    wzr_living_kitchen: "Wohnzimmer + K\xFCche",
+    wzr_hall: "Flur",
+    export: "Export\u2026",
+    export_t: "Der Grundriss mit Ma\xDFen als Bild oder als ma\xDFstabsgetreues PDF",
+    ex_png: "PNG",
+    ex_png_light: "PNG (hell)",
+    ex_pdf_a4: "PDF A4 (ma\xDFst\xE4blich)",
+    ex_pdf_a3: "PDF A3 (ma\xDFst\xE4blich)",
+    ex_scale: "Ma\xDFstab 1:{s}",
+    ex_area: "Fl\xE4che {a} m\xB2",
+    ex_busy: "Exportiere\u2026",
+    ex_done: "Exportiert: {name}",
+    publish: "An HA senden",
+    publish_t: "Den gespeicherten Grundriss an Home Assistant senden",
+    publish_dirty: "Speichere zuerst den Grundriss - gesendet wird die gespeicherte Version",
+    publish_wait: "Sende an Home Assistant\u2026",
+    publish_ok: "{v} an Home Assistant gesendet",
+    publish_err: "Nicht gesendet: {msg}",
+    preview_t: "Das SVG genau so, wie die Grundriss-Karte es bekommt (Drehung, Rahmen, Namen)",
+    save_h: "Grundriss speichern",
+    sv_note: "Notiz",
+    sv_new: "Als neue Version speichern",
+    sv_download: "JSON herunterladen",
+    sv_over: "Speichern ({v} \xFCberschreiben)",
+    sv_versions: "Versionen",
+    sv_open: "\xD6ffnen",
+    sv_current: "aktuell",
+    sv_cur: "Ge\xF6ffnet: {v}, gespeichert {at}",
+    sv_old: "{v} ist eine \xE4ltere Version: speichere sie als neue Version, um sie zum aktuellen Grundriss zu machen.",
+    sv_none: "Auf dem Server ist noch nichts gespeichert: das erste Speichern wird Version 1.",
+    saved_as: "Gespeichert: {v}",
+    unsaved_kept: "Ungespeicherte \xC4nderungen aus der letzten Sitzung (auf Basis von {v})",
+    opened_ver: "{v} ge\xF6ffnet",
+    save_error: "Nicht gespeichert: ",
+    furniture_h: "M\xF6bel",
+    furniture_t: "M\xF6bel: ein St\xFCck w\xE4hlen, zum Platzieren klicken (an einer Wand lehnt es sich an)",
+    furn_hint: "Klick: platzieren (an einer Wand dreht es den R\xFCcken zur Wand). Ausw\xE4hlen: ziehen zum Verschieben (Alt: an die n\xE4chste Wand, Shift: frei), die Griffe an Ecken und Seiten: Gr\xF6\xDFe \xE4ndern, R / Shift+R: drehen, Entf: entfernen.",
+    f_bedroom: "Schlafzimmer",
+    f_bathroom: "Badezimmer",
+    f_kitchen: "K\xFCche",
+    f_living: "Wohnzimmer",
+    f_dining: "Essbereich",
+    f_office: "Arbeitszimmer",
+    f_utility: "Hauswirtschaftsraum",
+    f_kids: "Kinderzimmer",
+    f_hall: "Flur",
+    f_outdoor: "Au\xDFen",
+    f_stairs: "Treppen",
+    fu_stairs_straight: "Gerade Treppe",
+    fu_stairs_l: "L-Treppe",
+    fu_stairs_u: "U-Treppe",
+    fu_stairs_spiral: "Wendeltreppe",
+    fu_attic_ladder: "Dachbodenluke + Leiter",
+    fu_stair_void: "Treppe von unten",
+    ground_floor: "Erdgeschoss",
+    floor_t: "Die bearbeitete Etage",
+    floor_add_t: "Eine Etage \xFCber der obersten hinzuf\xFCgen",
+    floor_below_t: "Die Etage darunter zeigen (blass)",
+    floor_edit_t: "Diese Etage umbenennen (leer: entfernen)",
+    floor_name_q: "Name der neuen Etage:",
+    floor_default: "Etage {n}",
+    floor_copy_q: "Mit den Au\xDFenw\xE4nden der Etage darunter beginnen? (Abbrechen: eine leere Etage)",
+    floor_rename_q: "Name des Erdgeschosses:",
+    floor_rename_del_q: "Name dieser Etage (leer: Etage entfernen):",
+    floor_delete_q: 'Die Etage "{name}" mit allem darauf entfernen?',
+    fu_sliding_wardrobe: "Schiebet\xFCrenschrank",
+    fu_vanity: "Schminktisch",
+    fu_bench: "Bank",
+    fu_crib: "Babybett",
+    fu_changing_table: "Wickeltisch",
+    fu_bunk_bed: "Etagenbett",
+    fu_toy_box: "Spielzeugkiste",
+    fu_play_mat: "Spielmatte",
+    fu_kids_table: "Kindertisch",
+    fu_high_chair: "Hochstuhl",
+    fu_corner_bath: "Eckbadewanne",
+    fu_bidet: "Bidet",
+    fu_double_sink: "Doppelwaschtisch",
+    fu_towel_rail: "Handtuchheizk\xF6rper",
+    fu_corner_counter: "Eck-Arbeitsplatte",
+    fu_kitchen_sink: "Sp\xFCle",
+    fu_tall_unit: "Hochschrank",
+    fu_dishwasher: "Geschirrsp\xFCler",
+    fu_upper_cabinets: "H\xE4ngeschr\xE4nke",
+    fu_bar_stool: "Barhocker",
+    fu_ottoman: "Pouf",
+    fu_sideboard: "Sideboard",
+    fu_fireplace: "Kamin",
+    fu_rug: "Teppich",
+    fu_plant: "Pflanze",
+    fu_piano: "Klavier",
+    fu_oval_table: "Ovaler Tisch",
+    fu_dining_bench: "Esszimmerbank",
+    fu_corner_desk: "Eckschreibtisch",
+    fu_filing_cabinet: "Aktenschrank",
+    fu_printer: "Drucker",
+    fu_shoe_cabinet: "Schuhschrank",
+    fu_coat_rack: "Garderobe",
+    fu_hall_bench: "Flurbank",
+    fu_mirror: "Spiegel",
+    fu_heat_pump: "W\xE4rmepumpe",
+    fu_rack: "Netzwerkschrank",
+    fu_electrical_panel: "Sicherungskasten",
+    fu_ironing_board: "B\xFCgelbrett",
+    fu_car: "Auto",
+    fu_bike: "Fahrrad",
+    fu_grill: "Grill",
+    fu_sunbed: "Sonnenliege",
+    fu_garden_set: "Gartentisch",
+    fu_hot_tub: "Whirlpool",
+    fu_trampoline: "Trampolin",
+    fu_bed: "Doppelbett",
+    fu_bed_single: "Einzelbett",
+    fu_nightstand: "Nachttisch",
+    fu_wardrobe: "Kleiderschrank",
+    fu_dresser: "Kommode",
+    fu_bathtub: "Badewanne",
+    fu_shower: "Dusche",
+    fu_wc: "WC",
+    fu_sink: "Waschbecken",
+    fu_washer: "Waschmaschine / Trockner",
+    fu_counter: "Arbeitsplatte",
+    fu_fridge: "K\xFChlschrank",
+    fu_island: "Kochinsel",
+    fu_cooktop: "Kochfeld",
+    fu_sofa: "Sofa",
+    fu_corner_sofa: "Ecksofa",
+    fu_armchair: "Sessel",
+    fu_coffee_table: "Couchtisch",
+    fu_tv_unit: "TV-M\xF6bel",
+    fu_table: "Tisch",
+    fu_round_table: "Runder Tisch",
+    fu_chair: "Stuhl",
+    fu_desk: "Schreibtisch",
+    fu_office_chair: "B\xFCrostuhl",
+    fu_bookcase: "B\xFCcherregal",
+    fu_boiler: "Heizkessel",
+    fu_tank: "Warmwasserspeicher",
+    fu_shelf: "Regal",
+    fu_cabinet: "Schrank",
+    fu_box: "Kiste",
+    fu_custom: "So \xFCbernommen, wie gezeichnet: es l\xE4sst sich verschieben und drehen; die Gr\xF6\xDFe ist fest.",
+    divider_show: "Auf dem Grundriss gezeigt (gestrichelt)",
+    room_unused: "Ungenutzt (unter der Dachschr\xE4ge, ein Luftraum)",
+    walls_merged: "\xDCbereinanderliegende W\xE4nde zu einer verbunden ({n})",
+    order: "Reihenfolge",
+    group: "Gruppieren (Strg+G)",
+    ungroup: "Gruppierung aufheben",
+    split: "In Teile zerlegen",
+    split_one: "Nichts zu zerlegen: die Zeichnung ist ein St\xFCck.",
+    group_h: "Gruppe aus {n}",
+    pieces_n: "{n} Teile",
+    group_hint: "Shift + Klick f\xFCgt ein Teil hinzu oder nimmt es heraus; ein Klick auf ein Teil einer Gruppe w\xE4hlt die ganze Gruppe.",
+    delete_pieces: "{n} Teile entfernen",
+    size: "Gr\xF6\xDFe",
+    note: "Notiz",
+    delete_piece: "Dieses Teil entfernen",
+    frame_h: "Rahmen (Karte)",
+    plan_rotate: "Drehung",
+    margin: "Rand (cm)",
+    m_top: "oben",
+    m_right: "rechts",
+    m_bottom: "unten",
+    m_left: "links",
+    frame_hint: "Der Rahmen der Karte folgt den W\xE4nden (wie nach der Drehung gezeigt): Rand oben, rechts, unten, links.",
+    frame_fixed: "Das Modell hat einen festen Rahmen (viewBox): er folgt nicht den W\xE4nden.",
+    frame_auto: "Rahmen aus den W\xE4nden",
+    example: "Beispiel",
+    example_t: "Das Beispielhaus laden (examples/house.json)",
+    undo_t: "R\xFCckg\xE4ngig (Strg+Z)",
+    redo_t: "Wiederholen (Strg+Shift+Z)",
+    select: "Ausw\xE4hlen",
+    select_t: "Ausw\xE4hlen und verschieben (V)",
+    wall: "Wand",
+    wall_t: "W\xE4nde zeichnen (W)",
+    type: "Typ",
+    thickness: "Dicke",
+    grid: "Raster",
+    grid_auto: "auto",
+    dims: "Ma\xDFe",
+    dims_t: "Wandl\xE4ngen auf dem Grundriss",
+    fit: "Einpassen",
+    fit_t: "Ansicht einpassen (F)",
+    length: "L\xE4nge:",
+    len_hint: "Enter - setzen, Esc - abbrechen",
+    types_h: "Wandtypen",
+    types_sub: "Standarddicke",
+    help_h: "So zeichnest du",
+    help_tab: "Hilfe",
+    panel_hint: "W\xE4hle eine Wand, eine \xD6ffnung, einen Raum, ein Ger\xE4t oder ein M\xF6belst\xFCck, um hier seine Optionen zu sehen.",
+    help: [
+      "<b>W</b> - Wand: Ecke f\xFCr Ecke klicken. Du kannst die L\xE4nge eingeben und mit <b>Enter</b> best\xE4tigen.",
+      "Der Winkel rastet auf 45\xB0 ein; <b>Shift</b> - ohne Einrasten.",
+      "Rastet an Ecken, an den Mittellinien anderer W\xE4nde und am Raster ein.",
+      "Ein Klick auf den Anfang des Umrisses schlie\xDFt ihn; <b>Esc</b> oder ein Doppelklick beendet die Kette.",
+      "<b>S</b> - Formen: ein Rechteck, L oder T mit gegebenen Ma\xDFen, mit einem Klick platziert.",
+      "<b>O</b> - \xD6ffnungen: Fenster, Schiebefenster, T\xFCren (einfach, doppelt, Schiebe-, Balkon-), Garagentore, Durchg\xE4nge - auf eine Wand klicken.",
+      "<b>P</b> - R\xE4ume: in eine von W\xE4nden geschlossene Fl\xE4che klicken. <b>L</b> - teilen: eine virtuelle Linie teilt einen offenen Bereich in R\xE4ume.",
+      "<b>D</b> - Ger\xE4te: Lichter, Sensoren, Temperatur, Kameras, TV, Klimaanlage, Haushaltsger\xE4te, Schl\xF6sser - ein Klick platziert, Entit\xE4ten im Panel.",
+      "<b>V</b> - ausw\xE4hlen: eine Wand oder \xD6ffnung anklicken, eine Wand, eine Ecke oder eine \xD6ffnung entlang ihrer Wand ziehen; <b>Entf</b> entfernt.",
+      "Mausrad - zoomen; Hintergrund ziehen oder mittlere Taste - verschieben; <b>F</b> - ganzer Grundriss.",
+      "L\xE4ngen werden entlang der Mittellinie der Wand gemessen."
+    ],
+    t_exterior: "Au\xDFenwand",
+    t_load_bearing: "tragend",
+    t_partition: "Trennwand",
+    t_chimney: "Schornstein",
+    shapes: "Formen",
+    shapes_t: "Mit einem fertigen Umriss beginnen (S)",
+    shape: "Form",
+    shape_rect: "Rechteck",
+    shape_L: "L-Form",
+    shape_T: "T-Form",
+    p_width: "Breite",
+    p_depth: "Tiefe",
+    p_cut_width: "Breite des Ausschnitts",
+    p_cut_depth: "Tiefe des Ausschnitts",
+    p_corner: "Ecke des Ausschnitts",
+    p_bar_depth: "Tiefe des oberen Teils",
+    p_stem_width: "Breite des unteren Teils",
+    p_outside: "Au\xDFenma\xDFe",
+    c_nw: "oben links",
+    c_ne: "oben rechts",
+    c_se: "unten rechts",
+    c_sw: "unten links",
+    shape_walls: "W\xE4nde: {type}, {t} cm.",
+    shape_hint: "Zum Platzieren auf den Grundriss klicken (obere linke Ecke). Esc - abbrechen.",
+    shape_invalid: "Diese Ma\xDFe ergeben keine Form - pr\xFCfe den Ausschnitt / die Teile.",
+    openings_h: "\xD6ffnungen",
+    openings_t: "Fenster, T\xFCren und Durchg\xE4nge in W\xE4nden (O)",
+    windows_t: "Fenster, Balkont\xFCren, Schiebefenster (O)",
+    doors_t: "T\xFCren, Tore und Durchg\xE4nge (B)",
+    o_window: "Fenster, einfl\xFCgelig",
+    o_window_2: "Fenster, zweifl\xFCgelig",
+    op_windows: "Fenster",
+    op_doors: "T\xFCren",
+    o_hst: "Hebeschiebet\xFCr (HST)",
+    o_balcony_door: "Balkont\xFCr",
+    o_door: "T\xFCr",
+    o_double_door: "Doppelt\xFCr",
+    o_sliding_door: "Schiebet\xFCr",
+    o_garage_door: "Garagentor",
+    o_passage: "Durchgang",
+    o_corner_window: "Eckfenster",
+    o_pocket_door: "Taschenschiebet\xFCr",
+    o_double_gate: "Doppeltor",
+    d_skylight: "Dachfenster",
+    op_width: "Breite",
+    op_from: "Von der Ecke",
+    cw_here: "Glas an dieser Wand",
+    cw_round: "Um die Ecke",
+    no_corner_pair: "Glas nur an dieser Wand - um die Ecke ist keine Wand, oder eine andere \xD6ffnung ist im Weg",
+    no_corner: "An dieser Ecke trifft keine Wand darauf",
+    flip_hinge: "Scharnier ans andere Ende",
+    flip_side: "Zur anderen Seite \xF6ffnen",
+    cover: "Rollladen",
+    facade: "Fassade",
+    f_north: "Nord",
+    f_south: "S\xFCd",
+    f_east: "Ost",
+    f_west: "West",
+    delete_opening: "\xD6ffnung l\xF6schen (Entf)",
+    no_fit: "Passt hier nicht",
+    id_taken: "Diese ID ist leer oder vergeben",
+    opening_hint: "Auf eine Wand zeigen und klicken - sie rastet am Raster ein und h\xE4lt Abstand zu anderen \xD6ffnungen. T\xFCren \xF6ffnen zur Seite des Zeigers; R - Scharnier am anderen Ende.",
+    rooms_h: "R\xE4ume",
+    rooms_t: "R\xE4ume aus den W\xE4nden um einen Punkt (P)",
+    room_h: "Raum",
+    room_n: "Raum {n}",
+    name: "Name",
+    area: "Fl\xE4che",
+    perimeter: "Umfang",
+    outline: "Umriss",
+    total: "Gesamt",
+    outline_auto: "aus den W\xE4nden",
+    outline_manual: "von Hand gezeichnet",
+    to_auto: "Umriss aus den W\xE4nden \xFCbernehmen",
+    delete_room: "Raum l\xF6schen (Entf)",
+    not_enclosed: "Nicht von W\xE4nden umschlossen",
+    shared_area: "Zwei R\xE4ume in einer Fl\xE4che - f\xFCge eine Wand oder eine virtuelle Grenze dazwischen ein oder l\xF6sche einen.",
+    select_hint: "Eine Wand, eine \xD6ffnung, einen Raum oder ein Ger\xE4t anklicken, um es zu bearbeiten; ziehen zum Verschieben. Entf entfernt.",
+    wall_hint: "Ecke f\xFCr Ecke klicken; eine L\xE4nge eingeben und Enter dr\xFCcken. Esc oder ein Doppelklick beendet.",
+    rooms_hint: "In eine von W\xE4nden geschlossene Fl\xE4che klicken, um einen Raum anzulegen (oder ihn auszuw\xE4hlen). Offene Bereiche: zuerst mit Teilen aufteilen.",
+    underlay_load: "Bild oder PDF laden\u2026",
+    underlay_replace: "Anderes Bild oder PDF\u2026",
+    pdf_page: "Das PDF hat {n} Seiten - welche?",
+    pdf_loading: "Lese das PDF\u2026",
+    pdf_error: "PDF konnte nicht gelesen werden: ",
+    divide_h: "Teilen",
+    divide_t: "Einen Raum mit einer virtuellen Linie teilen (L)",
+    divide_hint: "Zwei Klicks: eine Linie quer durch einen offenen Bereich (z. B. K\xFCche | Essbereich) - sie rastet an den W\xE4nden ein und schlie\xDFt so die Teilung. Nicht auf dem Grundriss gezeichnet. Esc - abbrechen.",
+    blocks_light: "das Licht endet hier (schlie\xDFt den Leuchtbereich, z. B. ein zum Wohnzimmer offener Flur)",
+    divider: "virtuelle Grenze",
+    delete_divider: "Grenze l\xF6schen (Entf)",
+    divider_hint: "Teilt einen offenen Bereich ohne Wand in R\xE4ume - nicht auf dem Grundriss gezeichnet. Nur durch Grenzen geteilte R\xE4ume teilen sich eine Zone (Lichter leuchten hin\xFCber).",
+    devices_h: "Ger\xE4te",
+    devices_t: "Lichter, Sensoren, Kameras, Haushaltsger\xE4te, Schl\xF6sser (D)",
+    d_spot: "Strahler",
+    rot_hint: "Am runden Griff ziehen, um zu drehen (Shift: beliebiger Winkel)",
+    d_ceiling: "Deckenleuchte",
+    d_wall: "Wandleuchte",
+    d_night: "Nachtlicht",
+    d_rail: "Schienensystem",
+    d_strip: "LED-Streifen",
+    d_fixture: "Kronleuchter mit zwei Stromkreisen",
+    d_presence: "Pr\xE4senzmelder",
+    d_climate: "Temperatur / Luftfeuchtigkeit",
+    d_camera: "Kamera",
+    d_washer_dryer: "Waschmaschine + Trockner",
+    d_fridge_sbs: "Side-by-Side-K\xFChlschrank",
+    stacked: "{what} auf {on} gestellt (Strg+Z macht es r\xFCckg\xE4ngig)",
+    stack_of: "{a} + {b} (gestapelt)",
+    stack_below: "Unten: {what}",
+    stack_on_top: "Oben: {what}",
+    unstack: "Nebeneinander stellen",
+    tv_inches: "Diagonale (Zoll)",
+    size_min: "Mindestens 5 cm",
+    d_tv: "TV",
+    d_ac: "Klimaanlage",
+    d_appliance: "Anderes Ger\xE4t",
+    d_washer: "Waschmaschine",
+    d_dryer: "Trockner",
+    d_fridge: "K\xFChlschrank",
+    d_dishwasher: "Geschirrsp\xFCler",
+    d_lock: "T\xFCrschloss",
+    dev_hint: "Zum Platzieren auf den Grundriss klicken. Shift + Klick f\xFCgt dem gew\xE4hlten Licht eine weitere Gl\xFChbirne hinzu.",
+    dev_hint2: "Zwei Klicks: Anfang und Ende.",
+    dev_hint_rail: "Die Ecken der Schiene nacheinander klicken (ein L, ein U...); Enter, ein Klick auf die letzte Ecke oder Esc beendet sie - dann ihre Leuchten daraufklicken.",
+    watts: "Leistung (W)",
+    watts_all: "Leistung, alle Leuchtmittel (W)",
+    entity: "Entit\xE4t",
+    glow_r: "Leuchtradius (cm)",
+    bulbs: "Leuchtmittel",
+    rotation: "Drehung (\xB0)",
+    beam: "Abstrahlwinkel (\xB0)",
+    beam_dir: "Abstrahlrichtung (\xB0)",
+    remove_bulb: "Dieses Leuchtmittel entfernen",
+    beam_ac: "Luftstromwinkel (\xB0)",
+    beam_tv: "Lichtwinkel des Bildschirms (\xB0)",
+    show_values: "Messwerte auf dem Grundriss zeigen (statt des Symbols)",
+    through_partitions: "Sieht durch Trennw\xE4nde (Radar)",
+    pane: "Fl\xFCgel",
+    o_balcony_door_2: "Balkont\xFCr, zweifl\xFCgelig",
+    o_balcony_door_3: "Balkont\xFCr, dreifl\xFCgelig",
+    pane_open: "\xD6ffnet? Wo ist das Scharnier",
+    po_fixed: "fest",
+    po_from: "Scharnier \u2190",
+    po_to: "Scharnier \u2192",
+    bulb_show: "Dieses Leuchtmittel auf dem Grundriss ausw\xE4hlen",
+    beam_one: "Abstrahlwinkel dieses Leuchtmittels (\xB0) - leer: wie das Licht",
+    this_bulb: "Das gew\xE4hlte Leuchtmittel",
+    split_bulb: "Aus dem Stromkreis nehmen (ein eigenes Licht)",
+    split_done: "Jetzt ein eigenes Licht - gib ihm seine Entit\xE4t",
+    add_bulb_hint: "Mehrere Lichter an einem Schalter: eins w\xE4hlen, Shift + Klick auf die anderen, dann Verbinden.",
+    add_bulb: "+ Leuchtmittel in diesem Stromkreis",
+    rail_bulbs: "Die Leuchten auf die Schiene klicken - Esc, wenn fertig",
+    rail_hint: "Eine Ecke ziehen, um die Schiene zu \xE4ndern, die Schiene selbst, um sie zu verschieben; Leuchten gleiten entlang.",
+    add_bulb_on: "Klicken, wo die n\xE4chsten Leuchtmittel hinkommen - Esc, wenn fertig",
+    lights_sel: "{n} Lichter ausgew\xE4hlt",
+    merge_lights: "Zu einem Stromkreis verbinden",
+    merged: "{n} Lichter sind jetzt ein Stromkreis",
+    outdoor: "au\xDFen",
+    fixture_name_auto: "aus den Namen der Stromkreise",
+    start_view: "Startansicht",
+    start_set_yes: "gesetzt",
+    start_whole: "der ganze Grundriss",
+    start_set: "Auf das Sichtbare setzen",
+    start_show: "Zeigen",
+    start_del: "Entfernen",
+    start_hint: "Hier \xF6ffnet sich die Karte und hierhin kehrt ihre \u25A1-Taste zur\xFCck. Herauszoomen zeigt weiterhin den ganzen Grundriss.",
+    bulbs_1_12: "1 bis 12 Leuchtmittel",
+    circuit_large: "Gro\xDFer Stromkreis",
+    circuit_small: "Kleiner Stromkreis",
+    swap: "Um 90\xB0 drehen",
+    turn: "Drehen",
+    alert: "rotes Leuchten (ein Alarm, z. B. eine offen gelassene T\xFCr)",
+    snowflake: "Schneeflocken-Symbol",
+    temperature: "Temperatur",
+    humidity: "Luftfeuchtigkeit",
+    label: "Beschriftung",
+    cam_low: "Stream (niedrig)",
+    cam_hq: "Stream (HD)",
+    cam_2: "2. Objektiv",
+    cam_2_hq: "2. Objektiv HD",
+    cam_detect: "Personen- / Bewegungssensor",
+    direction: "Richtung (\xB0)",
+    fov: "Sichtfeld (\xB0)",
+    range: "F\xE4cherl\xE4nge (cm)",
+    off_plan: "au\xDFerhalb des Grundrisses (gestrichelt)",
+    cam_hint: "Die Griffe auf dem Grundriss ziehen: der mittlere - Richtung und L\xE4nge, die seitlichen - Sichtfeld.",
+    delete_device: "L\xF6schen (Entf)",
+    g_lights: "Lichter",
+    g_sensors: "Sensoren",
+    g_security: "Sicherheit",
+    g_climate: "Klima und Heizung",
+    g_other: "Sonstiges",
+    g_appliances: "Haushaltsger\xE4te",
+    g_av: "TV und Audio",
+    g_network: "Netzwerk",
+    rack_items: "Darin",
+    rack_out: "Herausnehmen (neben den Schrank)",
+    rack_del: "Entfernen",
+    rack_hint: "Einen Router, einen Switch, ein NAS, eine USV, einen Rekorder... auf den Schrank ziehen und er kommt hinein.",
+    into_rack: "{what} in den Schrank gelegt (Strg+Z macht es r\xFCckg\xE4ngig)",
+    alert_gas: "Gas",
+    alert_siren: "Alarm",
+    d_pendant: "Pendelleuchte",
+    d_floor_lamp: "Stehlampe",
+    d_table_lamp: "Tisch- / Schreibtischlampe",
+    d_garden_lamp: "Gartenleuchte",
+    d_gas: "Gasmelder",
+    d_lux: "Lichtsensor",
+    d_vibration: "Vibrationssensor",
+    d_button: "Taster / Schalter",
+    d_alarm_panel: "Alarmzentrale",
+    d_keypad: "Alarm-Bedienteil",
+    d_siren: "Sirene",
+    d_nvr: "Rekorder (NVR)",
+    d_radiator: "Heizk\xF6rper",
+    d_floor_heating: "Fu\xDFbodenheizungsverteiler",
+    d_heat_pump: "W\xE4rmepumpe",
+    d_water_tank: "Warmwasserspeicher",
+    d_fireplace: "Kamin",
+    d_dehumidifier: "Luftentfeuchter",
+    d_humidifier: "Luftbefeuchter",
+    d_intercom: "Tor-Sprechanlage",
+    d_rain: "Regenmesser",
+    d_pool_pump: "Poolpumpe",
+    d_meter: "Stromz\xE4hler",
+    d_fuse_box: "Sicherungskasten",
+    d_inverter: "Wechselrichter",
+    d_ups: "USV",
+    d_washdry: "Waschtrockner",
+    d_wine_fridge: "Weink\xFChlschrank",
+    d_mower: "M\xE4hroboter",
+    d_amplifier: "AV-Receiver",
+    d_set_top: "Set-Top-Box",
+    d_printer: "Drucker",
+    d_rack: "Netzwerkschrank",
+    d_nas: "NAS / Server",
+    d_zigbee: "Zigbee-Koordinator",
+    d_doorbell: "T\xFCrklingel",
+    d_power_strip: "Steckdosenleiste",
+    d_router: "Router",
+    d_ap: "WLAN-Access-Point",
+    d_net_switch: "Netzwerk-Switch",
+    d_freezer: "Gefrierschrank",
+    d_oven: "Backofen",
+    d_cooktop: "Kochfeld",
+    d_microwave: "Mikrowelle",
+    d_hood: "Dunstabzugshaube",
+    d_coffee: "Kaffeemaschine",
+    d_soundbar: "Soundbar",
+    d_projector: "Beamer",
+    d_console: "Spielkonsole",
+    g_notes: "Notizen",
+    garden_h: "Garten",
+    garden_t: "Das Grundst\xFCck ums Haus: Rasen, Terrasse, Einfahrt, Zaun, Hecke, B\xE4ume",
+    gd_areas: "Fl\xE4chen",
+    gd_lines: "Linien",
+    gd_plants: "Pflanzen",
+    gd_lawn: "Rasen",
+    gd_terrace: "Terrasse",
+    gd_driveway: "Einfahrt",
+    gd_path: "Weg",
+    gd_flowerbed: "Blumenbeet",
+    gd_pool: "Pool",
+    gd_gravel: "Kies",
+    gd_plot: "Grundst\xFCcksgrenze",
+    gd_fence: "Zaun",
+    gd_hedge: "Hecke",
+    gd_tree: "Baum",
+    gd_bush: "Strauch",
+    gd_rect: "Rechteck",
+    gd_poly: "Polygon",
+    gd_hint_rect: "Zwei gegen\xFCberliegende Ecken klicken.",
+    gd_hint_poly: "Die Ecken klicken; die erste erneut klicken (oder Enter), um zu schlie\xDFen. Esc - abbrechen.",
+    gd_hint_line: "Die Punkte klicken; den letzten erneut klicken (oder Enter), um zu beenden. Esc - abbrechen.",
+    gd_hint_plant: "Klicken, wo er steht. Die Gr\xF6\xDFe wird beim Ausw\xE4hlen eingestellt.",
+    gd_diameter: "Krone",
+    gd_width: "Breite",
+    gd_length: "L\xE4nge",
+    gd_edit_hint: "Eine Ecke ziehen, um die Form zu \xE4ndern, innen ziehen, um sie zu verschieben.",
+    d_text: "Text",
+    d_marker: "Markierung",
+    d_arrow: "Pfeil",
+    note_text: "Text",
+    note_more: "Notiz",
+    note_caption: "Beschriftung",
+    note_entity: "Entit\xE4t (optional)",
+    text_size: "Gr\xF6\xDFe (cm)",
+    bold: "Fett",
+    line_width: "Linienst\xE4rke",
+    note_empty: "Ein Text braucht etwas Text.",
+    mk_pin: "Nadel",
+    mk_valve: "Wasserventil",
+    mk_water: "Wasser",
+    mk_fuse: "Sicherungskasten",
+    mk_gas: "Gas",
+    mk_heat: "Heizung",
+    mk_key: "Schl\xFCssel",
+    mk_warning: "Warnung",
+    mk_extinguisher: "Feuerl\xF6scher",
+    mk_tools: "Werkzeug",
+    mk_wifi: "WLAN",
+    mk_box: "Lager",
+    mk_bed: "Bett",
+    mk_plant: "Pflanze",
+    mk_star: "Stern",
+    mk_info: "Info",
+    d_motion: "Bewegungsmelder (Alarm)",
+    d_smoke: "Rauchmelder",
+    d_co: "CO-Melder",
+    d_leak: "Wassermelder",
+    d_air: "Luftqualit\xE4t",
+    d_gate: "Tor",
+    d_thermostat: "Thermostat",
+    d_trv: "Heizk\xF6rperthermostat",
+    d_recuperator: "L\xFCftungsanlage",
+    d_boiler: "Heizkessel",
+    d_fan: "Ventilator",
+    d_purifier: "Luftreiniger",
+    d_media: "Lautsprecher / Media",
+    d_plug: "Smarte Steckdose",
+    d_vacuum: "Saugroboter",
+    d_ev: "Wallbox",
+    d_valve: "Wasserventil",
+    g_outside: "Au\xDFen",
+    g_energy: "Energie",
+    d_info: "Messwert / Info",
+    d_bin: "M\xFClltonne (Abholtermin)",
+    d_mailbox: "Briefkasten",
+    d_irrigation: "Bew\xE4sserung",
+    d_weather: "Wetter",
+    d_solar: "Solaranlage",
+    d_battery: "Hausbatterie",
+    value_entity: "Messwert",
+    has_range: "Erfassungsbereich (F\xE4cher)",
+    ha_area: "HA-Bereich",
+    area_add: "Seine {n} Ger\xE4te hinzuf\xFCgen",
+    area_none: "Nichts Neues in diesem Bereich zum Platzieren",
+    area_manual: "Von Hand zu platzieren (ein Rollladen oder Kontakt geh\xF6rt zu einem Fenster)",
+    panes: "Fl\xFCgel",
+    contact: "Kontaktsensor",
+    contact_per_pane: "ein Kontaktsensor pro Fl\xFCgel",
+    f_mine: "Meine M\xF6bel",
+    fu__draw: "Selbst zeichnen",
+    fu_drawn: "Mein St\xFCck",
+    sk_rect: "Rechteck",
+    sk_ellipse: "Ellipse",
+    sk_poly: "Polygon",
+    sk_detail: "innerer Teil (dunkler)",
+    sk_hint: "Rechteck und Ellipse: zwei gegen\xFCberliegende Ecken klicken. Polygon: seine Ecken klicken, an der ersten oder mit Enter schlie\xDFen. Shift: ohne Raster.",
+    sk_count: "{n} Formen",
+    sk_undo: "Form r\xFCckg\xE4ngig",
+    sk_clear: "Leeren",
+    sk_done: "Fertig - ein St\xFCck daraus machen",
+    lib_name: "Name",
+    lib_save: "In meinen M\xF6beln speichern",
+    lib_saved: "In meinen M\xF6beln",
+    floor: "Boden",
+    fl_none: "keiner",
+    fl_wood: "Dielen",
+    fl_herringbone: "Fischgr\xE4t",
+    fl_tiles: "Fliesen 60\xD760",
+    fl_large_tiles: "Fliesen 120\xD760",
+    fl_concrete: "Beton",
+    fl_carpet: "Teppichboden",
+    colour: "Farbe",
+    col_default: "Standard",
+    col_any: "Beliebige Farbe",
+    col_oak_light: "Helle Eiche",
+    col_oak: "Eiche",
+    col_walnut: "Nussbaum",
+    col_beige: "Beige",
+    col_white: "Wei\xDF",
+    col_grey: "Grau",
+    col_anthracite: "Anthrazit",
+    col_terracotta: "Terrakotta",
+    col_navy: "Marineblau",
+    col_green: "Gr\xFCn",
+    tint: "F\xE4rben nach",
+    tint_heating: "Fu\xDFbodenheizungszone",
+    tint_temperature: "Temperatur",
+    tint_humidity: "Luftfeuchtigkeit",
+    tint_co2: "CO\u2082",
+    tint_presence: "Pr\xE4senz",
+    tint_state: "Zustand der Entit\xE4t",
+    underlay: "Vorlage",
+    underlay_t: "Ein Bild zum Nachzeichnen (ein Foto oder ein Scan eines Grundrisses)",
+    underlay_none: "Noch kein Bild.",
+    underlay_del: "Bild entfernen",
+    opacity: "Deckkraft",
+    underlay_big: "Das Bild ist zu gro\xDF, um es in diesem Browser zu behalten - nach dem Neuladen ist es weg.",
+    cal_dist: "Bekannter Abstand",
+    cal_hint: "Ziehen, um das Bild zu verschieben. Zum Skalieren zwei Punkte mit bekanntem Abstand klicken (z. B. die Enden einer Wand).",
+    cal_second: "Jetzt der zweite Punkt.",
+    cal_apply: "Den echten Abstand zwischen den Punkten eingeben und anwenden.",
+    cal_do: "Bild skalieren",
+    ha_t: "Mit Home Assistant verbinden: Vorschl\xE4ge f\xFCr Entit\xE4ten und Live-Zust\xE4nde",
+    live: "live",
+    live_t: "Zust\xE4nde aus Home Assistant auf dem Grundriss (nur lesend)",
+    ha_url: "Adresse",
+    ha_token: "Zugriffstoken",
+    ha_note: "Ein langlebiges Zugriffstoken (HA: dein Profil - Sicherheit). Es bleibt nur in diesem Browser. Der Editor liest nur Zust\xE4nde.",
+    ha_connect: "Verbinden",
+    ha_forget: "Vergessen",
+    close: "Schlie\xDFen",
+    ha_connecting: "Verbinde\u2026",
+    ha_ok: "Verbunden - {n} Entit\xE4ten",
+    ha_fail: "Verbindung nicht m\xF6glich: ",
+    ha_unknown: "Diese Entit\xE4t gibt es in Home Assistant nicht",
+    chimney_h: "Schornstein",
+    chimney_size: "Au\xDFenma\xDF",
+    chimney_walls: "W\xE4nde",
+    delete_chimney: "Schornstein l\xF6schen",
+    plan: "Grundriss",
+    walls_n: "{n} W\xE4nde",
+    empty: "Ein leerer Grundriss - w\xE4hle <b>Wand</b> (W) und klicke die Ecken, oder beginne mit einer <b>Form</b> (S).",
+    wall_h: "Wand",
+    angle: "Winkel",
+    from: "Von",
+    to: "Bis",
+    openings: "\xD6ffnungen",
+    delete_wall: "Wand l\xF6schen (Entf)",
+    snap_node: "Ecke",
+    snap_axis: "Wandachse",
+    snap_90: "Winkel 90\xB0",
+    snap_45: "Winkel 45\xB0",
+    snap_grid: "Raster",
+    draw_error: "Zeichenfehler: ",
+    load_error: "{name} kann nicht geladen werden: ",
+    loaded: "{name} geladen",
+    not_v2: "kein Modell v2",
+    confirm_new: "Einen neuen, leeren Grundriss beginnen? Der aktuelle verl\xE4sst den Editor (speichere ihn vorher)."
   }
 };
 var wanted = (new URLSearchParams(location.search).get("lang") || navigator.language || "en").slice(0, 2).toLowerCase();
 var LANG = STRINGS[wanted] ? wanted : "en";
-var LOCALE = LANG === "pl" ? "pl-PL" : "en-GB";
+var LOCALE = LANG === "pl" ? "pl-PL" : LANG === "de" ? "de-DE" : "en-GB";
 function t(key2, vars = {}) {
   const s = STRINGS[LANG][key2] ?? STRINGS.en[key2] ?? key2;
   return typeof s === "string" ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "") : s;
@@ -8284,8 +9020,38 @@ var LIGHT = {
   "#c3cfdf": "#2b3442",
   // texts
   "#1d3347": "#cfe1f2",
-  "#1f2f3d": "#d9e7f2"
+  "#1f2f3d": "#d9e7f2",
   // room tint: humid
+  // the garden in its own light colours (the automatic lightening washed them out to white)
+  "#1f3326": "#cfe5c0",
+  "#2b4634": "#a9cf92",
+  "#264030": "#b9daa5",
+  // lawn, its blades
+  "#332c27": "#e6d4bd",
+  "#463c35": "#c9b08f",
+  // terrace boards
+  "#2a2f37": "#dde0e5",
+  "#363c46": "#c2c7cf",
+  // driveway setts
+  "#2e3541": "#e9e6df",
+  "#3b4352": "#d0ccc2",
+  // path slabs
+  "#2f271f": "#dccaaf",
+  "#3d5838": "#8db777",
+  // flowerbed soil, plants
+  "#323437": "#e0ddd6",
+  "#46494d": "#bdb9b0",
+  // gravel
+  "#2f4f36": "#b4d89f",
+  "#21382a": "#93c07d",
+  "#3b5f42": "#6f9e5a",
+  "#2a4632": "#80ad69",
+  "#3a3027": "#8a6e55",
+  // trees, bushes
+  "#284531": "#8fbd7b",
+  // hedge
+  "#1d4a6b": "#a8d5f0"
+  // pool
 };
 function lightOf(hex) {
   const v = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
@@ -10637,7 +11403,10 @@ function framePanel() {
   return `<h3>${t("frame_h")}</h3>
     <div class="row"><span>${t("plan_rotate")}</span><select id="pl-rot">${[0, 90, -90, 180].map((v) => `<option value="${v}"${(c.rotate || 0) === v ? " selected" : ""}>${v}\xB0</option>`).join("")}</select></div>
     ${c.viewBox ? `<div class="empty">${t("frame_fixed")}</div><button id="pl-auto">${t("frame_auto")}</button>` : `<div class="row"><span>${t("margin")}</span><span class="margins">${side(0, "m_top")}${side(1, "m_right")}${side(2, "m_bottom")}${side(3, "m_left")}</span></div>
-         <div class="empty">${t("frame_hint")}</div>`}`;
+         <div class="empty">${t("frame_hint")}</div>`}
+    <div class="row"><span>${t("start_view")}</span><b>${c.start ? t("start_set_yes") : t("start_whole")}</b></div>
+    <div class="row"><button id="pl-start">${t("start_set")}</button>${c.start ? `<button id="pl-start-show">${t("start_show")}</button><button id="pl-start-del">${t("start_del")}</button>` : ""}</div>
+    <div class="empty">${t("start_hint")}</div>`;
 }
 function frameWire(box) {
   const edit = (f) => {
@@ -10651,6 +11420,17 @@ function frameWire(box) {
   if ($("pl-auto")) $("pl-auto").onclick = () => edit((c) => {
     delete c.viewBox;
     delete c.sheet;
+  });
+  $("pl-start").onclick = () => edit((c) => {
+    c.start = viewBoxCm().map((v) => Math.round(v));
+  });
+  if ($("pl-start-show")) $("pl-start-show").onclick = () => {
+    const [x, y, w, h] = S.model.canvas.start, [W, H] = stageSize();
+    S.view = { cx: x + w / 2, cy: y + h / 2, s: Math.min(W / w, H / h) };
+    draw();
+  };
+  if ($("pl-start-del")) $("pl-start-del").onclick = () => edit((c) => {
+    delete c.start;
   });
   box.querySelectorAll("[data-margin]").forEach((inp) => {
     inp.onchange = () => edit((c) => {

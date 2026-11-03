@@ -21,7 +21,7 @@
 
 export const CM_PER_SVG_DEFAULT = 30 / 17; // 17 SVG units = 30 cm (the original drawing)
 import { gardenPoints } from "./garden.js";
-import { faceAt, inset } from "./rooms.js";
+import { faceAt, inset, faces } from "./rooms.js";
 
 const EPS = 0.05; // cm
 const WALL_GROUP = { exterior: "exterior", load_bearing: "interior", partition: "interior", chimney: "fireplace" };
@@ -78,7 +78,7 @@ export function wallEnds(model, w, end) {
   const base = end === "a" ? 0 : L;
   const flat = { left: base, right: base };
   const others = spokes(model, P, w);
-  if (!others.length) return flat;
+  if (!others.length) return endInside(model, w, end, P, d, h, base, L) || flat;
   const ang = (x) => Math.atan2(x[1], x[0]);
   const all = [{ d, h, own: true }, ...others].sort((x, y) => ang(x.d) - ang(y.d));
   const i = all.findIndex((x) => x.own);
@@ -106,6 +106,34 @@ export function wallEnds(model, w, end) {
   const plus = ok(sPlus) ? toU(sPlus) : base, minus = ok(sMinus) ? toU(sMinus) : base;
   // +h face of the end's own frame: global left at a, global right at b
   return end === "a" ? { left: plus, right: minus } : { left: minus, right: plus };
+}
+
+// An end that stops inside another wall's thickness (drawn by hand: a little short of its centre line, or past it but
+// short of its far face): both faces run on to that wall's far face, so no gap is left between them (the garden
+// showed through it). -> {left, right} | null when the end is in no other wall.
+function endInside(model, w, end, P, d, h, base, L) {
+  const Ln = (x) => [-x[1], x[0]], own = Ln(d);
+  let best = null;
+  for (const o of model.walls) {
+    if (o === w) continue;
+    const v = sub(o.b, o.a), Lo = len(v);
+    if (Lo < EPS) continue;
+    const uo = mul(v, 1 / Lo), ho = wallThickness(model, o) / 2, no = Ln(uo);
+    const rel = sub(P, o.a), along = dot(rel, uo), across = dot(rel, no);
+    if (along < -EPS || along > Lo + EPS || Math.abs(across) > ho + EPS) continue;
+    if (Math.abs(cross(d, uo)) < 0.2) continue; // (nearly) along it: an overlap, not a joint
+    // the face of `o` beyond the end (d points into this wall, so beyond = the most negative along d)
+    const far = (off) => {
+      const ss = [1, -1].map((k) => meet(add(P, mul(own, off)), d, add(o.a, mul(no, k * ho)), uo)).filter((x) => x !== null);
+      return ss.length ? Math.min(...ss) : null;
+    };
+    const sp = far(h), sm = far(-h);
+    if (sp === null || sm === null || Math.min(sp, sm) < -4 * Math.max(h, ho)) continue;
+    if (!best || Math.min(sp, sm) < Math.min(best.sp, best.sm)) best = { sp, sm };
+  }
+  if (!best) return null;
+  const toU = (x) => (end === "a" ? x : L - x);
+  return end === "a" ? { left: toU(best.sp), right: toU(best.sm) } : { left: toU(best.sm), right: toU(best.sp) };
 }
 
 // Solid pieces of a wall (minus openings) as polygons in cm.
@@ -241,6 +269,11 @@ export function lowerV2(m) {
     for (const o of w.openings || []) {
       const width = o.to - o.from;
       const side = o.swing === "left" ? 1 : -1;
+      // a doorway / a window has a floor across the wall's thickness (else the garden under the house shows through it)
+      if (["door", "pocket_door", "sliding_door", "passage", "balcony_door", "hst", "garage_door", "window", "corner_window"].includes(o.type)) {
+        const th = wallThickness(m, w) / 2 + 0.5;
+        (v1.thresholds = v1.thresholds || []).push([at(o.from, -th), at(o.to, -th), at(o.to, th), at(o.from, th)].map(P));
+      }
       const hs = o.hinge === "to" ? o.to : o.from, cs = o.hinge === "to" ? o.from : o.to;
       // panes (sashes) and contact sensors: one for the whole opening or one per pane
       // panes of their own widths: pane_sizes = the first panes in cm (the last takes the rest) -> the division
@@ -322,6 +355,9 @@ export function lowerV2(m) {
     }
   }
 
+  // the house's floor slab: every space the walls enclose, out to their centre lines - under the rooms, so the garden
+  // never shows through where walls meet (a thick outside wall, a thin partition and a corner at one point)
+  try { v1.slab = faces(m, { withDividers: false }).map((f) => f.pts.map(P)); } catch (e) { v1.slab = []; }
   v1.covers = m.covers;
   if (!v1.canvas.viewBox) {
     // the frame follows the walls: a fixed viewBox in the model is a manual override
@@ -329,6 +365,13 @@ export function lowerV2(m) {
     v1.canvas.viewBox = f.viewBox;
     v1.canvas.sheet = f.sheet;
   }
+  // where the card opens (and its fit button goes back to): a part of the plan, set in the editor
+  if (Array.isArray(m.canvas.start) && m.canvas.start.length === 4 && m.canvas.start.every(Number.isFinite)) {
+    const [x, y, w2, h2] = m.canvas.start, a = ((m.canvas.rotate || 0) * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
+    const q = [[x, y], [x + w2, y], [x, y + h2], [x + w2, y + h2]].map(([px, py]) => [(px * cos - py * sin) * k, (px * sin + py * cos) * k]);
+    const xs = q.map((p) => p[0]), ys = q.map((p) => p[1]);
+    v1.canvas.start = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)].map((v) => Math.round(v * 100) / 100);
+  } else delete v1.canvas.start;
   delete v1.canvas.margin;
   const bulb = (b) => [b[0] * k, b[1] * k, ...b.slice(2)];
   // a beam narrower than all around: its wedge becomes a clip of the glow

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Living Floor Plan — demo</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22#131a24%22/%3E%3Cg transform=%22translate%285 5%29 scale%28.84375%29%22%3E%3Crect x=%2210%22 y=%2210%22 width=%2222%22 height=%2213%22 fill=%22#ffb340%22/%3E%3Cpolygon points=%2220,24 32,24 54,40 54,54 38,54%22 fill=%22#ffc300%22/%3E%3Cpath d=%22M6 6H36V26H58V58H6Z%22 fill=%22none%22 stroke=%22#e6ebf2%22 stroke-width=%228%22/%3E%3Cpath d=%22M6 26H20M32 26H36%22 stroke=%22#e6ebf2%22 stroke-width=%226%22/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0f151e; color: #c3cfdf;
+    --primary-text-color: #c3cfdf; --secondary-text-color: #8a99ae; --divider-color: #2a3547; --card-background-color: #1b2433;
+    --primary-color: #ffc300; --ha-card-background: #1b2433; }
+  body.light { color-scheme: light; background: #eef1f5; color: #1f2a37; --primary-text-color: #1f2a37; --secondary-text-color: #5b6a80;
+    --divider-color: #d5dbe3; --card-background-color: #ffffff; --ha-card-background: #ffffff; }
+  #layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 16px; max-width: 1500px; margin: 0 auto; padding: 16px; align-items: start; }
+  aside { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  aside h1 { margin: 0 0 6px; font-size: 18px; font-weight: 650; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  aside h1 .mark { width: 26px; height: 26px; flex: none; }
+  aside h1 span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #131a24; background: #ffc300;
+    border-radius: 5px; padding: 2px 6px; }
+  aside .sec { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--secondary-text-color); margin: 12px 0 2px; }
+  aside button, aside a { font: inherit; font-size: 14px; color: inherit; background: var(--card-background-color); border: 1px solid var(--divider-color);
+    border-radius: 10px; padding: 8px 12px; cursor: pointer; text-decoration: none; text-align: left; }
+  aside button:hover, aside a:hover { border-color: #ffc300; }
+  aside button.on { border-color: #e57373; color: #fff; background: rgba(229, 115, 115, 0.25); }
+  aside .langs { display: flex; gap: 6px; } aside .langs a { flex: 1; text-align: center; } aside a.on { border-color: #ffc300; }
+  #status { font-size: 12px; color: var(--secondary-text-color); }
+  main { min-width: 0; }
+  home-assistant { display: block; }
+  /* a phone: the column becomes rows of buttons above the plan */
+  @media (max-width: 760px) {
+    #layout { grid-template-columns: 1fr; padding: 10px; gap: 10px; }
+    aside { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+    aside h1 { width: 100%; margin: 0; }
+    aside .sec { display: none; }
+    aside button, aside a { font-size: 13px; padding: 6px 10px; }
+    #status { width: 100%; order: 99; }
+  }
+  dialog#more { border: 1px solid var(--divider-color); border-radius: 16px; background: var(--card-background-color); color: inherit;
+    padding: 0; width: min(440px, calc(100vw - 32px)); }
+  dialog#more::backdrop { background: rgba(0, 0, 0, 0.55); }
+  #more .head { display: flex; justify-content: flex-end; padding: 8px 8px 0; }
+  #more .head button { background: none; border: 0; color: inherit; font-size: 22px; cursor: pointer; }
+  #more .body { padding: 0 20px 20px; }
+  :is(#more, .gbox) h2 { margin: 0 0 4px; font-size: 19px; }
+  :is(#more, .gbox) .state { font-size: 28px; font-weight: 600; margin: 4px 0 14px; }
+  :is(#more, .gbox) .row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; align-items: center; }
+  :is(#more, .gbox) .row.big b { font-size: 24px; min-width: 90px; text-align: center; }
+  :is(#more, .gbox) button[data-svc] { font: inherit; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--divider-color);
+    background: transparent; color: inherit; cursor: pointer; }
+  :is(#more, .gbox) button[data-svc]:hover { border-color: #ffc300; }
+  :is(#more, .gbox) button.sel { border-color: #ffc300; background: rgba(255, 195, 0, 0.14); }
+  :is(#more, .gbox) button[data-svc]:focus:not(:focus-visible) { outline: none; }
+  :is(#more, .gbox) label { display: block; margin: 12px 0; font-size: 14px; }
+  :is(#more, .gbox) input[type=range] { width: 100%; accent-color: #ffc300; }
+  .changes { display: grid; gap: 4px; margin: 6px 0 10px; font-size: 14px; }
+  .changes div { display: flex; gap: 12px; } .changes span { color: var(--secondary-text-color); min-width: 48px; }
+  .sum { font-size: 13px; margin: 4px 0 6px; } .sum i { display: inline-block; width: 10px; height: 10px; background: #ffc300; border-radius: 2px; margin-right: 6px; }
+  .sum span { color: var(--secondary-text-color); }
+  #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  #gallery .gbox { background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 16px; padding: 14px 18px; }
+  #more .cam, .gbox .cam { margin: 6px 0 12px; }
+  :is(#more, .gbox) .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  :is(#more, .gbox) .grid div { background: rgba(127, 127, 127, 0.1); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+  :is(#more, .gbox) .grid span { font-size: 12px; color: var(--secondary-text-color); }
+  :is(#more, .gbox) .muted.big { font-size: 15px; margin: 4px 0 8px; }
+  :is(#more, .gbox) label b { float: right; font-weight: 600; }
+  :is(#more, .gbox) .muted { font-size: 12px; color: var(--secondary-text-color); margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="layout">
+<aside>
+  <h1><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="10" y="10" width="22" height="13" fill="#ffb340"/><polygon points="20,24 32,24 54,40 54,54 38,54" fill="#ffc300"/><path d="M6 6H36V26H58V58H6Z" fill="none" stroke="currentColor" stroke-width="8"/><path d="M6 26H20M32 26H36" stroke="currentColor" stroke-width="6"/></svg><b data-t="title">Living Floor Plan</b><span data-t="tag">demo</span></h1>
+  <div class="sec" data-t="on_plan"></div>
+  <button data-trigger="doorbell" data-t="doorbell"></button>
+  <button data-trigger="motion" data-t="motion"></button>
+  <button data-trigger="smoke" data-t="smoke"></button>
+  <button data-trigger="leak" data-t="leak"></button>
+  <div class="sec" data-t="view"></div>
+  <button id="theme" data-t="theme"></button>
+  <div class="langs"><a href="?lang=en" data-lang="en">EN</a><a href="?lang=pl" data-lang="pl">PL</a><a href="?lang=de" data-lang="de">DE</a></div>
+  <div class="sec" data-t="yours"></div>
+  <span id="status"></span>
+  <button id="reset" data-t="reset"></button>
+</aside>
+<main><home-assistant></home-assistant></main>
+</div>
+<dialog id="more"><div class="head"><button data-close aria-label="Close">×</button></div><div class="body"></div></dialog>
+<script type="module" src="page.js"></script>
+</body>
+</html>
