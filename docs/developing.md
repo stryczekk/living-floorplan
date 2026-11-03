@@ -26,6 +26,9 @@ this one.
 
 serves it with a visit counter of its own (no cookies, no IP kept): `/stats?t=<token>` shows visits a day, time on the
 page, where visitors came from and what they played with.
+Links can carry `utm_source` / `utm_medium` / `utm_campaign` (the README's link has `?utm_source=readme`); a referrer
+from someone's own Home Assistant (a private address, `*.local`, Nabu Casa) is counted as "(home assistant)". Addresses
+in `<data>/ignore-ips`, one a line, are not counted (your own tests).
 
 ## Screenshots
 

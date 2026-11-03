@@ -6,6 +6,7 @@
 import { createServer } from "node:http";
 import { readFileSync, existsSync, appendFileSync, mkdirSync, statSync, createReadStream } from "node:fs";
 import { join, resolve } from "node:path";
+import { isIP } from "node:net";
 import { timingSafeEqual } from "node:crypto";
 
 const arg = (name, def) => { const i = process.argv.indexOf("--" + name); return i > 0 ? process.argv[i + 1] : def; };
@@ -14,6 +15,24 @@ const ROOT = resolve(arg("root", "dist"));
 const DATA = resolve(arg("data", process.env.DEMO_DATA || "demo-data"));
 const TOKEN = process.env.DEMO_STATS_TOKEN || "";
 const HITS = join(DATA, "hits.jsonl");
+// addresses whose visits are not counted (the owner's own tests): one per line in <data>/ignore-ips, read again when it changes
+const IGNORE = join(DATA, "ignore-ips");
+let ignored = new Set(), ignoredAt = -1;
+function isIgnored(ip) {
+  try {
+    const m = existsSync(IGNORE) ? statSync(IGNORE).mtimeMs : 0;
+    if (m !== ignoredAt) { ignoredAt = m; ignored = new Set(m ? readFileSync(IGNORE, "utf8").split(/\s+/).filter((x) => isIP(x)) : []); }
+  } catch { /* unreadable: count everything */ }
+  return !!ip && ignored.has(ip);
+}
+// a local / private host: an address in a home network, *.local, homeassistant.*, a bare name
+function isPrivateHost(h) {
+  if (!h) return false;
+  if (isIP(h) === 4) { const [a, b] = h.split(".").map(Number); return a === 10 || a === 127 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31) || (a === 169 && b === 254) || a === 100 && b >= 64 && b <= 127; }
+  return !h.includes(".") || /\.(local|lan|home|internal|localdomain|home\.arpa)$/.test(h) || /^homeassistant\./.test(h) || /\.ui\.nabu\.casa$/.test(h);
+}
+// the visitor's address as the proxy in front saw it (only to check the list above; never written down)
+const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "";
 const MAX_FILE = 200e6; // stop writing past this (a flood), the page keeps working
 mkdirSync(DATA, { recursive: true });
 
@@ -38,11 +57,15 @@ function hit(body) {
   if (h.k === "start") {
     // where from: the other site's host only; what: phone or not, the page's language
     row.ref = typeof h.ref === "string" ? h.ref.toLowerCase().replace(/[^a-z0-9.-]/g, "").slice(0, 80) : "";
+    // someone's own Home Assistant (the README inside HACS): not its name, one bucket for all of them
+    if (isPrivateHost(row.ref)) row.ref = "(home assistant)";
     row.m = h.m ? 1 : 0;
     row.l = /^[a-z]{2}$/.test(h.l || "") ? h.l : "";
     row.b = ["chrome", "safari", "firefox", "edge", "samsung", "opera", "other"].includes(h.b) ? h.b : "other";
     row.w = ["<480", "480-767", "768-1279", "1280-1919", "1920+"].includes(h.w) ? h.w : "";
     row.vl = /^[a-z]{2}$/.test(h.vl || "") ? h.vl : "";
+    // the link's campaign: lower case letters, digits, . _ - only
+    for (const k of ["us", "um", "uc"]) if (typeof h[k] === "string") { const x = h[k].toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 40); if (x) row[k] = x; }
   }
   if (h.k === "event") {
     if (typeof h.n !== "string" || !/^[a-z0-9_:.-]{1,48}$/.test(h.n)) return false;
@@ -59,9 +82,9 @@ function stats(days = 30) {
     if (!line) continue;
     let r; try { r = JSON.parse(line); } catch { continue; }
     if (r.t < from) continue;
-    const v = visits.get(r.v) || { start: r.t, end: r.t, ref: "", m: 0, l: "", b: "", w: "", vl: "", ev: 0 };
+    const v = visits.get(r.v) || { start: r.t, end: r.t, ref: "", m: 0, l: "", b: "", w: "", vl: "", ev: 0, us: "", um: "", uc: "" };
     v.start = Math.min(v.start, r.t); v.end = Math.max(v.end, r.t);
-    if (r.k === "start") { v.ref = r.ref || ""; v.m = r.m; v.l = r.l; v.b = r.b || ""; v.w = r.w || ""; v.vl = r.vl || ""; v.started = true; }
+    if (r.k === "start") { v.ref = r.ref || ""; v.m = r.m; v.l = r.l; v.b = r.b || ""; v.w = r.w || ""; v.vl = r.vl || ""; v.us = r.us || ""; v.um = r.um || ""; v.uc = r.uc || ""; v.started = true; }
     if (r.k === "event") { v.ev++; events.set(r.n, (events.get(r.n) || 0) + 1); }
     visits.set(r.v, v);
   }
@@ -77,6 +100,7 @@ function stats(days = 30) {
     phone: list.filter((v) => v.m).length,
     by_day: per((v) => day(v.start)).sort((a, b) => (a[0] < b[0] ? 1 : -1)),
     from: per((v) => v.ref || "(direct)").slice(0, 20),
+    campaigns: per((v) => v.us ? [v.us, v.um, v.uc].filter(Boolean).join(" / ") : "").filter(([k]) => k).slice(0, 20),
     lang: per((v) => v.l || "?"),
     browser: per((v) => v.b || "?"),
     width: per((v) => v.w || "?"),
@@ -97,7 +121,7 @@ table{border-collapse:collapse;background:#fff}td{border-bottom:1px solid #eef1f
 <h1>Living Floor Plan demo — last ${s.days} days</h1>
 <div class="k"><div><b>${s.visits}</b>visits</div><div><b>${mmss(s.avg_s)}</b>average time</div><div><b>${mmss(s.median_s)}</b>median time</div>
 <div><b>${s.played}</b>clicked something</div><div><b>${s.phone}</b>on a phone</div></div>
-${table("Visits by day", s.by_day)}${table("Time on the page", s.length)}${table("Came from", s.from)}${table("Clicked", s.events)}
+${table("Visits by day", s.by_day)}${table("Time on the page", s.length)}${table("Came from", s.from)}${table("Campaigns (utm_source / medium / campaign)", s.campaigns)}${table("Clicked", s.events)}
 ${table("Page language (EN / PL)", s.lang)}${table("Visitor's own language", s.visitor_lang)}${table("Browser", s.browser)}${table("Window width (px)", s.width)}`;
 }
 function tokenOk(t) {
@@ -112,7 +136,7 @@ createServer((req, res) => {
   if (url.pathname === "/hit" && req.method === "POST") {
     let body = "";
     req.on("data", (c) => { body += c; if (body.length > 2048) req.destroy(); });
-    req.on("end", () => { hit(body); send(204, ""); });
+    req.on("end", () => { if (!isIgnored(clientIp(req))) hit(body); send(204, ""); });
     return;
   }
   if (url.pathname === "/stats" || url.pathname === "/stats.json") {

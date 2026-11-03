@@ -403,7 +403,10 @@ if (hitUrl) {
   const br = /SamsungBrowser/.test(ua) ? "samsung" : /Edg\//.test(ua) ? "edge" : /OPR\/|Opera/.test(ua) ? "opera" : /Firefox\//.test(ua) ? "firefox"
     : /Chrome\/|CriOS/.test(ua) ? "chrome" : /Safari\//.test(ua) ? "safari" : "other";
   const W = window.innerWidth, wb = W < 480 ? "<480" : W < 768 ? "480-767" : W < 1280 ? "768-1279" : W < 1920 ? "1280-1919" : "1920+";
-  beacon("start", { ref, m: matchMedia("(max-width: 760px), (pointer: coarse)").matches, l: lang, b: br, w: wb,
+  // a campaign from the link (?utm_source=reddit&utm_campaign=launch): the referrer is often lost in apps and mail
+  const q = new URLSearchParams(location.search), utm = {};
+  for (const k of ["source", "medium", "campaign"]) if (q.get("utm_" + k)) utm["u" + k[0]] = q.get("utm_" + k).slice(0, 60);
+  beacon("start", { ...utm, ref, m: matchMedia("(max-width: 760px), (pointer: coarse)").matches, l: lang, b: br, w: wb,
     vl: (navigator.language || "").slice(0, 2).toLowerCase() });
   setInterval(() => { if (document.visibilityState === "visible") beacon("ping"); }, 15000);
   demo.onService((domain) => event("switch:" + domain));

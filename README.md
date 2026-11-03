@@ -25,7 +25,7 @@ English and Polish.
 
 ## Try it
 
-**[Live demo](https://demo.floorplan.stryczek.it)** - a made-up house in a simulated home, right in your browser
+**[Live demo](https://demo.floorplan.stryczek.it/?utm_source=readme)** - a made-up house in a simulated home, right in your browser
 (nothing to install; what you switch is remembered in your browser only).
 
 ![The demo](docs/images/demo-page.png)
