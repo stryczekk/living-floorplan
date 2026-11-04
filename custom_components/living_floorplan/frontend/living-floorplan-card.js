@@ -3057,22 +3057,29 @@ function calendarLine(s, lang = "en", now = /* @__PURE__ */ new Date()) {
   const when = dd === 0 ? "" : dd === 1 ? word2(lang, "tomorrow") + " " : t.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" }) + " ";
   return when + hm + msg;
 }
+function nameWith(name, s) {
+  if (!name || !name.includes("{")) return name;
+  return name.replace(/\{([a-z0-9_]+)\}/gi, (_, k) => {
+    const v = k === "state" ? s && s.state : s && s.attributes ? s.attributes[k] : void 0;
+    return v === void 0 || v === null ? "\u2014" : Array.isArray(v) ? v.join(", ") : String(v);
+  });
+}
 function widgetText(w, states, lang = "en", now = /* @__PURE__ */ new Date()) {
   const s = w.entity ? states[w.entity] : null;
-  const fname = s && s.attributes && s.attributes.friendly_name || w.entity || "";
+  const fname = nameWith(w.name, s) || s && s.attributes && s.attributes.friendly_name || w.entity || "";
   if (w.type === "clock") {
     return [now.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }), now.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" })];
   }
-  if (w.type === "calendar") return [calendarLine(s, lang, now), w.name || fname];
+  if (w.type === "calendar") return [calendarLine(s, lang, now), fname];
   if (w.type === "state" && w.attribute) {
     const a = s && s.attributes ? s.attributes[w.attribute] : void 0;
-    return [a === void 0 || a === null ? "\u2014" : Array.isArray(a) ? a.join(", ") : String(a), w.name || fname];
+    return [a === void 0 || a === null ? "\u2014" : Array.isArray(a) ? a.join(", ") : String(a), fname];
   }
   if (w.type === "state") {
     const kind = w.entity && w.entity.startsWith("weather.") ? "weather" : /date|timestamp/.test(s && s.attributes && s.attributes.device_class || "") ? "bin" : "info";
-    return [readingText(kind, s, lang), w.name || fname];
+    return [readingText(kind, s, lang), fname];
   }
-  return [(w.icon ? w.icon + " " : "") + (w.name || fname), ""];
+  return [(w.icon ? w.icon + " " : "") + fname, ""];
 }
 
 // card/maps.js
@@ -3676,7 +3683,7 @@ async function proxyHistory(hass, ids, start, end) {
 // card/card.js
 var CARD_NAME = "living-floorplan-card";
 var OLD_CARD_NAME = "house-floorplan-card";
-var VERSION = "1.0.0";
+var VERSION = "1.0.1";
 var LOADED_FROM = (() => {
   try {
     return new URL(import.meta.url);
@@ -4246,6 +4253,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       price: Number(config.price) > 0 ? Number(config.price) : null,
       // a lock / door strike: "more-info" (default) or "hold" - opened by holding it 0.8 s
       lockAction: config.lock_action === "hold" ? "hold" : "more-info",
+      undo: config.undo !== false,
       // a tap on a chandelier of two circuits: "toggle" (off -> the smaller one, on -> off) or "cycle"
       // (off -> the smaller -> both -> off)
       fixtureTap: config.fixture_tap === "cycle" ? "cycle" : "toggle",
@@ -4457,7 +4465,8 @@ var LivingFloorplanCard = class extends HTMLElement {
   #campop .bar .t .seen { color: #e57373; font-weight: 500; margin-left: 6px; }
   #campop .pic { aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; cursor: pointer; }
   #campop .pic > * { width: 100%; height: 100%; object-fit: contain; display: block; }
-  #fc-version { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  /* under the floor buttons, off the bottom bar (power, zoom) */
+  #fc-version { position: absolute; left: 12px; top: 46px; z-index: 2; pointer-events: none;
     font: 10px var(--paper-font-body1_-_font-family, sans-serif); color: var(--fc-text2); opacity: 0.7; white-space: nowrap; }
   #fc-version[hidden] { display: none; }
   /* rules and live power */
@@ -4505,6 +4514,12 @@ var LivingFloorplanCard = class extends HTMLElement {
   #fc-undo[hidden] { display: none; }
   #fc-undo .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #fc-undo button[hidden] { display: none; }
+  /* a phone: small, in the bottom left corner, off the plan's middle (the zoom buttons are on the right) */
+  @media (max-width: 600px) {
+    #fc-undo { left: 8px; transform: none; bottom: 8px; font-size: 12px; padding: 2px 2px 2px 8px; gap: 6px; border-radius: 8px;
+      max-width: calc(100% - 190px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+    #fc-undo button { padding: 2px 8px; font-size: 12px; min-height: 0; }
+  }
   /* a mouse over a device: what a click and a hold do */
   #fc-tip { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; font-size: 12px; background: var(--fc-panel);
     color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 3px 8px; transform: translate(12px, 14px); }
@@ -5827,9 +5842,10 @@ var LivingFloorplanCard = class extends HTMLElement {
     clearTimeout(this._toastT);
     this._toastT = setTimeout(() => {
       box.hidden = true;
-    }, undo ? 6e3 : 3e3);
+    }, undo ? matchMedia("(max-width: 600px)").matches ? 4e3 : 6e3 : 3e3);
   }
   _undoable(ids, name, word3) {
+    if (!this._config.undo) return;
     const prev = ids.map((e) => this._hass.states[e]).filter(Boolean).map((s) => ({ id: s.entity_id, state: s.state, a: { ...s.attributes } }));
     this._toast(`${name} \u2014 ${translate(this._lang(), word3)}`, () => {
       for (const p2 of prev) {

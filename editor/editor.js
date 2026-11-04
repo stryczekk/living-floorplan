@@ -2823,8 +2823,9 @@ $("c-live").onchange = (e) => {
   if (!planSvg) return;
   if (S.live) applyStates(planSvg, ha.states, LOCALE); else clearStates(planSvg);
 };
-// A PDF (an architect's drawing): one page drawn into a picture by pdf.js, loaded from the CDN the first time
-const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/";
+// A PDF (an architect's drawing): one page drawn into a picture by pdf.js - shipped with the editor (pdfjs/ next to the
+// page: editor/pdfjs/, the integration's frontend/pdfjs/), never fetched from the internet
+const PDFJS = new URL("pdfjs/", document.baseURI).href;
 async function pdfToImage(file) {
   const lib = await import(/* @vite-ignore */ PDFJS + "pdf.min.mjs");
   lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs";

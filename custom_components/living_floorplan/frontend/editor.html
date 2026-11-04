@@ -2836,7 +2836,7 @@ polyline.ov-sketch.live { fill: none; }
     }
   ]
 };
-window.FLOORPLAN_BUILD = "1.0.0 · 03.11, 22:34";</script>
+window.FLOORPLAN_BUILD = "1.0.1 · 04.11, 15:25";</script>
 <script type="module">
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
@@ -12154,7 +12154,7 @@ $("c-live").onchange = (e) => {
   if (S.live) applyStates(planSvg, ha.states, LOCALE);
   else clearStates(planSvg);
 };
-var PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/";
+var PDFJS = new URL("pdfjs/", document.baseURI).href;
 async function pdfToImage(file) {
   const lib = await import(
     /* @vite-ignore */

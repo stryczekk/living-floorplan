@@ -134,6 +134,14 @@ test("widgets: a state widget can show an attribute", async () => {
   assert.deepEqual(widgetText(w, {}, "pl"), ["—", "Śmieci"]);
 });
 
+test("widgets: a name with attributes in it", async () => {
+  const { normalizeWidgets, widgetText } = await import("../../card/widgets.js");
+  const [w] = normalizeWidgets([{ type: "state", entity: "sensor.waste", attribute: "kind", name: "Śmieci · {when}" }]);
+  const states = { "sensor.waste": { state: "2026-11-06", attributes: { kind: "segregowane", when: "pt. 6.11" } } };
+  assert.deepEqual(widgetText(w, states, "pl"), ["segregowane", "Śmieci · pt. 6.11"]);
+  assert.deepEqual(widgetText(w, {}, "pl"), ["—", "Śmieci · —"]);
+});
+
 // `entities:` keys for a whole domain ("light.*") and for everything ("*"): an entity's own key wins
 test("actions: an entity's own, then its domain's, then everyone's", async () => {
   globalThis.HTMLElement ??= class {};

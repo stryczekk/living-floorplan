@@ -124,6 +124,7 @@ floor: first-floor                 # open on this floor
 | `show_room_names` | `false` | room names on the plan |
 | `hold_action` | `insights` | `more-info` - always Home Assistant's own dialog, also when Entity Insights is installed |
 | `lock_action` | `more-info` | `hold` - a lock / door strike opens after holding it 0.8 s (a tap never opens it) |
+| `undo` | `true` | the bar with *Undo* after a tap that switched something (small, in a corner, on a phone); `false` - none |
 | `fixture_tap` | `toggle` | a two-circuit chandelier: `toggle` - a tap lights the smaller circuit, the next turns it off; `cycle` - smaller, both, off |
 | `room_tap` | `dialog` | a tap on a room's empty floor opens the room; `none` |
 | `entities` | - | your own `tap_action` / `hold_action` per entity (above) |
@@ -146,7 +147,7 @@ floor: first-floor                 # open on this floor
 | `camera_detect` | found | `{ camera.x: binary_sensor.y }` when the person sensor is not on the camera's device |
 | `kiosk` | - | `{ idle: 60, night_dim: "22:00-06:00" \| sun, dim: 0.4 }` - tablet mode |
 | `lasso` | `true` | the ◌ lasso |
-| `widgets` | - | `[{ type: clock \| calendar \| state \| button, entity?, attribute?, name?, icon?, tap_action?, hold_action?, at? }]` |
+| `widgets` | - | `[{ type: clock \| calendar \| state \| button, entity?, attribute?, name?, icon?, tap_action?, hold_action?, at? }]`; `name` can carry the entity's attributes: `"Bins · {when}"` (`{state}` = its state) |
 | `hide` | - | layers hidden on load: `idle_lights`, `sensors`, `devices`, `cameras`, `furniture` |
 | `theme` | `auto` | `dark` / `light`; `auto` follows Home Assistant |
 | `accent` | yellow | `#rrggbb` for the selected buttons and the time line |

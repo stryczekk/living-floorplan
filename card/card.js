@@ -32,7 +32,7 @@ import { hasProxy, proxyHistory } from "./influx.js";
 export const CARD_NAME = "living-floorplan-card";
 // the card's name until 28.10.2026: dashboards made with it keep working
 export const OLD_CARD_NAME = "house-floorplan-card";
-export const VERSION = "1.0.0";
+export const VERSION = "1.0.1";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
 export function versionLabel(url = LOADED_FROM) {
@@ -519,6 +519,7 @@ export class LivingFloorplanCard extends HTMLElement {
       price: Number(config.price) > 0 ? Number(config.price) : null,
       // a lock / door strike: "more-info" (default) or "hold" - opened by holding it 0.8 s
       lockAction: config.lock_action === "hold" ? "hold" : "more-info",
+      undo: config.undo !== false,
       // a tap on a chandelier of two circuits: "toggle" (off -> the smaller one, on -> off) or "cycle"
       // (off -> the smaller -> both -> off)
       fixtureTap: config.fixture_tap === "cycle" ? "cycle" : "toggle",
@@ -722,7 +723,8 @@ export class LivingFloorplanCard extends HTMLElement {
   #campop .bar .t .seen { color: #e57373; font-weight: 500; margin-left: 6px; }
   #campop .pic { aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; cursor: pointer; }
   #campop .pic > * { width: 100%; height: 100%; object-fit: contain; display: block; }
-  #fc-version { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; pointer-events: none;
+  /* under the floor buttons, off the bottom bar (power, zoom) */
+  #fc-version { position: absolute; left: 12px; top: 46px; z-index: 2; pointer-events: none;
     font: 10px var(--paper-font-body1_-_font-family, sans-serif); color: var(--fc-text2); opacity: 0.7; white-space: nowrap; }
   #fc-version[hidden] { display: none; }
   /* rules and live power */
@@ -770,6 +772,12 @@ export class LivingFloorplanCard extends HTMLElement {
   #fc-undo[hidden] { display: none; }
   #fc-undo .m { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #fc-undo button[hidden] { display: none; }
+  /* a phone: small, in the bottom left corner, off the plan's middle (the zoom buttons are on the right) */
+  @media (max-width: 600px) {
+    #fc-undo { left: 8px; transform: none; bottom: 8px; font-size: 12px; padding: 2px 2px 2px 8px; gap: 6px; border-radius: 8px;
+      max-width: calc(100% - 190px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); }
+    #fc-undo button { padding: 2px 8px; font-size: 12px; min-height: 0; }
+  }
   /* a mouse over a device: what a click and a hold do */
   #fc-tip { position: absolute; z-index: 6; pointer-events: none; white-space: nowrap; font-size: 12px; background: var(--fc-panel);
     color: var(--fc-text); border: 1px solid var(--fc-line); border-radius: 6px; padding: 3px 8px; transform: translate(12px, 14px); }
@@ -2042,9 +2050,10 @@ export class LivingFloorplanCard extends HTMLElement {
     b.onclick = () => { box.hidden = true; if (undo) undo(); };
     box.hidden = false;
     clearTimeout(this._toastT);
-    this._toastT = setTimeout(() => { box.hidden = true; }, undo ? 6000 : 3000);
+    this._toastT = setTimeout(() => { box.hidden = true; }, undo ? (matchMedia("(max-width: 600px)").matches ? 4000 : 6000) : 3000);
   }
   _undoable(ids, name, word) {
+    if (!this._config.undo) return; // undo: false - no bar after a tap
     const prev = ids.map((e) => this._hass.states[e]).filter(Boolean).map((s) => ({ id: s.entity_id, state: s.state, a: { ...s.attributes } }));
     this._toast(`${name} — ${translate(this._lang(), word)}`, () => {
       for (const p of prev) {

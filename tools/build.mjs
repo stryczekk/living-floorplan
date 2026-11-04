@@ -30,6 +30,11 @@ html = html.replace('<script type="module" src="editor.js"></script>', () =>
   "<script>window.FLOORPLAN_EXAMPLE = " + example.trim() + ";\nwindow.FLOORPLAN_BUILD = " + JSON.stringify(buildLabel) + ";</script>\n<script type=\"module\">\n" + js + "\n</script>");
 if (html.includes('src="editor.js"') || html.includes('href="editor.css"')) throw new Error("editor page: placeholders not replaced");
 writeFileSync("dist/living-floorplan-editor.html", "<!-- Living Floor Plan - editor -->\n" + html);
+// pdf.js for PDF underlays goes next to the editor page (pdfjs/), never from a CDN
+{
+  const { cpSync } = await import("node:fs");
+  cpSync("editor/pdfjs", "dist/pdfjs", { recursive: true });
+}
 console.log("dist/living-floorplan-editor.html", Math.round(html.length / 1024) + " kB");
 
 // The demo page: the card on the example house in a made-up home (demo/), one file to host anywhere;
@@ -56,6 +61,7 @@ const FE = "custom_components/living_floorplan/frontend";
 mkdirSync(FE, { recursive: true });
 copyFileSync("dist/living-floorplan-card.js", FE + "/living-floorplan-card.js");
 copyFileSync("dist/living-floorplan-editor.html", FE + "/editor.html");
+(await import("node:fs")).cpSync("editor/pdfjs", FE + "/pdfjs", { recursive: true });
 await build({ entryPoints: ["card/panel.js"], bundle: true, format: "esm", target: "es2020", outfile: FE + "/panel.js", legalComments: "none",
   define: { __PANEL_BUILD__: JSON.stringify(buildLabel) } });
 console.log(FE + "/ (card, editor, panel)");

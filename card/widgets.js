@@ -48,22 +48,31 @@ export function calendarLine(s, lang = "en", now = new Date()) {
   return when + hm + msg;
 }
 
+// a name with the entity's attributes in it: "Bins · {when}" -> "Bins · Fri 6.11" ({state} = the state)
+export function nameWith(name, s) {
+  if (!name || !name.includes("{")) return name;
+  return name.replace(/\{([a-z0-9_]+)\}/gi, (_, k) => {
+    const v = k === "state" ? s && s.state : s && s.attributes ? s.attributes[k] : undefined;
+    return v === undefined || v === null ? "—" : Array.isArray(v) ? v.join(", ") : String(v);
+  });
+}
+
 // [big line, small line] of a widget.
 export function widgetText(w, states, lang = "en", now = new Date()) {
   const s = w.entity ? states[w.entity] : null;
-  const fname = (s && s.attributes && s.attributes.friendly_name) || w.entity || "";
+  const fname = nameWith(w.name, s) || (s && s.attributes && s.attributes.friendly_name) || w.entity || "";
   if (w.type === "clock") {
     return [now.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" }), now.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" })];
   }
-  if (w.type === "calendar") return [calendarLine(s, lang, now), w.name || fname];
+  if (w.type === "calendar") return [calendarLine(s, lang, now), fname];
   if (w.type === "state" && w.attribute) {
     const a = s && s.attributes ? s.attributes[w.attribute] : undefined;
-    return [a === undefined || a === null ? "—" : Array.isArray(a) ? a.join(", ") : String(a), w.name || fname];
+    return [a === undefined || a === null ? "—" : Array.isArray(a) ? a.join(", ") : String(a), fname];
   }
   if (w.type === "state") {
     // the weather as "13° clouds", a date sensor as "tomorrow", anything else with its unit
     const kind = w.entity && w.entity.startsWith("weather.") ? "weather" : /date|timestamp/.test((s && s.attributes && s.attributes.device_class) || "") ? "bin" : "info";
-    return [readingText(kind, s, lang), w.name || fname];
+    return [readingText(kind, s, lang), fname];
   }
-  return [(w.icon ? w.icon + " " : "") + (w.name || fname), ""];
+  return [(w.icon ? w.icon + " " : "") + (fname), ""];
 }

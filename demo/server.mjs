@@ -149,6 +149,14 @@ createServer((req, res) => {
     return createReadStream(HITS).pipe(res);
   }
   if (url.pathname === "/editor") return send(301, "", "text/plain", { Location: "/editor/" + url.search });
+  // pdf.js for the editor's PDF underlay, next to it (no CDN)
+  const pj = url.pathname.match(/^\/editor\/pdfjs\/(pdf\.min\.mjs|pdf\.worker\.min\.mjs)$/);
+  if (pj) {
+    const f = join(ROOT, "pdfjs", pj[1]);
+    if (!existsSync(f)) return send(404, "not found");
+    res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "max-age=86400" });
+    return createReadStream(f).pipe(res);
+  }
   if (url.pathname === "/editor/" || url.pathname === "/editor/index.html") {
     // the floor plan editor in demo mode: starts from the example house, keeps the plan in the visitor's browser
     try {

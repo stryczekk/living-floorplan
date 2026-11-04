@@ -1394,7 +1394,7 @@ try:
           and ev("[...document.querySelectorAll('#tb-devices [data-group]')].map(b => b.dataset.group).join()").count("g_av") == 1)
     key("Escape")
 
-    # 18f8d. a PDF as the underlay: its page drawn into a picture (pdf.js from the CDN; skipped offline)
+    # 18f8d. a PDF as the underlay: its page drawn into a picture (pdf.js shipped in editor/pdfjs/, no internet)
     def tiny_pdf(path, pages=2):
         objs = ["<< /Type /Catalog /Pages 2 0 R >>",
                 "<< /Type /Pages /Kids [" + " ".join(f"{3 + 2 * i} 0 R" for i in range(pages)) + f"] /Count {pages} >>"]
@@ -1409,11 +1409,9 @@ try:
         out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode() + b"".join(f"{o:010d} 00000 n \n".encode() for o in offs)
         out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{x}\n%%EOF\n".encode()
         Path(path).write_bytes(out)
-    try:
-        urllib.request.urlopen("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs", timeout=10); online = True
-    except Exception:
-        online = False
-    if online:
+    check("pdf.js: shipped next to the editor (no CDN)", (ROOT / "editor" / "pdfjs" / "pdf.min.mjs").exists()
+          and "cdn.jsdelivr" not in (ROOT / "editor" / "editor.js").read_text())
+    if True:
         pdfp = str(DATA / "test.pdf"); tiny_pdf(pdfp)
         ev("floorplanEditor.load(floorplanEditor.emptyModel(), ''); window.prompt = () => '2'; 1")
         doc = call("DOM.getDocument")

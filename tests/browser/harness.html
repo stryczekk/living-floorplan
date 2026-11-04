@@ -317,6 +317,14 @@ if (shot) {
     check("undo: the lamp back as it was", u && u[0] === "light" && u[1] === (was === "on" ? "turn_on" : "turn_off") && u[2].entity_id === id, JSON.stringify(u));
     check("undo: the message goes", box.hidden);
   }
+  // undo: false - a tap switches, no bar
+  {
+    const saved = el._config.undo;
+    el._config.undo = false;
+    ev("pointerdown", r.left + r.width / 2, r.top + r.height / 2); ev("pointerup", r.left + r.width / 2, r.top + r.height / 2);
+    check("undo: false - the tap switches without the bar", sr.getElementById("fc-undo").hidden && calls[calls.length - 1][1] === "toggle", calls[calls.length - 1] && calls[calls.length - 1][1]);
+    el._config.undo = saved;
+  }
   // a hold shows a ring filling under the finger (after a moment, not on a plain tap)
   {
     const x = r.left + r.width / 2, y = r.top + r.height / 2, ring = sr.getElementById("fc-press");
