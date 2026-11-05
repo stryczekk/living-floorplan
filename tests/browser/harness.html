@@ -379,8 +379,16 @@ if (shot) {
     if (lb) { lb.click(); check("room window: a light chip toggles it", calls[calls.length - 1][1] === "toggle" && calls[calls.length - 1][2].entity_id === lb.dataset.light); }
     const pos = sr.querySelector("#fc-room .cov .p").textContent;
     check("room window: cover position shown", /%$|closed|open/.test(pos), pos);
+    const hl = history.length;
+    check("room window: one history entry while open", history.state && history.state.lfpRoom, JSON.stringify(history.state));
     sr.getElementById("fc-room-x").click();
     check("room window closes", box.hidden);
+    await tick(300);
+    check("... and takes its history entry back", !(history.state && history.state.lfpRoom) && history.length === hl, JSON.stringify(history.state));
+    ev("pointerdown", spot[0], spot[1]); ev("pointerup", spot[0], spot[1]);
+    history.back();
+    await tick(300);
+    check("back button closes the room window", box.hidden, JSON.stringify(history.state));
     {
       const h0 = el._hass, lid = c.lights[0] || id;
       el._hass = { ...h0, states: { ...h0.states, [lid]: { ...h0.states[lid], attributes: { friendly_name: "Box 12 Lamp over the table" } } },
@@ -472,11 +480,16 @@ if (shot) {
   el.hass = h2; await tick(50);
   const open = pathsOf(svg);
   h2.states = { ...h2.states, "binary_sensor.bathroom_door": { entity_id: "binary_sensor.bathroom_door", state: "off", attributes: {}, last_updated: "closed" } };
-  el.hass = { ...h2 }; await tick(50);
+  el.hass = { ...h2 };
+  const blinkDoor = [...svg.querySelectorAll("[data-lf]")].filter((g) => g.getAnimations().length).length;
+  await tick(50);
   const closed = pathsOf(svg);
+  check("closing a door: no light fades in or out on the rebuilt light field", blinkDoor === 0, blinkDoor);
   check("closing a door with a contact changes the light (rebuilt with the door as a wall)", open && closed && open !== closed, (open === closed) + "");
   // upstairs
   sr.querySelectorAll("#floors button")[1].click();
+  const blinkFloor = [...sr.querySelector("svg").querySelectorAll("[data-lf]")].filter((g) => g.getAnimations().length).length;
+  check("switching floors: the lights do not blink (no light fading on the new drawing)", blinkFloor === 0, blinkFloor);
   await tick(100);
   const svg2 = sr.querySelector("svg");
   check("switching floors draws the other floor", svg2 !== svg && svg2.getAttribute("data-floor") === "first-floor", svg2 && svg2.getAttribute("data-floor"));
@@ -896,6 +909,7 @@ if (shot) {
     check("cameras: ... and in tablet mode the picture pops up", !sc.getElementById("campop").hidden && /Front door/.test(sc.querySelector("#campop .t").textContent), sc.querySelector("#campop .t").textContent);
     let ci = null; ec.addEventListener("hass-more-info", (e) => { ci = e.detail.entityId; });
     sc.querySelector("#campop .pic").click();
+    await tick(300); // HA's dialog waits until the popup's history entry is gone
     check("cameras: a tap on the picture opens the HD camera and closes it", ci === "camera.front_door_hq" && sc.getElementById("campop").hidden, ci);
     // not in tablet mode: no picture (default "kiosk")
     const hn = { ...hc, states: { ...hc.states } };

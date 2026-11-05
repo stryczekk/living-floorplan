@@ -67,7 +67,7 @@ test("bulbs: one per bulb, chandelier circuits, power shared and widening the re
 
 test("layer: a group per entity, a gradient per bulb", () => {
   const svg = lightLayer(model);
-  assert.match(svg, /<g class="lf" data-lf="light.left"><defs><radialGradient[^]*?<\/defs><path d="M/);
+  assert.match(svg, /<g class="lf" style="opacity: 0" data-lf="light.left"><defs><radialGradient[^]*?<\/defs><path d="M/);
   assert.equal((svg.match(/<radialGradient/g) || []).length, 1);
 });
 

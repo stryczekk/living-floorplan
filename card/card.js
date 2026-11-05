@@ -28,11 +28,12 @@ import { normalizeHistory, statesAt } from "./timeline.js";
 import { sunPosition, sunPatches, sunLayer } from "./sun.js";
 import { trailLayer } from "./trail.js";
 import { hasProxy, proxyHistory } from "./influx.js";
+import { backCloses } from "./back.js";
 
 export const CARD_NAME = "living-floorplan-card";
 // the card's name until 28.10.2026: dashboards made with it keep working
 export const OLD_CARD_NAME = "house-floorplan-card";
-export const VERSION = "1.0.2";
+export const VERSION = "1.0.3";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
 export function versionLabel(url = LOADED_FROM) {
@@ -642,6 +643,7 @@ export class LivingFloorplanCard extends HTMLElement {
   #room-climate text { fill: var(--fc-text); paint-order: stroke; stroke: var(--fc-halo); stroke-width: 3px; stroke-linejoin: round; }
   #room-climate .climate-hum, #room-climate .climate-name { fill: var(--fc-text2); }
   #light-field .lf { transition: opacity 0.35s; }
+  #stage.fresh #light-field .lf { transition: none; } /* a new drawing shows its lights as they are, without fading */
   #layers { position: absolute; top: 8px; right: 8px; z-index: 3; text-align: right; }
   #layer-menu { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
   #layer-menu[hidden] { display: none; }
@@ -1242,6 +1244,7 @@ export class LivingFloorplanCard extends HTMLElement {
     x.onclick = () => this._closePopup();
     x.title = translate(lang, "close");
     box.hidden = false;
+    (this._backPop ||= backCloses("lfpCamera", () => this._closePopup())).opened();
     // closes itself a while after the sensor goes quiet
     const keep = this._config.popupSeconds * 1000;
     this._popup = { cam, detect, until: Date.now() + keep };
@@ -1255,6 +1258,7 @@ export class LivingFloorplanCard extends HTMLElement {
   }
 
   _closePopup() {
+    if (this._popup && this._backPop) this._backPop.closed();
     if (this._popTimer) { clearInterval(this._popTimer); this._popTimer = null; }
     if (this._popImg) { clearInterval(this._popImg); this._popImg = null; }
     this._popup = null;
@@ -1273,6 +1277,7 @@ export class LivingFloorplanCard extends HTMLElement {
     if (this._themeBuilt === "light") svgText = lightSvg(svgText);
     this._lowered = m.version === 2 ? lowerV2(floorModel(m, floorIndex(m, floor))) : null;
     const stage = this.shadowRoot.getElementById("stage");
+    stage.classList.add("fresh");
     stage.innerHTML = svgText;
     const svg = (this._svg = stage.querySelector("svg"));
     svg.removeAttribute("width");
@@ -1304,6 +1309,8 @@ export class LivingFloorplanCard extends HTMLElement {
     this._sig = "";
     if (this._travel) this._showAt(this._sliderTime());
     else this._update();
+    // fading back on only after the new drawing has been painted in its states (switching floors blinked, 05.11)
+    requestAnimationFrame(() => requestAnimationFrame(() => stage.classList.remove("fresh")));
   }
 
   // ---- per-viewer settings (⚙) ---------------------------------------------------
@@ -1489,6 +1496,11 @@ export class LivingFloorplanCard extends HTMLElement {
     const tmp = document.createElementNS("http://www.w3.org/2000/svg", "g");
     tmp.innerHTML = lightLayer(this._lowered, { closedDoors: closed });
     const layer = tmp.firstElementChild;
+    // a door opened or closed: each light keeps its current look (no fade from dark, no blink)
+    if (old) for (const g of layer.querySelectorAll("[data-lf]")) {
+      const was = old.querySelector(`[data-lf="${CSS.escape(g.dataset.lf)}"]`);
+      if (was) g.setAttribute("style", was.getAttribute("style") || "");
+    }
     if (old) old.replaceWith(layer);
     else lights.parentNode.insertBefore(layer, lights);
     this._sig = ""; // opacities need to be set again
@@ -2307,9 +2319,11 @@ export class LivingFloorplanCard extends HTMLElement {
     this.shadowRoot.getElementById("fc-room-x").onclick = () => this._closeRoom();
     this._renderRoom(true);
     this._roomSpark();
+    (this._backRoom ||= backCloses("lfpRoom", () => this._closeRoom())).opened();
   }
 
   _closeRoom() {
+    if (this._roomOpen && this._backRoom) this._backRoom.closed();
     this._roomOpen = null;
     const box = this.shadowRoot && this.shadowRoot.getElementById("fc-room");
     if (box) { box.hidden = true; box.querySelector(".body").innerHTML = ""; }
@@ -2457,8 +2471,11 @@ export class LivingFloorplanCard extends HTMLElement {
     }
   }
 
+  // after our own window's history entry is gone, if it was just closed (see back.js)
   _moreInfo(entityId) {
-    this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
+    const fire = () => this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
+    const room = () => (this._backRoom ? this._backRoom.then(fire) : fire());
+    if (this._backPop) this._backPop.then(room); else room();
   }
 
   // ---- tablet mode ---------------------------------------------------------

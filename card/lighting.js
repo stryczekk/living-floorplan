@@ -227,8 +227,9 @@ export function lightLayer(model, { closedDoors = new Set(), idPrefix = "lf" } =
     groups.get(b.entity).paths.push(`<path d="${d}" fill="url(#${id})"/>`);
   });
   // the gradients live inside their lamp's group, so they inherit its colour
+  // each group starts dark: the card sets its opacity from the state (at full strength it faded out on every new drawing)
   const body = [...groups].map(([entity, g]) =>
-    `<g class="lf" data-lf="${entity.replace(/"/g, "&quot;")}"><defs>${g.defs.join("")}</defs>${g.paths.join("")}</g>`).join("");
+    `<g class="lf" style="opacity: 0" data-lf="${entity.replace(/"/g, "&quot;")}"><defs>${g.defs.join("")}</defs>${g.paths.join("")}</g>`).join("");
   return `<g id="light-field" pointer-events="none">${body}</g>`;
 }
 
