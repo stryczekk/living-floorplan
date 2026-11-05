@@ -25,6 +25,8 @@ from .websocket import async_register
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 # the editor page, always asked for again (a remembered old editor saved plans the old way)
 EDITOR_URL = f"/{DOMAIN}/editor"
+# pdf.js next to the editor page: the editor asks for "pdfjs/" relative to its own address (/living_floorplan/editor)
+PDFJS_URL = f"/{DOMAIN}/pdfjs"
 FRONTEND = Path(__file__).parent / "frontend"
 
 
@@ -43,7 +45,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[f"{DOMAIN}_card_url"] = card_url
     # the card, the editor and the panel; a version in the address so browsers take a new one after an update
     if not hass.data.get(f"{DOMAIN}_static"):
-        await hass.http.async_register_static_paths([StaticPathConfig(STATIC_URL, str(FRONTEND), False)])
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(STATIC_URL, str(FRONTEND), False),
+            StaticPathConfig(PDFJS_URL, str(FRONTEND / "pdfjs"), True),  # one fixed pdf.js version: cached
+        ])
         hass.http.register_view(EditorView())
         hass.data[f"{DOMAIN}_static"] = True
     frontend.add_extra_js_url(hass, card_url)

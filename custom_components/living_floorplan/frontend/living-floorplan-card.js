@@ -3683,7 +3683,7 @@ async function proxyHistory(hass, ids, start, end) {
 // card/card.js
 var CARD_NAME = "living-floorplan-card";
 var OLD_CARD_NAME = "house-floorplan-card";
-var VERSION = "1.0.1";
+var VERSION = "1.0.2";
 var LOADED_FROM = (() => {
   try {
     return new URL(import.meta.url);
