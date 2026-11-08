@@ -33,7 +33,7 @@ import { backCloses } from "./back.js";
 export const CARD_NAME = "living-floorplan-card";
 // the card's name until 28.10.2026: dashboards made with it keep working
 export const OLD_CARD_NAME = "house-floorplan-card";
-export const VERSION = "1.0.3";
+export const VERSION = "1.0.4";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
 export function versionLabel(url = LOADED_FROM) {
@@ -79,6 +79,7 @@ export const STRINGS = {
     range_30d: "30 days",
     range_90d: "3 months",
     play: "Play",
+    speed: "Playback speed",
     pause: "Pause",
     settings: "Settings",
     s_light: "Light",
@@ -178,6 +179,7 @@ export const STRINGS = {
     range_30d: "30 dni",
     range_90d: "3 mies.",
     play: "Odtwórz",
+    speed: "Tempo odtwarzania",
     pause: "Pauza",
     settings: "Ustawienia",
     s_light: "Światło",
@@ -277,6 +279,7 @@ export const STRINGS = {
     range_30d: "30 Tage",
     range_90d: "3 Monate",
     play: "Abspielen",
+    speed: "Wiedergabetempo",
     pause: "Pause",
     settings: "Einstellungen",
     s_light: "Licht",
@@ -348,6 +351,9 @@ export function translate(lang, key, vars = {}) {
   return text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
 }
 
+// time travel playback speeds (the whole range: 60 / 30 / 15 / 7.5 s)
+const SPEEDS = [0.5, 1, 2, 4];
+const speedLabel = (v) => (v === 0.5 ? "½×" : v + "×");
 const TOGGLE_DOMAINS = new Set(["light", "switch", "fan", "input_boolean", "cover", "media_player", "humidifier"]);
 // what a tap on the plan switches: lights and covers only (safe, and undone at once); anything else opens its details,
 // a hold always does (a door strike set to `lock_action: hold` is the one exception: a hold opens it)
@@ -415,7 +421,7 @@ export function inWindow(range, now) {
 // The card's and the generator's own element ids: a device called "legend" or a room called "labels"
 // ("room-labels") would take their place.
 const RESERVED_IDS = new Set(["wrap", "stage", "floors", "zoom", "zoom-in", "zoom-out", "zoom-fit", "lasso-btn", "layers", "set-btn", "tt-btn", "layer-btn", "layer-menu", "settings",
-  "timeline", "tt-play", "tt-rec", "tt-when", "tt-ranges", "tt-live", "tt-marks", "tt-slider", "campop", "campop-x", "legend", "dim", "alerts", "info",
+  "timeline", "tt-play", "tt-speed", "tt-rec", "tt-when", "tt-ranges", "tt-live", "tt-marks", "tt-slider", "campop", "campop-x", "legend", "dim", "alerts", "info",
   "palette", "plan", "sheet", "rooms", "dividers", "lights", "covers", "cameras", "controls", "furniture", "devices", "locks", "climate",
   "labels", "desc", "light-field", "room-labels", "room-climate", "walls-exterior", "walls-interior", "doors-interior", "device-labels"]);
 export function safeIds(model) {
@@ -683,7 +689,14 @@ export class LivingFloorplanCard extends HTMLElement {
   #timeline .row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   #timeline .sp { flex: 1; }
   #timeline button.fc { white-space: nowrap; padding: 6px 9px; }
-  #tt-ranges { display: flex; gap: 6px; }
+  #tt-ranges { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #tt-ranges::-webkit-scrollbar { display: none; }
+  /* a narrow card (a phone): the ranges get a row of their own, so the time and every range stay visible */
+  #timeline { container-type: inline-size; }
+  @container (max-width: 560px) {
+    #timeline .row { flex-wrap: wrap; }
+    #tt-ranges { order: 9; flex-basis: 100%; }
+  }
   #timeline #tt-when { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #timeline #tt-when { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fc-accent); }
   #tt-slider { width: 100%; accent-color: var(--fc-accent); }
@@ -861,7 +874,7 @@ export class LivingFloorplanCard extends HTMLElement {
     <div id="zoom"></div>
     <div id="layers"><button class="fc" id="set-btn">⚙</button> <button class="fc" id="tt-btn">⏱</button> <button class="fc" id="layer-btn"></button><div id="layer-menu" hidden></div><div id="settings" hidden></div></div>
     <div id="timeline" hidden>
-      <div class="row"><button class="fc" id="tt-play">▶</button><button class="fc" id="tt-rec">🎬</button><span id="tt-when"></span>
+      <div class="row"><button class="fc" id="tt-play">▶</button><button class="fc" id="tt-speed">1×</button><button class="fc" id="tt-rec">🎬</button><span id="tt-when"></span>
         <span class="sp"></span><span id="tt-ranges"></span><button class="fc" id="tt-live"></button></div>
       <div id="tt-marks"></div>
       <input id="tt-slider" type="range" min="0" max="1000" step="1" value="1000">
@@ -2835,6 +2848,15 @@ export class LivingFloorplanCard extends HTMLElement {
     const slider = sr.getElementById("tt-slider");
     slider.addEventListener("input", () => { if (!this._travel) return; this._stopPlay(); this._showAt(this._sliderTime()); });
     sr.getElementById("tt-play").onclick = () => (this._playTimer ? this._stopPlay() : this._play());
+    const speed = sr.getElementById("tt-speed");
+    speed.title = translate(this._lang(), "speed");
+    speed.textContent = speedLabel(this._ttSpeed());
+    speed.onclick = () => { // ½× → 1× → 2× → 4× → ½×, remembered per viewer like the ⚙ settings
+      const i = SPEEDS.indexOf(this._ttSpeed());
+      this._prefs.ttSpeed = SPEEDS[(i + 1) % SPEEDS.length];
+      this._savePrefs();
+      speed.textContent = speedLabel(this._prefs.ttSpeed);
+    };
     const rec = sr.getElementById("tt-rec");
     rec.title = translate(this._lang(), "rec_t");
     rec.onclick = () => this._recordDay();
@@ -2901,7 +2923,7 @@ export class LivingFloorplanCard extends HTMLElement {
       this._lastGif = { bytes: gif.length, w: W, h: H, frames: N, blob: new Blob([gif], { type: "image/gif" }) };
       const a = document.createElement("a");
       a.href = URL.createObjectURL(this._lastGif.blob);
-      a.download = `floorplan-${new Date(t.start).toISOString().slice(0, 10)}-${t.days}d.gif`;
+      a.download = `floorplan-${new Date(t.start).toISOString().slice(0, 10)}-${t.days < 1 ? Math.round(t.days * 24) + "h" : t.days + "d"}.gif`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 20000);
     } catch (e) {
@@ -2918,13 +2940,14 @@ export class LivingFloorplanCard extends HTMLElement {
     const box = this.shadowRoot.getElementById("tt-ranges");
     if (!box) return;
     const keys = { 1: "range_24h", 7: "range_7d", 30: "range_30d", 90: "range_90d", 365: "p_year" };
-    const days = this._influx ? [1, 7, 30, 90, 365] : [1, 7];
+    // the last hour, 3 and 6 hours too (from the recorder): what just happened, played slowly enough to follow
+    const days = [1 / 24, 3 / 24, 6 / 24, ...(this._influx ? [1, 7, 30, 90, 365] : [1, 7])];
     box.innerHTML = "";
     for (const d of days) {
       const b = document.createElement("button");
       b.className = "fc" + (d === sel ? " sel" : "");
       b.dataset.r = String(d);
-      b.textContent = translate(this._lang(), keys[d]);
+      b.textContent = d < 1 ? translate(this._lang(), "hours", { n: Math.round(d * 24) }) : translate(this._lang(), keys[d]);
       b.onclick = () => this._enterTravel(d);
       box.appendChild(b);
     }
@@ -3074,13 +3097,18 @@ export class LivingFloorplanCard extends HTMLElement {
     if (Number(slider.value) >= 1000) slider.value = "0";
     sr.getElementById("tt-play").textContent = "❚❚";
     sr.getElementById("tt-play").title = translate(this._lang(), "pause");
-    // the whole range in about 30 seconds
+    // the whole range in about 30 seconds at 1× (½×: a minute, 4×: under 8 s); read each step, so a change applies at once
     this._playTimer = setInterval(() => {
-      const v = Math.min(1000, Number(slider.value) + 4);
+      const v = Math.min(1000, Number(slider.value) + 4 * this._ttSpeed());
       slider.value = String(v);
       this._showAt(this._sliderTime());
       if (v >= 1000) this._stopPlay();
     }, 120);
+  }
+
+  _ttSpeed() {
+    const v = this._prefs && this._prefs.ttSpeed;
+    return SPEEDS.includes(v) ? v : 1;
   }
 
   _stopPlay() {

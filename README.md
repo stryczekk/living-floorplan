@@ -16,7 +16,7 @@ versions), the **card** shows it on any dashboard.
 | | |
 |---|---|
 | ![Evening light upstairs](docs/images/upstairs.png) **Real light.** Every bulb lights what it can see: walls cast shadows, light leaks through open doors, a closed door with a contact stops it. Dimmed lamps are dimmer, coloured ones tint their light. | ![Temperature map](docs/images/temperature.png) **Room maps.** Rooms coloured by temperature, humidity, hours of light or presence, or by what the light cost. |
-| ![Time travel](docs/images/travel.png) **Time travel.** The house at any moment of the last day or week, with play and marks for alarms, doors and cameras. 30 days and 3 months with [InfluxDB Proxy][proxy]. | ![Alerts](docs/images/alerts.png) **Alerts.** Smoke, CO, gas and leaks, a window left open in the cold, your own rules - the room pulses and a banner says where. |
+| ![Time travel](docs/images/travel.png) **Time travel.** The house at any moment of the last hour, day or week, played at your pace, with marks for alarms, doors and cameras. 30 days and 3 months with [InfluxDB Proxy][proxy]. | ![Alerts](docs/images/alerts.png) **Alerts.** Smoke, CO, gas and leaks, a window left open in the cold, your own rules - the room pulses and a banner says where. |
 | ![History dialog](docs/images/insights-light.png) **History in one hold.** With [Entity Insights][insights]: how long a lamp was on, when, what it cost; a thermostat's hours of heating; a cover's moves. | ![On a phone](docs/images/phone.png) **Made for phones and wall tablets.** A wide plan turns on a tall screen; tablet mode dims at night and wakes on a touch or an alert. |
 
 Also: sun through the windows, a trail of movement, cameras whose field of view turns red when they see someone,

@@ -1,6 +1,6 @@
 {
   "name": "living-floorplan",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "type": "module",
   "description": "Home Assistant: a floor plan of the house, drawn in its editor and shown live, with realistic light",

@@ -65,7 +65,9 @@ a year (the longer ones with [InfluxDB Proxy](companions.md#influxdb-proxy)).
 
 ## Time travel
 
-⏱: drag through the last 24 hours or 7 days (30 days and 3 months with InfluxDB Proxy); ▶ plays it; marks on the line
+⏱: drag through the last hour, 3 or 6 hours, 24 hours or 7 days (30 days, 3 months and a year with InfluxDB Proxy);
+▶ plays it, the button next to it sets the pace (½× · 1× · 2× · 4× — the whole range in 60 / 30 / 15 / 7.5 s, remembered per
+viewer); marks on the line
 for alarms, doors unlocked, camera detections and your own `events` - tap one to go there. 🎬 saves the range as an
 animated GIF ("a day in 30 seconds").
 

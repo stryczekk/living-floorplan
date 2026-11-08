@@ -3730,7 +3730,7 @@ function backCloses(key2, onBack) {
 // card/card.js
 var CARD_NAME = "living-floorplan-card";
 var OLD_CARD_NAME = "house-floorplan-card";
-var VERSION = "1.0.3";
+var VERSION = "1.0.4";
 var LOADED_FROM = (() => {
   try {
     return new URL(import.meta.url);
@@ -3795,6 +3795,7 @@ var STRINGS = {
     range_30d: "30 days",
     range_90d: "3 months",
     play: "Play",
+    speed: "Playback speed",
     pause: "Pause",
     settings: "Settings",
     s_light: "Light",
@@ -3910,6 +3911,7 @@ var STRINGS = {
     range_30d: "30 dni",
     range_90d: "3 mies.",
     play: "Odtw\xF3rz",
+    speed: "Tempo odtwarzania",
     pause: "Pauza",
     settings: "Ustawienia",
     s_light: "\u015Awiat\u0142o",
@@ -4025,6 +4027,7 @@ var STRINGS = {
     range_30d: "30 Tage",
     range_90d: "3 Monate",
     play: "Abspielen",
+    speed: "Wiedergabetempo",
     pause: "Pause",
     settings: "Einstellungen",
     s_light: "Licht",
@@ -4095,6 +4098,8 @@ function translate(lang, key2, vars = {}) {
   const text = t[key2] !== void 0 ? t[key2] : STRINGS.en[key2] !== void 0 ? STRINGS.en[key2] : key2;
   return text.replace(/\{(\w+)\}/g, (m, k) => vars[k] !== void 0 ? vars[k] : m);
 }
+var SPEEDS = [0.5, 1, 2, 4];
+var speedLabel = (v) => v === 0.5 ? "\xBD\xD7" : v + "\xD7";
 var TOGGLE_DOMAINS = /* @__PURE__ */ new Set(["light", "switch", "fan", "input_boolean", "cover", "media_player", "humidifier"]);
 var TAP_TOGGLE = /* @__PURE__ */ new Set(["light", "cover"]);
 function coverTapWord(st) {
@@ -4174,6 +4179,7 @@ var RESERVED_IDS = /* @__PURE__ */ new Set([
   "settings",
   "timeline",
   "tt-play",
+  "tt-speed",
   "tt-rec",
   "tt-when",
   "tt-ranges",
@@ -4471,7 +4477,14 @@ var LivingFloorplanCard = class extends HTMLElement {
   #timeline .row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
   #timeline .sp { flex: 1; }
   #timeline button.fc { white-space: nowrap; padding: 6px 9px; }
-  #tt-ranges { display: flex; gap: 6px; }
+  #tt-ranges { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #tt-ranges::-webkit-scrollbar { display: none; }
+  /* a narrow card (a phone): the ranges get a row of their own, so the time and every range stay visible */
+  #timeline { container-type: inline-size; }
+  @container (max-width: 560px) {
+    #timeline .row { flex-wrap: wrap; }
+    #tt-ranges { order: 9; flex-basis: 100%; }
+  }
   #timeline #tt-when { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #timeline #tt-when { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--fc-accent); }
   #tt-slider { width: 100%; accent-color: var(--fc-accent); }
@@ -4649,7 +4662,7 @@ var LivingFloorplanCard = class extends HTMLElement {
     <div id="zoom"></div>
     <div id="layers"><button class="fc" id="set-btn">\u2699</button> <button class="fc" id="tt-btn">\u23F1</button> <button class="fc" id="layer-btn"></button><div id="layer-menu" hidden></div><div id="settings" hidden></div></div>
     <div id="timeline" hidden>
-      <div class="row"><button class="fc" id="tt-play">\u25B6</button><button class="fc" id="tt-rec">\u{1F3AC}</button><span id="tt-when"></span>
+      <div class="row"><button class="fc" id="tt-play">\u25B6</button><button class="fc" id="tt-speed">1\xD7</button><button class="fc" id="tt-rec">\u{1F3AC}</button><span id="tt-when"></span>
         <span class="sp"></span><span id="tt-ranges"></span><button class="fc" id="tt-live"></button></div>
       <div id="tt-marks"></div>
       <input id="tt-slider" type="range" min="0" max="1000" step="1" value="1000">
@@ -6735,6 +6748,15 @@ var LivingFloorplanCard = class extends HTMLElement {
       this._showAt(this._sliderTime());
     });
     sr.getElementById("tt-play").onclick = () => this._playTimer ? this._stopPlay() : this._play();
+    const speed = sr.getElementById("tt-speed");
+    speed.title = translate(this._lang(), "speed");
+    speed.textContent = speedLabel(this._ttSpeed());
+    speed.onclick = () => {
+      const i = SPEEDS.indexOf(this._ttSpeed());
+      this._prefs.ttSpeed = SPEEDS[(i + 1) % SPEEDS.length];
+      this._savePrefs();
+      speed.textContent = speedLabel(this._prefs.ttSpeed);
+    };
     const rec = sr.getElementById("tt-rec");
     rec.title = translate(this._lang(), "rec_t");
     rec.onclick = () => this._recordDay();
@@ -6811,7 +6833,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       this._lastGif = { bytes: gif.length, w: W2, h: H, frames: N3, blob: new Blob([gif], { type: "image/gif" }) };
       const a = document.createElement("a");
       a.href = URL.createObjectURL(this._lastGif.blob);
-      a.download = `floorplan-${new Date(t.start).toISOString().slice(0, 10)}-${t.days}d.gif`;
+      a.download = `floorplan-${new Date(t.start).toISOString().slice(0, 10)}-${t.days < 1 ? Math.round(t.days * 24) + "h" : t.days + "d"}.gif`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -6832,13 +6854,13 @@ var LivingFloorplanCard = class extends HTMLElement {
     const box = this.shadowRoot.getElementById("tt-ranges");
     if (!box) return;
     const keys = { 1: "range_24h", 7: "range_7d", 30: "range_30d", 90: "range_90d", 365: "p_year" };
-    const days = this._influx ? [1, 7, 30, 90, 365] : [1, 7];
+    const days = [1 / 24, 3 / 24, 6 / 24, ...this._influx ? [1, 7, 30, 90, 365] : [1, 7]];
     box.innerHTML = "";
     for (const d of days) {
       const b = document.createElement("button");
       b.className = "fc" + (d === sel ? " sel" : "");
       b.dataset.r = String(d);
-      b.textContent = translate(this._lang(), keys[d]);
+      b.textContent = d < 1 ? translate(this._lang(), "hours", { n: Math.round(d * 24) }) : translate(this._lang(), keys[d]);
       b.onclick = () => this._enterTravel(d);
       box.appendChild(b);
     }
@@ -7000,11 +7022,15 @@ var LivingFloorplanCard = class extends HTMLElement {
     sr.getElementById("tt-play").textContent = "\u275A\u275A";
     sr.getElementById("tt-play").title = translate(this._lang(), "pause");
     this._playTimer = setInterval(() => {
-      const v = Math.min(1e3, Number(slider.value) + 4);
+      const v = Math.min(1e3, Number(slider.value) + 4 * this._ttSpeed());
       slider.value = String(v);
       this._showAt(this._sliderTime());
       if (v >= 1e3) this._stopPlay();
     }, 120);
+  }
+  _ttSpeed() {
+    const v = this._prefs && this._prefs.ttSpeed;
+    return SPEEDS.includes(v) ? v : 1;
   }
   _stopPlay() {
     if (this._playTimer) {

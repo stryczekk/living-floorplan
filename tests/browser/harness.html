@@ -553,6 +553,33 @@ if (shot) {
   check("time travel: live updates do not overwrite the past", lit() === 0, lit());
   st.getElementById("tt-play").click(); await tick(600);
   check("time travel: play moves the slider", Number(slider.value) > Math.round((3 / 24) * 1000), slider.value);
+  st.getElementById("tt-play").click(); // pause
+  const ttRanges = [...st.querySelectorAll("#tt-ranges button")].map((b) => b.textContent);
+  check("time travel: short ranges first (1 h, 3 h, 6 h, then 24 h)", ttRanges.slice(0, 4).join("|") === "1 h|3 h|6 h|24 h", ttRanges.join("|"));
+  st.querySelector('#tt-ranges button[data-r="' + 3 / 24 + '"]').click();
+  await tick(300);
+  const span = et._travel && (et._travel.end - et._travel.start) / 36e5;
+  check("time travel: 3 h shows the last three hours", Math.abs(span - 3) < 0.01 && st.querySelector("#tt-ranges button.sel").textContent === "3 h", span);
+  const sp = st.getElementById("tt-speed");
+  const speeds = [sp.textContent];
+  for (let i = 0; i < 4; i++) { sp.click(); speeds.push(sp.textContent); }
+  check("time travel: the speed button cycles 1× → 2× → 4× → ½× → 1×", speeds.join(" ") === "1× 2× 4× ½× 1×", speeds.join(" "));
+  sp.click(); sp.click(); // 4×
+  const before = Number(slider.value);
+  st.getElementById("tt-play").click(); await tick(600);
+  const fast = Number(slider.value) - before;
+  st.getElementById("tt-play").click();
+  sp.click(); // 4× → ½×
+  const before2 = Number(slider.value);
+  st.getElementById("tt-play").click(); await tick(600);
+  const slow = Number(slider.value) - before2;
+  st.getElementById("tt-play").click();
+  check("time travel: 4× plays faster than ½×", fast > slow * 4 && slow > 0, fast + " / " + slow);
+  check("time travel: the speed is remembered", JSON.parse(localStorage.getItem(et._prefKey()) || "{}").ttSpeed === 0.5, localStorage.getItem(et._prefKey()));
+  sp.click(); // back to 1× for the tests below
+  st.querySelector('#tt-ranges button[data-r="1"]').click();
+  await tick(300);
+  slider.value = String(Math.round((3 / 24) * 1000)); slider.dispatchEvent(new Event("input")); // where the GIF test expects it
   // a day in 30 seconds: the range as an animated GIF
   st.getElementById("tt-play").click(); // pause
   const t0 = performance.now();
@@ -676,8 +703,8 @@ if (shot) {
   const spx = ep.shadowRoot;
   spx.getElementById("tt-btn").click(); await tick(400);
   const ranges = [...spx.querySelectorAll("#tt-ranges button")].map((b) => b.textContent);
-  check("proxy: time travel offers 30 days, 3 months and a year", ranges.length === 5, ranges.join("|"));
-  [...spx.querySelectorAll("#tt-ranges button")][2].click(); await tick(500);
+  check("proxy: time travel offers 30 days, 3 months and a year (after 1, 3, 6 h)", ranges.length === 8 && ranges.slice(5).join("|") === "30 days|3 months|Year", ranges.join("|"));
+  spx.querySelector('#tt-ranges button[data-r="30"]').click(); await tick(500);
   check("proxy: 30 days of history come from InfluxDB Proxy (states + series)", proxyCalls.some((p) => p.startsWith("influx_proxy/states")) && proxyCalls.some((p) => p.startsWith("influx_proxy/series")) && ep._travel && ep._travel.days === 30, proxyCalls.length);
   const sl2 = spx.getElementById("tt-slider");
   const dayT = ep._travel.start + 20 * 864e5; const midnight = new Date(dayT); midnight.setUTCHours(19, 0, 0, 0);
@@ -924,7 +951,7 @@ if (shot) {
   {
     const ev = await mount({ events: [{ entity: "binary_sensor.washer_running", name: "Washer" }] }, fakeHass("night"), 900);
     const se = ev.shadowRoot;
-    se.getElementById("tt-btn").click(); se.querySelectorAll("#tt-ranges button")[1].click(); await tick(500);
+    se.getElementById("tt-btn").click(); await tick(50); se.querySelector('#tt-ranges button[data-r="7"]').click(); await tick(500);
     const mk = [...se.querySelectorAll("#tt-marks button.mk")];
     const labels = mk.map((b) => b.dataset.label);
     check("events: marks for alarms, the lock, cameras and the config's entities", mk.length >= 7 && labels.some((l) => /^Smoke/.test(l)) && labels.some((l) => /^Washer/.test(l)) && labels.some((l) => /detection/.test(l)), mk.length + " " + labels.slice(0, 4).join(" | "));
