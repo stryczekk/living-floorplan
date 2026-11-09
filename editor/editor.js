@@ -114,9 +114,13 @@ const clearSel = () => { S.sel = null; S.selOp = null; S.selRoom = null; S.selDi
 
 const cmPerSvg = () => S.model.canvas.cm_per_svg || CM_PER_SVG_DEFAULT;
 
+// What a visitor of the public demo used (set by its visit counter further down; does nothing anywhere else)
+let trackEvent = () => {};
+
 // --- history -------------------------------------------------------------------------------
 function snapshot() { return JSON.stringify(S.model); }
 function commit(before) {
+  trackEvent("edit");
   S.history.push(before);
   if (S.history.length > 200) S.history.shift();
   S.future = [];
@@ -124,6 +128,7 @@ function commit(before) {
 }
 function undo() {
   if (!S.history.length) return;
+  trackEvent("undo");
   S.hover = null;
   S.future.push(snapshot());
   S.model = JSON.parse(S.history.pop());
@@ -1322,6 +1327,7 @@ function setTool(tool, tab) {
     if (!(tab === "doors" ? DOOR_KINDS : WINDOW_KINDS).includes(S.opening.type)) { S.opening.type = tab === "doors" ? "door" : "window"; S.opening.width = null; }
   }
   S.tool = tool;
+  trackEvent("tool:" + tool);
   S.draw = null; S.typed = ""; showTyped();
   const isOn = (x) => x.dataset.tool === tool && (tool !== "opening" || !x.dataset.optab || x.dataset.optab === opTab());
   for (const b of document.querySelectorAll("[data-tool]")) b.classList.toggle("on", isOn(b));
@@ -2855,6 +2861,7 @@ $("f-under").onchange = async (e) => {
     $("st-msg").textContent = t("pdf_loading");
     try {
       const src = await pdfToImage(f);
+      trackEvent("pdf");
       $("st-msg").textContent = "";
       if (src) setUnderlay(src);
     } catch (err) { $("st-msg").textContent = t("pdf_error") + (err && err.message || err); }
@@ -3588,6 +3595,7 @@ function download() {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "house.json";
+  trackEvent("export");
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -3602,9 +3610,46 @@ if (DEMO) {
   $("c-live").closest("label").style.display = "none";
   $("b-demo-live").hidden = false;
   $("b-demo-live").onclick = () => {
+    trackEvent("live");
     try { localStorage.setItem(STORE, JSON.stringify(house())); } catch { /* private mode: the demo shows the example */ }
     location.href = "../?mine&lang=" + LANG;
   };
+}
+// The demo's visit counter (its server adds <meta name="demo-hits">): a start, "still here" every 15 s while the tab is in
+// view, and each kind of thing used once a visit (a tool, an edit, undo, a PDF, export, "See it live"). No cookies, nothing
+// kept in the browser - the same counter as the demo page, the visit marked "editor".
+const hitUrl = DEMO && document.querySelector('meta[name="demo-hits"]')?.content;
+if (hitUrl) {
+  const visit = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => (b % 36).toString(36)).join("");
+  const post = (body) => {
+    if (!(navigator.sendBeacon && navigator.sendBeacon(hitUrl, new Blob([body], { type: "text/plain" })))) fetch(hitUrl, { method: "POST", body, keepalive: true }).catch(() => {});
+  };
+  // the server keeps one beacon a second per visit: quick clicks wait in a queue instead of being dropped
+  const queue = [];
+  let busy = false;
+  const pump = () => {
+    if (busy || !queue.length) return;
+    busy = true;
+    post(queue.shift());
+    setTimeout(() => { busy = false; pump(); }, 1100);
+  };
+  const beacon = (k, extra = {}) => { queue.push(JSON.stringify({ k, v: visit, ...extra })); pump(); };
+  const seen = new Set();
+  // only what the visitor did: the editor also sets its tool and loads the plan on its own while starting
+  let touched = false;
+  for (const ev of ["pointerdown", "keydown"]) addEventListener(ev, () => { touched = true; }, { capture: true, once: true });
+  trackEvent = (n) => { if (touched && !seen.has(n)) { seen.add(n); beacon("event", { n: ("editor:" + n).replace(/[^a-z0-9_:.-]/gi, "_").toLowerCase().slice(0, 48) }); } };
+  let ref = "";
+  try { const r = document.referrer && new URL(document.referrer); if (r && r.host !== location.host) ref = r.host; } catch { /* none */ }
+  const ua = navigator.userAgent;
+  const br = /SamsungBrowser/.test(ua) ? "samsung" : /Edg\//.test(ua) ? "edge" : /OPR\/|Opera/.test(ua) ? "opera" : /Firefox\//.test(ua) ? "firefox"
+    : /Chrome\/|CriOS/.test(ua) ? "chrome" : /Safari\//.test(ua) ? "safari" : "other";
+  const W = window.innerWidth, wb = W < 480 ? "<480" : W < 768 ? "480-767" : W < 1280 ? "768-1279" : W < 1920 ? "1280-1919" : "1920+";
+  const q = new URLSearchParams(location.search), utm = {};
+  for (const k of ["source", "medium", "campaign"]) if (q.get("utm_" + k)) utm["u" + k[0]] = q.get("utm_" + k).slice(0, 60);
+  beacon("start", { ...utm, pg: "editor", ref, m: matchMedia("(max-width: 760px), (pointer: coarse)").matches, l: LANG, b: br, w: wb,
+    vl: (navigator.language || "").slice(0, 2).toLowerCase() });
+  setInterval(() => { if (document.visibilityState === "visible") beacon("ping"); }, 15000);
 }
 const httpBackend = {
   async plan() {

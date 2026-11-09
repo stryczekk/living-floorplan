@@ -1,5 +1,5 @@
 // card/panel.js
-var PANEL_BUILD = true ? "1.0.4 \xB7 08.11, 10:12" : "dev";
+var PANEL_BUILD = true ? "1.0.4 \xB7 09.11, 15:31" : "dev";
 var LivingFloorplanPanel = class extends HTMLElement {
   set hass(h) {
     this._hass = h;

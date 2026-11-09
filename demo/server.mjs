@@ -59,6 +59,7 @@ function hit(body) {
     row.ref = typeof h.ref === "string" ? h.ref.toLowerCase().replace(/[^a-z0-9.-]/g, "").slice(0, 80) : "";
     // someone's own Home Assistant (the README inside HACS): not its name, one bucket for all of them
     if (isPrivateHost(row.ref)) row.ref = "(home assistant)";
+    if (h.pg === "editor") row.pg = "editor"; // the editor in the demo (/editor/), not the demo page
     row.m = h.m ? 1 : 0;
     row.l = /^[a-z]{2}$/.test(h.l || "") ? h.l : "";
     row.b = ["chrome", "safari", "firefox", "edge", "samsung", "opera", "other"].includes(h.b) ? h.b : "other";
@@ -160,7 +161,7 @@ createServer((req, res) => {
   if (url.pathname === "/editor/" || url.pathname === "/editor/index.html") {
     // the floor plan editor in demo mode: starts from the example house, keeps the plan in the visitor's browser
     try {
-      return send(200, readFileSync(join(ROOT, "editor.html"), "utf8").replace("<head>", '<head>\n<meta name="demo-editor" content="1">'),
+      return send(200, readFileSync(join(ROOT, "editor.html"), "utf8").replace("<head>", '<head>\n<meta name="demo-editor" content="1">\n<meta name="demo-hits" content="/hit">'),
         "text/html; charset=utf-8", { "Cache-Control": "no-cache" });
     } catch { return send(404, "not found"); }
   }
