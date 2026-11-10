@@ -509,6 +509,11 @@ if (shot) {
   check("temperature map shows degrees", tTexts.length && tTexts.every((t) => /°$/.test(t)), tTexts.join(" "));
   check("map hides the light field and readings", getComputedStyle(svgM.querySelector("#room-climate")).display === "none");
   check("legend shown", !sr.getElementById("legend").hidden && /°/.test(sr.getElementById("legend").textContent), sr.getElementById("legend").textContent);
+  {
+    // issue #1: the colour bar spans the legend, like the values under it (the period chips make the legend wider)
+    const lg = sr.getElementById("legend"), bw = lg.querySelector(".bar").getBoundingClientRect().width, ew = lg.querySelector(".ends").getBoundingClientRect().width;
+    check("legend: the colour bar is as wide as its values", bw >= 150 && Math.abs(bw - ew) < 2, bw + " / " + ew);
+  }
   await pick(el, 3);
   await tick(300);
   const hTexts = [...svgM.querySelectorAll("#fc-map-text text")].map((t) => t.textContent);
@@ -800,6 +805,20 @@ if (shot) {
       wf.dispatchEvent(new PointerEvent("pointerup", { clientX: lr.left + lr.width / 2, clientY: lr.top + lr.height / 2, pointerId: 55, bubbles: true }));
       check("lock: let go early opens nothing", calls.length === n2 + 1, calls.length - n2);
     } else check("example has a lock on the plan", false);
+  }
+  // issue #2: a lock fed by a binary_sensor (a magnetic contact, e.g. a freezer door) says on/off - "on" shows it open
+  {
+    const m2 = JSON.parse(JSON.stringify(model)), bs = "binary_sensor.freezer_door";
+    (m2.locks || [])[0].entity = bs;
+    const hb = fakeHass("night");
+    hb.states[bs] = { entity_id: bs, state: "on", attributes: { device_class: "door" }, last_updated: "5" };
+    const eb = await mount({ model: m2 }, hb, 900);
+    const lk = eb.shadowRoot.querySelector(`.lock[data-entity="${bs}"]`);
+    const openOn = !!lk && lk.classList.contains("open");
+    eb.hass = { ...hb, states: { ...hb.states, [bs]: { ...hb.states[bs], state: "off", last_updated: "6" } } };
+    await tick(150);
+    check("lock: a binary_sensor 'on' shows it open, 'off' closed", openOn && !lk.classList.contains("open"), lk && lk.getAttribute("class"));
+    eb.remove();
   }
 
   // ⚙ per-viewer settings, kept in the browser

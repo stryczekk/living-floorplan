@@ -2687,7 +2687,7 @@ function applyStates(svg, states, locale = "en", paint = (c) => c) {
   each("[data-entity-detect]", (el) => set(el, N2.isDetected, isOn(st(el.getAttribute("data-entity-detect")))));
   each(`.${N2.lock}[data-entity]`, (el) => {
     const s = st(el.dataset.entity);
-    set(el, N2.isOpen, s && ["open", "unlocked", "opening"].includes(s.state));
+    set(el, N2.isOpen, !!s && (["open", "unlocked", "opening"].includes(s.state) || el.dataset.entity.startsWith("binary_sensor.") && s.state === "on"));
   });
   each(`.${N2.iconDevice}[data-entity]`, (el) => {
     const id = el.dataset.entity, s = st(id), kind = el.dataset.kind;
@@ -3730,7 +3730,7 @@ function backCloses(key2, onBack) {
 // card/card.js
 var CARD_NAME = "living-floorplan-card";
 var OLD_CARD_NAME = "house-floorplan-card";
-var VERSION = "1.0.4";
+var VERSION = "1.0.5";
 var LOADED_FROM = (() => {
   try {
     return new URL(import.meta.url);
@@ -4491,13 +4491,13 @@ var LivingFloorplanCard = class extends HTMLElement {
   .traveling #zoom, .traveling #legend { bottom: calc(var(--fc-timeline-h, 84px) + 16px); }
   .traveling #alerts { display: none; }
   #dim { position: absolute; inset: 0; z-index: 4; background: #000; pointer-events: none; transition: opacity 1.2s; }
-  #legend .bar { width: 150px; height: 8px; border-radius: 4px; margin: 4px 0 2px; }
+  #legend .bar { min-width: 150px; height: 8px; border-radius: 4px; margin: 4px 0 2px; }
   #legend .ends { display: flex; justify-content: space-between; color: var(--fc-text2); }
   #legend { max-width: calc(100% - 150px); box-sizing: border-box; }
   #legend .periods { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
   @container (max-width: 520px) {
     #legend { padding: 4px 7px; font-size: 11px; }
-    #legend .bar { width: 110px; }
+    #legend .bar { min-width: 110px; }
     #legend .periods button.fc { padding: 2px 6px; font-size: 11px; flex: none; }
     #legend .periods { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   }
@@ -6961,7 +6961,7 @@ var LivingFloorplanCard = class extends HTMLElement {
       for (const d of f.lowered.devices || []) {
         if (d.type === "icon" && ALARM_KINDS2.includes(d.kind) && d.entity) add3(rule(d.entity, "#e53935", translate(lang, "alert_" + d.kind)));
       }
-      for (const l of f.lowered.locks || []) if (l.entity) add3(rule(l.entity, "#e57373", translate(lang, "ev_open", { name: name(l.entity) }), ["open", "unlocked", "opening"]));
+      for (const l of f.lowered.locks || []) if (l.entity) add3(rule(l.entity, "#e57373", translate(lang, "ev_open", { name: name(l.entity) }), l.entity.startsWith("binary_sensor.") ? ["on"] : ["open", "unlocked", "opening"]));
       for (const c of f.lowered.cameras || []) {
         const det = this._config.cameraDetect[c.entity] || c.detect || (this._autoDetect || {})[c.entity];
         if (det) add3(rule(det, "#a99be0", translate(lang, "ev_detect", { name: c.name || name(c.entity) })));

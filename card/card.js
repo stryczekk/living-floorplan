@@ -33,7 +33,7 @@ import { backCloses } from "./back.js";
 export const CARD_NAME = "living-floorplan-card";
 // the card's name until 28.10.2026: dashboards made with it keep working
 export const OLD_CARD_NAME = "house-floorplan-card";
-export const VERSION = "1.0.4";
+export const VERSION = "1.0.5";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
 export function versionLabel(url = LOADED_FROM) {
@@ -703,13 +703,13 @@ export class LivingFloorplanCard extends HTMLElement {
   .traveling #zoom, .traveling #legend { bottom: calc(var(--fc-timeline-h, 84px) + 16px); }
   .traveling #alerts { display: none; }
   #dim { position: absolute; inset: 0; z-index: 4; background: #000; pointer-events: none; transition: opacity 1.2s; }
-  #legend .bar { width: 150px; height: 8px; border-radius: 4px; margin: 4px 0 2px; }
+  #legend .bar { min-width: 150px; height: 8px; border-radius: 4px; margin: 4px 0 2px; }
   #legend .ends { display: flex; justify-content: space-between; color: var(--fc-text2); }
   #legend { max-width: calc(100% - 150px); box-sizing: border-box; }
   #legend .periods { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
   @container (max-width: 520px) {
     #legend { padding: 4px 7px; font-size: 11px; }
-    #legend .bar { width: 110px; }
+    #legend .bar { min-width: 110px; }
     #legend .periods button.fc { padding: 2px 6px; font-size: 11px; flex: none; }
     #legend .periods { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   }
@@ -3041,7 +3041,7 @@ export class LivingFloorplanCard extends HTMLElement {
       for (const d of f.lowered.devices || []) {
         if (d.type === "icon" && ALARM_KINDS.includes(d.kind) && d.entity) add(rule(d.entity, "#e53935", translate(lang, "alert_" + d.kind)));
       }
-      for (const l of f.lowered.locks || []) if (l.entity) add(rule(l.entity, "#e57373", translate(lang, "ev_open", { name: name(l.entity) }), ["open", "unlocked", "opening"]));
+      for (const l of f.lowered.locks || []) if (l.entity) add(rule(l.entity, "#e57373", translate(lang, "ev_open", { name: name(l.entity) }), l.entity.startsWith("binary_sensor.") ? ["on"] : ["open", "unlocked", "opening"]));
       for (const c of f.lowered.cameras || []) {
         const det = this._config.cameraDetect[c.entity] || c.detect || (this._autoDetect || {})[c.entity];
         if (det) add(rule(det, "#a99be0", translate(lang, "ev_detect", { name: c.name || name(c.entity) })));

@@ -223,7 +223,8 @@ export function applyStates(svg, states, locale = "en", paint = (c) => c) {
   each("[data-entity-detect]", (el) => set(el, N.isDetected, isOn(st(el.getAttribute("data-entity-detect")))));
   each(`.${N.lock}[data-entity]`, (el) => {
     const s = st(el.dataset.entity);
-    set(el, N.isOpen, s && ["open", "unlocked", "opening"].includes(s.state));
+    // a binary_sensor (door / window / lock contact) says on/off: "on" is open, also for device_class lock (unlocked)
+    set(el, N.isOpen, !!s && (["open", "unlocked", "opening"].includes(s.state) || (el.dataset.entity.startsWith("binary_sensor.") && s.state === "on")));
   });
   each(`.${N.iconDevice}[data-entity]`, (el) => {
     const id = el.dataset.entity, s = st(id), kind = el.dataset.kind;
