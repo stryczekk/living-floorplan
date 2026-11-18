@@ -33,7 +33,7 @@ import { backCloses } from "./back.js";
 export const CARD_NAME = "living-floorplan-card";
 // the card's name until 28.10.2026: dashboards made with it keep working
 export const OLD_CARD_NAME = "house-floorplan-card";
-export const VERSION = "1.0.5";
+export const VERSION = "1.0.6";
 // the address Home Assistant loaded the card from: its ?v= tells which copy a browser runs
 const LOADED_FROM = (() => { try { return new URL(import.meta.url); } catch (e) { return null; } })();
 export function versionLabel(url = LOADED_FROM) {

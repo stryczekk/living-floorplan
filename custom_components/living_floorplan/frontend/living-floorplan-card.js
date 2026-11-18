@@ -3730,7 +3730,7 @@ function backCloses(key2, onBack) {
 // card/card.js
 var CARD_NAME = "living-floorplan-card";
 var OLD_CARD_NAME = "house-floorplan-card";
-var VERSION = "1.0.5";
+var VERSION = "1.0.6";
 var LOADED_FROM = (() => {
   try {
     return new URL(import.meta.url);

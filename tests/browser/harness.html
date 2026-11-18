@@ -60,7 +60,7 @@ function makeStates(mode) {
       s.state = mode === "night" ? "closed" : "open";
       s.attributes.current_position = mode === "night" ? 0 : i % 3 === 0 ? 40 : 100;
     } else if (id === "sensor.waste_collection") {
-      s.state = new Date(Date.now() + 864e5).toISOString().slice(0, 10); s.attributes.device_class = "date"; // tomorrow
+      s.state = new Date(Date.now() + 864e5 - new Date().getTimezoneOffset() * 60e3).toISOString().slice(0, 10) /* local date: UTC is a day off after 23:00 UTC */; s.attributes.device_class = "date"; // tomorrow
     } else if (id === "sensor.washer_state") { s.state = "run";
     } else if (id === "sensor.washer_end") { s.state = new Date(Date.now() + 85 * 60e3 + 20e3).toISOString(); s.attributes.device_class = "timestamp";
     } else if (id === "sensor.dryer_state") { s.state = "stop";
@@ -1192,7 +1192,7 @@ if (shot) {
   // widgets: a clock, a calendar, a reading, a scene button
   {
     const hw = fakeHass("night");
-    hw.states["calendar.home"] = { entity_id: "calendar.home", state: "off", attributes: { friendly_name: "Home", message: "Dentist", start_time: new Date(Date.now() + 864e5).toISOString().slice(0, 10) + " 09:00:00" }, last_updated: "c" };
+    hw.states["calendar.home"] = { entity_id: "calendar.home", state: "off", attributes: { friendly_name: "Home", message: "Dentist", start_time: new Date(Date.now() + 864e5 - new Date().getTimezoneOffset() * 60e3).toISOString().slice(0, 10) /* local date: UTC is a day off after 23:00 UTC */ + " 09:00:00" }, last_updated: "c" };
     hw.states["scene.evening"] = { entity_id: "scene.evening", state: "2026-10-26", attributes: { friendly_name: "Evening" }, last_updated: "s" };
     const ew = await mount({ widgets: [{ type: "clock", at: [10, 8] }, { type: "calendar", entity: "calendar.home", at: [90, 8] },
       { type: "state", entity: "sensor.solar_power", name: "Solar", at: [90, 92] }, { type: "button", entity: "scene.evening", icon: "🌙", at: [10, 92] }] }, hw, 900);
