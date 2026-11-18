@@ -134,7 +134,7 @@ floor: first-floor                 # open on this floor
 | `events` | alarms, locks, cameras | `[{ entity, state?, above?, below?, name?, color? }]` - more marks on the time line; `false` - none |
 | `influx` | `true` | use [InfluxDB Proxy](companions.md#influxdb-proxy) for history beyond the recorder when installed |
 | `price` | - | a kWh, for the light energy map |
-| `power`, `power_total`, `power_min` | auto, -, `2` | live power: by each device (`false` hides it; `{ <entity>: <sensor or list> }` by hand), the house's meter for the corner, the watts below which a device shows nothing |
+| `power`, `power_total`, `power_min` | auto, -, `2` | live power: by each device (`false` hides it; `{ <entity>: <sensor or list> }` by hand), the house's meter for the corner, the watts below which a device shows nothing; a hold hands the meter to Entity Insights (a chart of the power and energy) |
 | `alerts` | - | `[{ entity, state? \| above? \| below?, room?, color?, name? }]` |
 | `cold` | - | `{ outside: <sensor>, below: 12 }` - open windows in the cold |
 | `rules` | - | `[{ entity, state? \| above? \| below?, attribute?, for?, color?, blink?, room?, target? }]` |

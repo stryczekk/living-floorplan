@@ -28,6 +28,9 @@ plan: from now on **a hold** on the plan opens it.
 The floor plan passes it what the plan knows:
 
 - **power** of each lamp (`Power (W)` in the editor) → the energy and cost of that lamp;
+- the **meter** of a device (the one the live power uses: `power:`, or a power sensor on the device itself) → a chart of
+  the power it drew and its energy per hour / day / week, with the cost (a fridge, an air conditioner, a washer...;
+  needs Entity Insights 0.12);
 - **price** of a kWh (the card's `price`) → what it cost;
 - a **two-circuit chandelier** → one dialog for both circuits, each with its switch, titled by the chandelier's name;
 - the **lights on the plan** → "place in the house" ranks among them (not among every light entity you have).

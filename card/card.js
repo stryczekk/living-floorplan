@@ -2155,8 +2155,13 @@ export class LivingFloorplanCard extends HTMLElement {
         // "place in the house" among what is on the plan (not every entity of the domain: spare channels...)
         const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)]
           .map((e) => e.getAttribute("data-entity")))] : [];
+        // the meter the plan knows for it (`power:` or one on its own device - a fridge's door, metered by the
+        // fridge): the dialog draws what it drew and its energy over the range
+        const pairs = this._config.power === false ? [] : this._powerPairs();
+        const meters = ids.map((e) => (pairs.find((p) => p[0] === e) || [])[1]);
         window.entityInsights.open({ entities: ids, ...(fx ? this._fixtureTitle(id, fx) : {}),
           rank_with: onPlan.length > 1 ? onPlan : undefined,
+          power: meters.every((m) => m && m.length) ? meters.flat() : undefined,
           watts: watts.every(Number.isFinite) ? watts : undefined, price: this._config.price || undefined }, this._hass);
       } else this._moreInfo(id);
       return true;

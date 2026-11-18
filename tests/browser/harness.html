@@ -1094,6 +1094,25 @@ if (shot) {
     const el2 = await mount({ power: { "switch.dehumidifier": ["sensor.dehumidifier_power", "sensor.dryer_power"] } }, hp, 900);
     const pw2 = el2.shadowRoot.querySelector('#fc-power text[data-power="switch.dehumidifier"]');
     check("power: a list of meters for one mark is added up", pw2 && pw2.textContent === "⚡1.3 kW", pw2 && pw2.textContent);
+    {
+      // hold -> the insights dialog gets the meters the plan knows for it (a power chart and energy there)
+      const opened = [], prevEI = window.entityInsights;
+      window.entityInsights = { open: (req) => { opened.push(req); return true; } };
+      const holdOn = async (el, pid) => {
+        const w = el.shadowRoot.getElementById("wrap"), b = el.shadowRoot.querySelector('[data-entity="switch.dehumidifier"] .icon-badge').getBoundingClientRect();
+        const at = { clientX: b.left + b.width / 2, clientY: b.top + b.height / 2, pointerId: pid, bubbles: true };
+        const n = opened.length;
+        w.dispatchEvent(new PointerEvent("pointerdown", at)); await tick(900); w.dispatchEvent(new PointerEvent("pointerup", at));
+        return opened[n];
+      };
+      const q1 = await holdOn(el2, 71);
+      check("power: hold hands the dialog the meters from `power:`", q1 && JSON.stringify(q1.power) === '["sensor.dehumidifier_power","sensor.dryer_power"]', JSON.stringify(q1 && q1.power));
+      const q2 = await holdOn(await mount({}, hp, 900), 72);
+      check("power: hold hands the dialog the meter on its own device", q2 && JSON.stringify(q2.power) === '["sensor.dehumidifier_power"]', JSON.stringify(q2 && q2.power));
+      const q3 = await holdOn(await mount({ power: false }, hp, 900), 73);
+      check("power: false - no meter for the dialog", q3 && q3.power === undefined, JSON.stringify(q3 && q3.power));
+      window.entityInsights = prevEI;
+    }
     const en = await mount({ power: false }, hp, 900);
     check("power: false hides it", !en.shadowRoot.querySelector("#fc-power") && en.shadowRoot.getElementById("fc-power-total").hidden);
   }

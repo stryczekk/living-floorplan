@@ -5993,10 +5993,13 @@ var LivingFloorplanCard = class extends HTMLElement {
           return w && w.getAttribute("data-watts") !== null ? Number(w.getAttribute("data-watts")) : NaN;
         });
         const onPlan = this._svg ? [...new Set([...this._svg.querySelectorAll(`[data-entity^="${id.split(".")[0]}."]`)].map((e) => e.getAttribute("data-entity")))] : [];
+        const pairs = this._config.power === false ? [] : this._powerPairs();
+        const meters = ids.map((e) => (pairs.find((p2) => p2[0] === e) || [])[1]);
         window.entityInsights.open({
           entities: ids,
           ...fx2 ? this._fixtureTitle(id, fx2) : {},
           rank_with: onPlan.length > 1 ? onPlan : void 0,
+          power: meters.every((m) => m && m.length) ? meters.flat() : void 0,
           watts: watts2.every(Number.isFinite) ? watts2 : void 0,
           price: this._config.price || void 0
         }, this._hass);
